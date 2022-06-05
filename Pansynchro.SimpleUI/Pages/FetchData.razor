@@ -1,0 +1,84 @@
+﻿@page "/fetchdata"
+@using Pansynchro.SimpleUI.Shared
+@inject HttpClient _http
+
+<PageTitle>Connector selection</PageTitle>
+
+<h1>Select a connector</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (_connectors == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model=_data OnSubmit=SelectConnector>
+        <DataAnnotationsValidator />
+        <InputSelect @bind-Value=CurrentName>
+            <option/>
+            @foreach (var conn in _connectors) {
+               <option>@conn.Name</option>
+            }
+        </InputSelect><p />
+        @if (_current != null) {
+            @(_current.Description)<br />
+            @foreach (var cfg in _data.Responses)
+            {
+                <p>
+                    <strong>@(cfg.Name)</strong> (@(cfg.Description))<br />
+                    @if (cfg is StringConfigValue str)
+                    {
+                        <input @bind=str.sValue></input>
+                    }
+                    else if (cfg is IntConfigValue ic) 
+                    {
+                        <input type="number" @bind-value=ic.iValue></input>
+                    }
+                    else if (cfg is BoolConfigValue bc)
+                    {
+                        <input type="checkbox" @bind-value=bc.bValue />
+                    }
+                    else if (cfg is PicklistConfigValue pc)
+                    {
+                        <select @bind=pc.sValue>
+                            @foreach (var opt in pc.Options!) {
+                               <option>@opt</option>
+                            }
+                        </select>
+                    }
+                </p>
+            }
+            @_response;
+            <button type="submit">Select</button>
+        }
+    </EditForm>
+}
+
+@code {
+    private ConnectorData? _current;
+    private ConnectorData[]? _connectors;
+    private ConnectorConfiguration _data = new();
+    private string? _response;
+
+    private string? CurrentName
+    {
+        get => _current?.Name;
+        set {
+            _current = _connectors?.FirstOrDefault(c => c.Name == value);
+            _data.Initialize(_current);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _connectors = await _http.GetFromJsonAsync<ConnectorData[]>("https://localhost:7223/api/connectors");
+    }
+
+    private async Task SelectConnector()
+    {
+        var result = await _http.PostAsJsonAsync("https://localhost:7223/api/connectors", _data);
+        _response = await result.Content.ReadAsStringAsync();
+    }
+}

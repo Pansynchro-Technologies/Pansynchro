@@ -1,0 +1,17 @@
+﻿@page "/"
+@inject UserProfile _profile
+
+<PageTitle>Index</PageTitle>
+
+<h1>Hello from Pansynchro Technologies!</h1>
+@if (_profile.Id == Guid.Empty) {
+    <p>Welcome to Pansynchro.  Let's take a moment to <NavLink href="profile">get your profile set up.</NavLink></p>
+}
+else
+{
+    <p>Welcome back, <NavLink href="profile">@(_profile.Name).</NavLink></p>
+}
+
+@code {
+    
+}

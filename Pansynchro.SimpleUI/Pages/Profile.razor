@@ -1,0 +1,22 @@
+﻿@page "/profile"
+@inject UserProfile _profile
+@inject HttpClient _http
+
+<h3>Profile</h3>
+<EditForm Model=_profile OnSubmit="SubmitData">
+    <strong>Name:</strong> <InputText @bind-Value=_profile.Name></InputText><p/>
+    <strong>Email (optional):</strong> <InputText @bind-Value=_profile.Email></InputText><p />
+    <strong>Subscribe for updates?</strong> <ToggleSwitch @bind-Value=_profile.IsSubscribed></ToggleSwitch><p/>
+    <button type="submit">Done</button>
+</EditForm>
+<p><small>(Pansynchro Technologies will never sell your data, and doesn't even collect it except 
+if you choose to provide your email address to subscribe to updates.  Everything else you enter here,
+including your name, remains local-only.)</small></p>
+@code {
+    private async Task SubmitData()
+    {
+        var response = await _http.PostAsJsonAsync("https://localhost:7223/api/profile", _profile);
+        response.EnsureSuccessStatusCode();
+        _profile.Id = Guid.Parse(await response.Content.ReadAsStringAsync());
+    }
+}

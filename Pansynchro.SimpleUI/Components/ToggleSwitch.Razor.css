@@ -1,0 +1,34 @@
+﻿input {
+    position: relative;
+    top: 4.5px;
+    height: 20px;
+    width: 50px;
+    -webkit-appearance: none;
+    background: transparent;
+    outline: 1px solid black;
+    border-radius: 15px;
+    transition: .3s;
+}
+
+input:checked {
+    background: blue;
+}
+
+input:before {
+    cursor: pointer;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    transform: scale(0.85);
+    border-radius: 50%;
+    background: white;
+    outline: 1px solid black;
+    transition: .3s;
+}
+
+input:checked:before {
+    left: 30px;
+}
