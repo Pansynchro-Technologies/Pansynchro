@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Boo.Lang.Compiler">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\SharpDevelop\4.4\AddIns\BackendBindings\BooBinding\Boo.Lang.Compiler.dll</HintPath>
+    </Reference>
+    <Reference Include="Boo.Lang.Interpreter">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\SharpDevelop\4.4\AddIns\BackendBindings\BooBinding\Boo.Lang.Interpreter.dll</HintPath>
+    </Reference>
+    <Reference Include="Pansynchro.Transformer">
+      <HintPath>..\..\..\..\OneDrive\Documents\SharpDevelop Projects\Pansynchro\Pansynchro.Transformer\bin\Debug\Pansynchro.Transformer.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
