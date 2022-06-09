@@ -23,12 +23,7 @@ namespace Pansynchro.State
         {
             while (arg.Read()) {
                 var name = arg.GetString(0);
-                if (name.Contains('.')) {
-                    var parts = name.Split('.');
-                    yield return new(new StreamDescription(parts[0], parts[1]), arg.GetString(1));
-                } else {
-                    yield return new(new StreamDescription(null, name), arg.GetString(1));
-                }
+                yield return new(StreamDescription.Parse(name), arg.GetString(1));
             }
         }
 
