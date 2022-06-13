@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 
 using ChoETL;
-using System.Data;
 
 namespace Pansynchro.Connectors.TextFile.CSV
 {
-    public class CsvReader : IReader, ISourcedConnector
+    public class CsvReader : IReader, ISourcedConnector, IRandomStreamReader
     {
         private readonly string _conf;
         private IDataSource? _source;
@@ -21,35 +22,46 @@ namespace Pansynchro.Connectors.TextFile.CSV
             _conf = configuration;
         }
 
-        public async IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source)
+        public IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source)
         {
             if (_source == null) {
                 throw new DataException("Must call SetDataSource before calling ReadFrom");
             }
-            await foreach (var (name, stream) in _source.GetDataAsync()) {
-                var csvReader = CreateReader(stream);
-                try {
-                    yield return new DataStream(new(null, name), StreamSettings.None, csvReader.AsDataReader());
-                } finally {
-                    csvReader.Dispose();
+            return DataStream.CombineStreamsByName(Impl());
+
+            async IAsyncEnumerable<DataStream> Impl()
+            {
+                await foreach (var (name, reader) in _source.GetTextAsync()) {
+                    var csvReader = CreateReader(reader);
+                    try {
+                        yield return new DataStream(new(null, name), StreamSettings.None, csvReader.AsDataReader());
+                    } finally {
+                        csvReader.Dispose();
+                    }
                 }
             }
         }
 
-        private ChoCSVReader<dynamic> CreateReader(Stream stream)
+        public Task<IDataReader> ReadStream(DataDictionary source, string name)
         {
-            var result = new ChoCSVReader(stream).WithMaxScanRows(10);
+            if (_source == null) {
+                throw new DataException("Must call SetDataSource before calling ReadStream");
+            }
+            var readers = _source.GetTextAsync(name).Select(r => CreateReader(r).AsDataReader()).ToEnumerable();
+            return Task.FromResult<IDataReader>(new GroupingReader(readers));
+        }
+
+        private ChoCSVReader<dynamic> CreateReader(TextReader reader)
+        {
+            var result = new ChoCSVReader(reader).WithMaxScanRows(10);
             var configurator = new CsvConfigurator(_conf);
-            if (configurator.UsesHeader)
-            {
+            if (configurator.UsesHeader) {
                 result = result.WithFirstLineHeader(true);
             }
-            if (configurator.AutoDetectDelimiter)
-            {
+            if (configurator.AutoDetectDelimiter) {
                 result = result.AutoDetectDelimiter(true);
             }
-            if (configurator.UsesQuotes)
-            { 
+            if (configurator.UsesQuotes) { 
                 result = result.QuoteAllFields(true);
             }
             return result;

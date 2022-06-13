@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Pansynchro.Core.Helpers
 {
-    internal static class LinqHelper
+    public static class LinqHelper
     {
         /// <summary>
         /// Groups the adjacent elements of a sequence according to a specified
@@ -20,7 +20,7 @@ namespace Pansynchro.Core.Helpers
         /// 
         /// Adapted from code found at https://stackoverflow.com/a/72347137/32914
         /// </remarks>
-        public static IAsyncEnumerable<IAsyncGrouping<TKey, TSource>>
+        internal static IAsyncEnumerable<IAsyncGrouping<TKey, TSource>>
             LazyGroupAdjacent<TSource, TKey>(
                 this IAsyncEnumerable<TSource> source,
                 Func<TSource, TKey> keySelector,
@@ -108,6 +108,24 @@ namespace Pansynchro.Core.Helpers
                 CancellationToken cancellationToken = default)
             {
                 return _sequence.GetAsyncEnumerator(cancellationToken);
+            }
+        }
+
+        public static IEnumerable<int> IndexWhere<T>(this IEnumerable<T> source, Func<T, bool> filter)
+        {
+            ArgumentNullException.ThrowIfNull(source, nameof(source));
+            ArgumentNullException.ThrowIfNull(filter, nameof(filter));
+            return IndexWhereImpl(source, filter);
+        }
+
+        private static IEnumerable<int> IndexWhereImpl<T>(IEnumerable<T> source, Func<T, bool> filter)
+        {
+            int i = 0;
+            foreach (var item in source) {
+                if (filter(item)) {
+                    yield return i;
+                }
+                ++i;
             }
         }
     }

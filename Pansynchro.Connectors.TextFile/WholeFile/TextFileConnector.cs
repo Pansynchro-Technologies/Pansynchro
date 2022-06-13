@@ -12,7 +12,7 @@ namespace Pansynchro.Connectors.TextFile.WholeFile
     {
         public override string Name => "Text File (whole)";
 
-        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer;
+        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.RandomAccessReader;
 
         public override NameStrategyType Strategy => NameStrategyType.NameOnly;
 

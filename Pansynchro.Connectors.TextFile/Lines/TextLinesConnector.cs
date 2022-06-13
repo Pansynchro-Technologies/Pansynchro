@@ -12,7 +12,7 @@ namespace Pansynchro.Connectors.TextFile.Lines
     {
         public override string Name => "Text File (lines)";
 
-        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer;
+        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.RandomAccessReader;
 
         public override NameStrategyType Strategy => NameStrategyType.Identity;
 

@@ -12,7 +12,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
     {
         public override string Name => "CSV";
 
-        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator;
+        public override Capabilities Capabilities => Capabilities.ALL;
 
         public override NameStrategyType Strategy => NameStrategyType.Identity;
 

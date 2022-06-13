@@ -38,11 +38,31 @@ namespace Pansynchro.Sources.Http
             }
         }
 
+        public async IAsyncEnumerable<Stream> GetDataAsync(string name)
+        {
+            using var client = new HttpClient();
+            foreach (var (lName, url) in GetUrls()) {
+                if (lName == name) {
+                    yield return await client.GetStreamAsync(url);
+                }
+            }
+        }
+
         public async IAsyncEnumerable<(string name, TextReader data)> GetTextAsync()
         {
             using var client = new HttpClient();
             foreach (var (name, url) in GetUrls()) {
                 yield return (name, new StringReader(await client.GetStringAsync(url)));
+            }
+        }
+
+        public async IAsyncEnumerable<TextReader> GetTextAsync(string name)
+        {
+            using var client = new HttpClient();
+            foreach (var (lName, url) in GetUrls()) {
+                if (lName == name) {
+                    yield return new StringReader(await client.GetStringAsync(url));
+                }
             }
         }
 

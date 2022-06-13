@@ -13,7 +13,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
         public override string Name => "JSON";
 
         public override Capabilities Capabilities 
-            => Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator;
+            => Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator | Capabilities.RandomAccessReader;
 
         public override NameStrategyType Strategy => NameStrategyType.Identity;
 

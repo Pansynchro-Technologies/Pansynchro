@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Pansynchro.Core;
@@ -9,7 +10,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.Lines
 {
-    class TextLinesReader : IReader, ISourcedConnector
+    class TextLinesReader : IReader, ISourcedConnector, IRandomStreamReader
     {
         private IDataSource? _source;
         private readonly string _config;
@@ -24,7 +25,7 @@ namespace Pansynchro.Connectors.TextFile.Lines
             if (_source == null) {
                 throw new DataException("Must call SetDataSource before calling ReadFrom");
             }
-            return DataStream.CombineStreamsByName(Impl);
+            return DataStream.CombineStreamsByName(Impl());
 
             async IAsyncEnumerable<DataStream> Impl()
             {
@@ -36,6 +37,18 @@ namespace Pansynchro.Connectors.TextFile.Lines
                     }
                 }
             }
+        }
+
+        public Task<IDataReader> ReadStream(DataDictionary source, string name)
+        {
+            if (_source == null) {
+                throw new DataException("Must call SetDataSource before calling ReadStream");
+            }
+            var values = _source.GetTextAsync(name)
+                .Select(r => new FileLinesReader(name, r))
+                .ToEnumerable();
+            var result = new GroupingReader(values);
+            return Task.FromResult<IDataReader>(result);
         }
 
         void ISourcedConnector.SetDataSource(IDataSource source) => _source = source;

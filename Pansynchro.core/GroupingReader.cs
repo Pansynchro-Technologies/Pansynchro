@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Pansynchro.Core
 {
-    internal class GroupingReader : IDataReader
+    public class GroupingReader : IDataReader
     {
         private readonly IEnumerator<IDataReader> _readers;
         private IDataReader _reader = null!;

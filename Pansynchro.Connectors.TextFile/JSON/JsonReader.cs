@@ -14,7 +14,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {
-    public class JsonReader : IReader, ISourcedConnector
+    public class JsonReader : IReader, ISourcedConnector, IRandomStreamReader
     {
         private readonly string _config;
         private IDataSource? _source;
@@ -29,29 +29,53 @@ namespace Pansynchro.Connectors.TextFile.JSON
             if (_source == null) {
                 throw new DataException("Must call SetDataSource before calling ReadFrom");
             }
-            return DataStream.CombineStreamsByName(Impl);
+            return DataStream.CombineStreamsByName(Impl());
             
             async IAsyncEnumerable<DataStream> Impl() {
                 var conf = new JsonConfigurator(_config);
-                await foreach (var (name, stream) in _source.GetTextAsync()) {
-                    var strategy = conf.Streams.FirstOrDefault(s => s.Name == name);
-                    if (strategy == null) {
-                        throw new MissingConfigException(name);
-                    }
-                    var data = JToken.Parse(stream.ReadToEnd());
-                    Validate(name, data, strategy.ErrorPath, await LoadSchema(strategy.Schema));
-                    if (strategy.FileStructure == FileType.Array) {
-                        if (!source.HasStream(name)) {
-                            throw new MissingDataException(name);
-                        }
-                        yield return BuildArrayStream(name, data, source.GetStream(name));
-                    } else {
-                        foreach (var ls in BuildObjectStreams(name, data, strategy.Streams.ToDictionary(s => s.Name), source)) {
-                            yield return ls;
-                        }
+                await foreach (var (name, reader) in _source.GetTextAsync()) {
+                    await foreach (var stream in LoadData(conf, source, name, reader)) {
+                        yield return stream;
                     }
                 }
             }
+        }
+
+        private async IAsyncEnumerable<DataStream> LoadData(
+            JsonConfigurator conf, DataDictionary source, string name, TextReader reader
+        )
+        {
+            var strategy = conf.Streams.FirstOrDefault(s => s.Name == name);
+            if (strategy == null) {
+                throw new MissingConfigException(name);
+            }
+            var data = JToken.Parse(reader.ReadToEnd());
+            Validate(name, data, strategy.ErrorPath, await LoadSchema(strategy.Schema));
+            if (strategy.FileStructure == FileType.Array) {
+                if (!source.HasStream(name)) {
+                    throw new MissingDataException(name);
+                }
+                yield return BuildArrayStream(name, data, source.GetStream(name));
+            } else {
+                foreach (var ls in BuildObjectStreams(name, data, strategy.Streams.ToDictionary(s => s.Name), source)) {
+                    yield return ls;
+                }
+            }
+        }
+
+        public Task<IDataReader> ReadStream(DataDictionary source, string name)
+        {
+            if (_source == null) {
+                throw new DataException("Must call SetDataSource before calling ReadStream");
+            }
+            var streamNameParser = StreamDescription.Parse(name);
+            var streamName = streamNameParser.Namespace ?? streamNameParser.Name;
+            var conf = new JsonConfigurator(_config);
+            var readers = _source.GetTextAsync(streamName)
+                .SelectMany(reader => LoadData(conf, source, name, reader))
+                .Where(ds => ds.Name.Equals(streamNameParser))
+                .Select(ds => ds.Reader);
+            return Task.FromResult<IDataReader>(new GroupingReader(readers.ToEnumerable()));
         }
 
         private static async ValueTask<string?> LoadSchema(string? schema)

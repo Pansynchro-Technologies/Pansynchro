@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
@@ -12,6 +13,11 @@ namespace Pansynchro.Core
         IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source);
         void SetIncrementalPlan(Dictionary<StreamDescription, string> plan);
         Task<Exception?> TestConnection();
+    }
+
+    public interface IRandomStreamReader
+    {
+        Task<IDataReader> ReadStream(DataDictionary source, string name);
     }
 
     public interface IDbReader : IReader

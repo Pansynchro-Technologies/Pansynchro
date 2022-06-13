@@ -22,8 +22,9 @@ namespace Pansynchro.Core.Connectors
         Writer = 1 << 1,
         Analyzer = 1 << 2,
         Configurator = 1 << 3,
+        RandomAccessReader = 1 << 4,
 
-        ALL = Reader | Writer | Analyzer | Configurator
+        ALL = Reader | Writer | Analyzer | Configurator | RandomAccessReader
     }
 
     public abstract class ConnectorCore
@@ -41,5 +42,6 @@ namespace Pansynchro.Core.Connectors
         public bool HasWriter => Capabilities.HasFlag(Capabilities.Writer);
         public bool HasAnalyzer => Capabilities.HasFlag(Capabilities.Analyzer);
         public bool HasConfig => Capabilities.HasFlag(Capabilities.Configurator);
+        public bool HasRandomAccessReader => Capabilities.HasFlag(Capabilities.RandomAccessReader);
     }
 }

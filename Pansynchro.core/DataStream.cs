@@ -24,10 +24,10 @@ namespace Pansynchro.Core
             return this with { Reader = new TransformingReader(Reader, transformer) };
         }
 
-        public static async IAsyncEnumerable<DataStream> CombineStreamsByName(Func<IAsyncEnumerable<DataStream>> source)
+        public static async IAsyncEnumerable<DataStream> CombineStreamsByName(IAsyncEnumerable<DataStream> source)
         {
-            await foreach (var group in source().LazyGroupAdjacent(s => s.Name)) {
-                yield return (await group.FirstAsync())with {
+            await foreach (var group in source.LazyGroupAdjacent(s => s.Name)) {
+                yield return (await group.FirstAsync()) with {
                     Reader = new GroupingReader(group.Select(g => g.Reader).ToEnumerable())
                 };
             }
