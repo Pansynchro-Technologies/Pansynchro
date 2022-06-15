@@ -23,6 +23,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     
+    - name: Test env before
+      run: env
+    
     - name: Get Build Version
       run: |
         Import-Module .\Build\GetBuildVersion.psm1
@@ -31,6 +34,9 @@ jobs:
         echo "BUILD_VERSION=$version" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
       shell: pwsh
 
+    - name: Test env after
+      run: env
+    
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
