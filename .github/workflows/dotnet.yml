@@ -1,4 +1,4 @@
-name: Nuget_Build
+name: Build
 
 on:
   create:
