@@ -30,7 +30,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Fireb
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.MSSQL", "Pansynchro.Connections.MSSQL\Pansynchro.Connectors.MSSQL.csproj", "{F3517E90-7974-476F-A198-CF242318BEDA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.MySql", "Pansynchro.Connections.MySQL\Pansynchro.Connectors.MySql.csproj", "{4BBACF32-504E-44BE-8FB1-BC84EAC21526}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.MySql", "Pansynchro.Connections.MySql\Pansynchro.Connectors.MySql.csproj", "{4BBACF32-504E-44BE-8FB1-BC84EAC21526}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Postgres", "Pansynchro.Connectors.Postgres\Pansynchro.Connectors.Postgres.csproj", "{7E633102-7B88-4814-8E9F-9C92792BFC5F}"
 EndProject
