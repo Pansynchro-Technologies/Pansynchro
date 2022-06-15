@@ -27,6 +27,7 @@ ClientLibrary={1};ServerType=1;";
 
         public FirebirdStateManager(string name)
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             _conn = new FbConnection(
                 string.Format(CultureInfo.InvariantCulture, CONN_STRING, name, ClientLib(name))
             );

@@ -29,7 +29,9 @@ namespace Pansynchro.Core.DataDict
                 body.Add(SerializeStream(stream));
             body.Add(SerializeDeps(schema.DependencyOrder));
             body.Add(SerializeCustomTypes(schema.CustomTypes));
-            body.Add(SerializeIncrementalData(schema.Incremental));
+            if (schema.Incremental.Count > 0) {
+                body.Add(SerializeIncrementalData(schema.Incremental));
+            }
             var result = new Command("DataDictionary", new[] { WriteName(schema.Name) }, null, body.ToArray());
             return result;
         }
@@ -181,7 +183,7 @@ namespace Pansynchro.Core.DataDict
         private static Dictionary<StreamDescription, IncrementalStrategy> ParseIncrementalData(Command? data)
         {
             var result = new Dictionary<StreamDescription, IncrementalStrategy>();
-            if (data != null) {
+            if (data?.Arguments.Length > 0) {
                 var values = (KvListNode)data.Arguments[0];
                 foreach (var pair in values.Values) {
                     var key = Enum.Parse<IncrementalStrategy>(pair.Key);
@@ -239,8 +241,7 @@ namespace Pansynchro.Core.DataDict
 
         private static FieldDefinition ParseField(Command ast, string typeName)
         {
-            if (ast.Name != typeName)
-            {
+            if (ast.Name != typeName) {
                 throw new ArgumentException($"Invalid field data: {ast.ToString()}");
             }
             var fieldMie = (NamedListNode)ast.Arguments[0];

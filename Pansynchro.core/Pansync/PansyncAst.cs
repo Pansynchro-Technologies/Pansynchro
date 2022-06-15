@@ -179,11 +179,11 @@ namespace Pansynchro.Core.Pansync
                 sb.Append(' ');
                 sb.AppendJoin<Expression>(", ", Arguments);
             }
-            if (Results?.Length >= 0) {
+            if (Results?.Length > 0) {
                 sb.Append(" as ");
                 sb.AppendJoin<Expression>(", ", Results);
             }
-            if (Body?.Length >= 0) {
+            if (Body?.Length > 0) {
                 sb.AppendLine(":");
                 foreach (var stmt in Body) {
                     stmt.Print(sb, indentation + 1);
