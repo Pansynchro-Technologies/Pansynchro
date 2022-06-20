@@ -181,5 +181,9 @@ namespace Pansynchro.Core.DataDict
         Decimal64,
         Decimal128,
         Int128,
+        SByte,
+        UShort,
+        UInt,
+        ULong,
     }
 }
