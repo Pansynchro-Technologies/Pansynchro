@@ -3,8 +3,8 @@ using System.Data;
 using System.IO;
 using System.Linq;
 
-using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Protocol
 {

@@ -11,6 +11,7 @@ using PReader = Parquet.ParquetReader;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.Parquet
 {

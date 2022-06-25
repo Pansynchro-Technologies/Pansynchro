@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.Threading.Tasks;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Core
 {
@@ -18,6 +19,11 @@ namespace Pansynchro.Core
     public interface IRandomStreamReader
     {
         Task<IDataReader> ReadStream(DataDictionary source, string name);
+        async Task<IDataReader> ReadStream(DataDictionary source, string name, int maxResults)
+        {
+            var result = await ReadStream(source, name);
+            return new MaxSizeReader(result, maxResults);
+        }
     }
 
     public interface IDbReader : IReader

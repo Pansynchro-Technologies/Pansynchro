@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Core.Transformations
 {

@@ -9,6 +9,7 @@ using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 
 using ChoETL;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.TextFile.CSV
 {

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.TextFile.WholeFile
 {

@@ -2,7 +2,7 @@
 using System.Data.Common;
 
 using Microsoft.Data.SqlClient;
-
+using Pansynchro.Core.Helpers;
 using Pansynchro.Core.Incremental;
 using Pansynchro.SQL;
 
@@ -43,10 +43,14 @@ namespace Pansynchro.Connectors.MSSQL
             return result;
         }
 
+        protected override string QueryWithMaxRows(string sql, int maxRows)
+            => sql.ReplaceFirst("select ", $"select top {maxRows} ");
+
         void IDisposable.Dispose()
         {
             base.Dispose();
             _perfConn?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

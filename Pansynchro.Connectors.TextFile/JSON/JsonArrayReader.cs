@@ -3,7 +3,7 @@ using System.Linq;
 
 using Newtonsoft.Json.Linq;
 
-using Pansynchro.Core;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {

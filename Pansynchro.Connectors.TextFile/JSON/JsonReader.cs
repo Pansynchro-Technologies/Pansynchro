@@ -11,6 +11,7 @@ using Newtonsoft.Json.Schema;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 
-namespace Pansynchro.Core
+namespace Pansynchro.Core.Readers
 {
     internal class TransformingReader : ArrayReader
     {
@@ -34,7 +34,8 @@ namespace Pansynchro.Core
         public override bool Read()
         {
             var result = _transformer.MoveNext();
-            if (result) {
+            if (result)
+            {
                 _buffer = _transformer.Current!;
             }
             return result;

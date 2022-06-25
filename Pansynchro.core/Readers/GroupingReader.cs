@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Pansynchro.Core
+namespace Pansynchro.Core.Readers
 {
     public class GroupingReader : IDataReader
     {
@@ -20,9 +20,11 @@ namespace Pansynchro.Core
         private void LoadReader()
         {
             _reader?.Dispose();
-            if (_readers.MoveNext()) {
+            if (_readers.MoveNext())
+            {
                 _reader = _readers.Current;
-            } else _done = true;
+            }
+            else _done = true;
         }
 
         public object this[int i] => _reader[i];
@@ -160,7 +162,8 @@ namespace Pansynchro.Core
 
         public bool NextResult()
         {
-            while (!_reader.NextResult()) {
+            while (!_reader.NextResult())
+            {
                 LoadReader();
                 if (_done)
                     return false;
@@ -170,7 +173,8 @@ namespace Pansynchro.Core
 
         public bool Read()
         {
-            while (!_reader.Read()) {
+            while (!_reader.Read())
+            {
                 LoadReader();
                 if (_done)
                     return false;

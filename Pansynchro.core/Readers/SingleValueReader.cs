@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Pansynchro.Core
+namespace Pansynchro.Core.Readers
 {
     public class SingleValueReader : ArrayReader
     {

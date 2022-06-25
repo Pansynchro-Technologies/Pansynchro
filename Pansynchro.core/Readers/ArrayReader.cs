@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 
-namespace Pansynchro.Core
+namespace Pansynchro.Core.Readers
 {
     public abstract class ArrayReader : IDataReader
     {

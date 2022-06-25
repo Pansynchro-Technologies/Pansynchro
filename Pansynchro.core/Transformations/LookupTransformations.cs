@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Data;
 
+using Pansynchro.Core.Readers;
+
 namespace Pansynchro.Core.Transformations
 {
     public static class LookupTransformations

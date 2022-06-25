@@ -21,7 +21,6 @@ namespace Pansynchro.SQL
         protected Func<StreamDefinition, Task<IDataReader>> _getReader;
         private Dictionary<StreamDescription, string>? _incrementalPlan;
 
-
         public SqlDbReader(string connectionString)
         {
             _conn = CreateConnection(connectionString);
@@ -43,7 +42,10 @@ namespace Pansynchro.SQL
 
         protected abstract ISqlFormatter SqlFormatter { get; }
 
-        protected async Task<IDataReader> FullSyncReader(StreamDefinition stream)
+        protected Task<IDataReader> FullSyncReader(StreamDefinition stream)
+            => FullSyncReader(stream, -1);
+
+        protected async Task<IDataReader> FullSyncReader(StreamDefinition stream, int maxRows)
         {
             var rcf = stream.RareChangeFields;
             var columnList = rcf?.Length > 0
@@ -56,17 +58,29 @@ namespace Pansynchro.SQL
                 var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
                 sql = $"{sql} order by {string.Join(", ", order.Select(formatter.QuoteName))}";
             }
+            if (maxRows >= 0) {
+                sql = QueryWithMaxRows(sql, maxRows);
+            }
             var query = _conn.CreateCommand();
             query.CommandText = sql;
             query.CommandTimeout = 0;
             return await query.ExecuteReaderAsync();
         }
 
-        public Task<IDataReader> ReadStream(DataDictionary source, string name)
+        protected virtual string QueryWithMaxRows(string sql, int maxRows)
+            => $"{sql} LIMIT {maxRows}";
+
+        public async Task<IDataReader> ReadStream(DataDictionary source, string name, int maxResults)
         {
             var stream = source.GetStream(name);
-            return FullSyncReader(stream);
+            if (_conn.State == ConnectionState.Closed) {
+                await _conn.OpenAsync();
+            }
+            return await FullSyncReader(stream, maxResults);
         }
+
+        public Task<IDataReader> ReadStream(DataDictionary source, string name)
+            => ReadStream(source, name, -1);
 
         public async IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source)
         {
