@@ -1,28 +1,38 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
 
 namespace Pansynchro.Sources.Files
 {
+    record FileSpec(string Name, string[] File);
+
     public class FileDataSource : IDataSource
     {
-        private readonly string _conn;
+        private readonly FileSpec[] _conn;
 
         public FileDataSource(string connectionString)
         {
-            _conn = connectionString;
+            var json = JObject.Parse(connectionString);
+            var files = json["Files"] as JArray;
+            if (files == null) {
+                throw new ArgumentException("Config JSON is missing the Files property");
+            }
+            var list = files.ToObject<FileSpec[]>();
+            if (list == null) {
+                throw new ArgumentException("JSON Files property does not match the spec");
+            }
+            _conn = list;
         }
 
         private IEnumerable<(string name, string filename)> GetFilenames()
         {
-            var entries = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(_conn);
-            foreach (var (name, specs) in entries!) {
+            foreach (var (name, specs) in _conn) {
                 foreach (var spec in specs) {
                     foreach (var filename in new FileSet(spec).Files) {
                         yield return (name, filename);
@@ -51,8 +61,7 @@ namespace Pansynchro.Sources.Files
 
         public async IAsyncEnumerable<(string name, TextReader data)> GetTextAsync()
         {
-            foreach (var (name, filename) in GetFilenames())
-            {
+            foreach (var (name, filename) in GetFilenames()) {
                 yield return (name, File.OpenText(filename));
             }
             await Task.CompletedTask; //just here to shut the compiler up
@@ -66,12 +75,6 @@ namespace Pansynchro.Sources.Files
                 }
             }
             await Task.CompletedTask;  //just here to shut the compiler up
-        }
-
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource("Files", cs => new FileDataSource(cs));
         }
     }
 }

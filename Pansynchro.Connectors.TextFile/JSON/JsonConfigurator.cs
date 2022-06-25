@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -16,7 +13,6 @@ namespace Pansynchro.Connectors.TextFile.JSON
 {
     class JsonConfigurator : DbConnectionStringBuilder, INotifyPropertyChanged
     {
-
         public ObservableCollection<JsonConf> Streams { get; set; } = new();
 
         public JsonConfigurator()
@@ -40,14 +36,39 @@ namespace Pansynchro.Connectors.TextFile.JSON
             }
         }
 
+        private bool _changing = false;
+
         private void DictChanged(object? sender, NotifyCollectionChangedEventArgs? e)
         {
-            ConnectionString = string.Join(';',
-                Streams.Select(s => $"{s.Name}={JsonConvert.SerializeObject(s)}"));
+            if (!_changing) {
+                _changing = true;
+                try {
+                    ConnectionString = string.Join(';',
+                        Streams.Select(s => $"{s.Name}={JsonConvert.SerializeObject(s)}"));
+                } finally {
+                    _changing = false;
+                }
+            }
         }
 
-        public override object this[string keyword] {
+        public override object this[string keyword]
+        {
             get => keyword == "Streams" ? Streams : base[keyword];
+            set {
+                if (keyword == "Streams") {
+                    Streams = (ObservableCollection<JsonConf>)value;
+                } else {
+                    var existing = Streams.FirstOrDefault(s => s.Name.ToLowerInvariant() == keyword.ToLowerInvariant());
+                    if (existing != null) {
+                        Streams.Remove(existing);
+                    }
+                    var newStream = JsonConvert.DeserializeObject<JsonConf>((string)value);
+                    if (newStream?.Name.ToLowerInvariant() != keyword.ToLowerInvariant()) {
+                        throw new ArgumentException($"Invalid stream name: {keyword}");
+                    }
+                    Streams.Add(newStream);
+                }
+            }
         }
 
         public override bool TryGetValue(string keyword, [NotNullWhen(true)] out object? value)
@@ -162,5 +183,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Required)));
             }
         }
+
+        public override string ToString() => Name;
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Pansynchro.Connectors.Parquet
+﻿using System.IO;
+
+namespace Pansynchro.Connectors.Parquet
 {
     internal static class ParquetStreamHelper
     {

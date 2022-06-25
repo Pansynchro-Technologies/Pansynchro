@@ -59,12 +59,10 @@ namespace Pansynchro.Core.Connectors
 
         private static string GetName(Expression expr)
         {
-            if (expr is StringNode sl)
-            {
+            if (expr is StringNode sl) {
                 return sl.Value;
             }
-            if (expr is NameNode r)
-            {
+            if (expr is NameNode r) {
                 return r.Name;
             }
             throw new Exception("This should not happen");
@@ -72,22 +70,19 @@ namespace Pansynchro.Core.Connectors
 
         private static SourceDescription ParseDataSource(Command source)
         {
-            if (source.Name != "Source" || source.Arguments.Length != 1 || !(source.Arguments[0] is NameNode))
-            {
+            if (source.Name != "Source" || source.Arguments.Length != 1 || !(source.Arguments[0] is NameNode)) {
                 throw new InvalidDataException($"Unknown data source statement: {source.Name} {string.Join<Expression>(", ", source.Arguments)}");
             }
             var name = source.Arguments[0].ToString();
             var asm = source.Body?.OfType<Command>().SingleOrDefault(m => m.Name == "Assembly");
-            if (asm == null)
-            {
+            if (asm == null) {
                 throw new InvalidDataException($"Missing Assembly declaration for {name}");
             }
-            if (asm.Arguments?.Length != 1 || !(asm.Arguments[0] is NameNode))
-            {
+            if (asm.Arguments?.Length != 1 || !(asm.Arguments[0] is NameNode)) {
                 throw new InvalidDataException($"Invalid Assembly declaration for {name}");
             }
             var expr = asm.Arguments[0];
-            return new SourceDescription(name, expr.ToString());
+            return new SourceDescription(name, expr.ToString(), SourceCapabilities.Source);
         }
 
         private static Capabilities ParseSupports(Command stmt)
@@ -97,8 +92,7 @@ namespace Pansynchro.Core.Connectors
                 throw new InvalidDataException($"Unknown supports statement: {stmt}");
             }
             var result = Capabilities.None;
-            foreach (var item in args.Cast<NameNode>())
-            {
+            foreach (var item in args.Cast<NameNode>()) {
                 result |= Enum.Parse<Capabilities>(item.Name);
             }
             return result;

@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
@@ -13,17 +13,24 @@ namespace Pansynchro.Sources.Http
 {
     public class HttpDataSource : IDataSource
     {
-        private readonly string _conn;
+        protected readonly Dictionary<string, string[]> _urls;
 
         public HttpDataSource(string connectionString)
         {
-            _conn = connectionString;
+            var urls = JObject.Parse(connectionString)["Urls"] as JObject;
+            if (urls == null) {
+                throw new ArgumentException("Connection string is missing its Urls property");
+            }
+            var data = urls.ToObject<Dictionary<string, string[]>>();
+            if (data == null) {
+                throw new ArgumentException("Connection string Urls property is in the wrong format");
+            }
+            _urls = data;
         }
 
         protected IEnumerable<(string name, string url)> GetUrls()
         {
-            var entries = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(_conn);
-            foreach (var (name, list) in entries!) {
+            foreach (var (name, list) in _urls) {
                 foreach (var url in list) {
                     yield return (name, url);
                 }
@@ -64,12 +71,6 @@ namespace Pansynchro.Sources.Http
                     yield return new StringReader(await client.GetStringAsync(url));
                 }
             }
-        }
-
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource("Http", cs => new HttpDataSource(cs));
         }
     }
 }

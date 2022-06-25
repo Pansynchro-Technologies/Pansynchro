@@ -1,5 +1,10 @@
-﻿using System.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 using Parquet.Data.Rows;
 using PReader = Parquet.ParquetReader;
@@ -63,7 +68,7 @@ namespace Pansynchro.Connectors.Parquet
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            GC.SuppressFinalize(this);
         }
 
         private class ParquetTableReader : IDataReader

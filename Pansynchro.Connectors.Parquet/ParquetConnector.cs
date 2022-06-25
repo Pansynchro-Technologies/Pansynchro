@@ -21,7 +21,7 @@ namespace Pansynchro.Connectors.Parquet
 
         public override IReader GetReader(string config) => new ParquetReader(config);
 
-        public override IWriter GetWriter(string config) => throw new NotImplementedException();
+        public override IWriter GetWriter(string config) => throw new System.NotImplementedException();
 
         [ModuleInitializer]
         public static void Run()

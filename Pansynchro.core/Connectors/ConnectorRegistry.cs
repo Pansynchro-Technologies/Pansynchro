@@ -1,5 +1,4 @@
-﻿using Pansynchro.Core.DataDict;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
@@ -8,6 +7,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 
+using Pansynchro.Core.DataDict;
+
 namespace Pansynchro.Core.Connectors
 {
     public static class ConnectorRegistry
@@ -15,7 +16,7 @@ namespace Pansynchro.Core.Connectors
         public const string CONNECTOR_FILE = "connectors.pansync";
 
         private static readonly Dictionary<string, ConnectorCore> _factories = new();
-        private static readonly Dictionary<string, Func<string, IDataSource>> _sources = new();
+        private static readonly Dictionary<string, DataSourceFactoryCore> _sources = new();
         private static readonly Dictionary<string, ConnectorDescription> _connectors = new();
         private static readonly Dictionary<string, SourceDescription> _sourceLoaders = new();
 
@@ -38,44 +39,25 @@ namespace Pansynchro.Core.Connectors
 
         public static IEnumerable<string> ConfigurableTypes => _connectors.Where(kv => kv.Value.HasConfig).Select(kv => kv.Key);
 
-        public static IEnumerable<string> DataSourceTypes => _sources.Keys;
+        public static IEnumerable<string> DataSourceTypes => _sourceLoaders.Keys;
 
         public static void LoadConnectors(IEnumerable<ConnectorDescription> connectors)
         {
-            foreach (var conn in connectors)
-            {
+            foreach (var conn in connectors) {
                 _connectors.Add(conn.Name, conn);
             }
         }
 
         public static void LoadDataSources(IEnumerable<SourceDescription> sources)
         {
-            foreach (var src in sources)
-            {
+            foreach (var src in sources) {
                 _sourceLoaders.Add(src.Name, src);
             }
         }
 
-        /*
-        public static void RegisterReader(string name, Func<string, IReader> factory)
+        public static void RegisterSource(DataSourceFactoryCore factory)
         {
-            _readers.Add(name, factory);
-        }
-
-        public static void RegisterWriter(string name, Func<string, IWriter> factory)
-        {
-            _writers.Add(name, factory);
-        }
-
-        public static void RegisterAnalyzer(string name, Func<string, ISchemaAnalyzer> factory)
-        {
-            _analyzers.Add(name, factory);
-        }
-*/
-
-        public static void RegisterSource(string name, Func<string, IDataSource> factory)
-        {
-            _sources.Add(name, factory);
+            _sources.Add(factory.Name, factory);
         }
 
         public static void RegisterConnector(ConnectorCore connector)
@@ -85,10 +67,8 @@ namespace Pansynchro.Core.Connectors
 
         private static ConnectorCore GetFactory(string name)
         {
-            if (!_factories.TryGetValue(name, out var factory))
-            {
-                if (_connectors.TryGetValue(name, out var conn))
-                {
+            if (!_factories.TryGetValue(name, out var factory)) {
+                if (_connectors.TryGetValue(name, out var conn)) {
                     var laResult = LoadAssembly(conn.Assembly);
                     HandleResult(name, laResult);
                     _factories.TryGetValue(name, out factory);
@@ -115,8 +95,7 @@ namespace Pansynchro.Core.Connectors
         public static IWriter GetWriter(string name, string connectionString)
         {
             var factory = GetFactory(name);
-            if (factory.HasWriter)
-            {
+            if (factory.HasWriter) {
                 return factory.GetWriter(Process(connectionString, factory));
             }
             throw new ArgumentException($"Connector '{name}' does not define a writer");
@@ -125,8 +104,7 @@ namespace Pansynchro.Core.Connectors
         public static ISchemaAnalyzer GetAnalyzer(string name, string connectionString)
         {
             var factory = GetFactory(name);
-            if (factory.HasAnalyzer)
-            {
+            if (factory.HasAnalyzer) {
                 return factory.GetAnalyzer(Process(connectionString, factory));
             }
             throw new ArgumentException($"Connector '{name}' does not define an analyzer");
@@ -135,8 +113,7 @@ namespace Pansynchro.Core.Connectors
         public static DbConnectionStringBuilder GetConfigurator(string name)
         {
             var factory = GetFactory(name);
-            if (factory.HasConfig)
-            {
+            if (factory.HasConfig) {
                 return factory.GetConfig();
             }
             throw new ArgumentException($"Connector '{name}' does not define a configurator");
@@ -148,32 +125,31 @@ namespace Pansynchro.Core.Connectors
             return factory.Strategy;
         }
 
-        public static IDataSource GetSource(string name, string connectionString)
+        public static DataSourceFactoryCore GetSourceFactory(string name)
         {
-            if (_sources.TryGetValue(name, out var factory))
-            {
-                return factory(connectionString);
+            if (_sources.TryGetValue(name, out var factory)) {
+                return factory;
             }
-            if (_sourceLoaders.TryGetValue(name, out var desc))
-            {
-                if (desc.Assembly == null)
-                {
+            if (_sourceLoaders.TryGetValue(name, out var desc)) {
+                if (desc.Assembly == null) {
                     throw new ArgumentException($"No assembly is defined for '{name}'.");
                 }
                 var laResult = LoadAssembly(desc.Assembly);
                 HandleResult(name, laResult);
-                if (_sources.TryGetValue(name, out factory))
-                {
-                    return factory(connectionString);
+                if (_sources.TryGetValue(name, out factory)) {
+                    return factory;
                 }
             }
             throw new ArgumentException($"No data source named '{name}' is registered.");
+
         }
+
+        public static IDataSource GetSource(string name, string connectionString)
+            => GetSourceFactory(name).GetSource(connectionString);
 
         private static void HandleResult(string name, LoadAssemblyResult laResult)
         {
-            switch (laResult)
-            {
+            switch (laResult) {
                 case LoadAssemblyResult.Success:
                     return;
                 case LoadAssemblyResult.Fail:
@@ -187,15 +163,12 @@ namespace Pansynchro.Core.Connectors
 
         private static LoadAssemblyResult LoadAssembly(string name)
         {
-            if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == name))
-            {
+            if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == name)) {
                 return LoadAssemblyResult.Dupe;
             }
-            try
-            {
+            try {
                 var asm = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(Environment.CurrentDirectory, name + ".dll"));
-                foreach (var module in asm.Modules)
-                {
+                foreach (var module in asm.Modules) {
                     RuntimeHelpers.RunModuleConstructor(module.ModuleHandle);
                 }
                 return LoadAssemblyResult.Success;

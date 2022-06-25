@@ -12,7 +12,11 @@ namespace Pansynchro.Core.Connectors
         public bool HasConfig => Capabilities.HasFlag(Capabilities.Configurator);
     }
 
-    public record SourceDescription(string Name, string Assembly);
+    public record SourceDescription(string Name, string Assembly, SourceCapabilities Capabilities)
+    {
+        public bool HasSource => Capabilities.HasFlag(SourceCapabilities.Source);
+        public bool HasSink => Capabilities.HasFlag(SourceCapabilities.Sink);
+    }
 
     [Flags]
     public enum Capabilities
@@ -43,5 +47,28 @@ namespace Pansynchro.Core.Connectors
         public bool HasAnalyzer => Capabilities.HasFlag(Capabilities.Analyzer);
         public bool HasConfig => Capabilities.HasFlag(Capabilities.Configurator);
         public bool HasRandomAccessReader => Capabilities.HasFlag(Capabilities.RandomAccessReader);
+    }
+
+    [Flags]
+    public enum SourceCapabilities
+    {
+        None = 0,
+        Source = 1 << 0,
+        Sink = 1 << 1,
+
+        ALL = Source | Sink
+    }
+
+    public abstract class DataSourceFactoryCore
+    {
+        public abstract string Name { get; }
+        public abstract SourceCapabilities Capabilities { get; }
+        public abstract IDataSource GetSource(string config);
+        public abstract IDataSink GetSink(string config);
+        public abstract string ConfigSchema { get; }
+        public abstract string EmptyConfig { get; }
+
+        public bool HasSource => Capabilities.HasFlag(SourceCapabilities.Source);
+        public bool HasSink => Capabilities.HasFlag(SourceCapabilities.Sink);
     }
 }
