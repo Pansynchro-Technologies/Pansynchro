@@ -37,12 +37,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Antlr4.Runtime">
-      <HintPath>..\Boo\Antlr4.Runtime.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <Antlr4 Update="Pansync\PansyncLexer.g4">
       <Listener>False</Listener>
       <Visitor>False</Visitor>
@@ -52,4 +46,8 @@
     </Antlr4>
   </ItemGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<OutputPath>..\bin\</OutputPath>
+	</PropertyGroup>
+	
 </Project>

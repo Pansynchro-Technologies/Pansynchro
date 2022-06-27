@@ -45,7 +45,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{8D7657D0-5
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Sqlite", "Pansynchro.Connectors.Sqlite\Pansynchro.Connectors.Sqlite.csproj", "{178436CC-E3BC-4707-BF3F-727761C9B0F8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Connectors.Parquet", "Pansynchro.Connectors.Parquet\Pansynchro.Connectors.Parquet.csproj", "{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Parquet", "Pansynchro.Connectors.Parquet\Pansynchro.Connectors.Parquet.csproj", "{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -30,4 +30,8 @@
     <ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
   </ItemGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<OutputPath>..\bin\</OutputPath>
+	</PropertyGroup>
+	
 </Project>
