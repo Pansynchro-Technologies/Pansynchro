@@ -57,3 +57,6 @@ DataSources:
 
 	Source Files:
 		Assembly Pansynchro.Sources.Files
+
+	Source S3:
+		Assembly Pansynchro.Sources.S3
