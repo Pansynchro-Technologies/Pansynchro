@@ -47,6 +47,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Sqlit
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Parquet", "Pansynchro.Connectors.Parquet\Pansynchro.Connectors.Parquet.csproj", "{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Sources.S3", "Pansynchro.Sources.S3\Pansynchro.Sources.S3.csproj", "{BE5BBEB7-348F-4E16-8EA9-975424A0517E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -109,6 +111,10 @@ Global
 		{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE5BBEB7-348F-4E16-8EA9-975424A0517E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE5BBEB7-348F-4E16-8EA9-975424A0517E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE5BBEB7-348F-4E16-8EA9-975424A0517E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE5BBEB7-348F-4E16-8EA9-975424A0517E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -128,6 +134,7 @@ Global
 		{03F905FA-1842-4057-83BB-85BBB4382791} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
 		{178436CC-E3BC-4707-BF3F-727761C9B0F8} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
 		{D882E6F4-5F7C-420E-93F0-BDE10A863CAA} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
+		{BE5BBEB7-348F-4E16-8EA9-975424A0517E} = {ACB226C5-A51B-422D-A3D9-B3BBA3DC530B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3B92743-4CDC-4144-861D-33F822FA824B}
