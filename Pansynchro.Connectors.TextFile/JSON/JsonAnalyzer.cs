@@ -21,10 +21,8 @@ namespace Pansynchro.Connectors.TextFile.JSON
         {
             var conf = new JsonConfigurator(_config);
             var streams = new List<StreamDefinition>();
-            foreach (var details in conf.Streams)
-            {
-                var defs = details.FileStructure switch
-                {
+            foreach (var details in conf.Streams) {
+                var defs = details.FileStructure switch {
                     FileType.Array => AnalyzeArrType(name),
                     FileType.Obj => AnalyzeObjType(name, details.Streams.ToDictionary(s => s.Name)),
                     _ => throw new ArgumentException($"Unknown file structure type: {details.FileStructure}"),

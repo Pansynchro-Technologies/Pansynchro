@@ -11,11 +11,12 @@ using PReader = Parquet.ParquetReader;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Helpers;
 
 namespace Pansynchro.Connectors.Parquet
 {
 
-    public class ParquetAnalyzer : ISchemaAnalyzer
+    public class ParquetAnalyzer : ISchemaAnalyzer, ISourcedConnector
     {
         private IDataSource? _source;
 
@@ -42,7 +43,7 @@ namespace Pansynchro.Connectors.Parquet
 
         private static StreamDefinition AnalyzeFile(string name, Stream stream)
         {
-            using var lStream = ParquetStreamHelper.CheckStream(stream);
+            using var lStream = StreamHelper.SeekableStream(stream);
             using var reader = new PReader(lStream);
             var fields = reader.Schema.GetDataFields().Select(AnalyzeField).ToArray();
             return new StreamDefinition(new StreamDescription(null, name), fields, Array.Empty<string>());

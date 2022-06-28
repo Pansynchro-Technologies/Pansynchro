@@ -7,10 +7,11 @@ using ChoETL;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Helpers;
 
 namespace Pansynchro.Connectors.TextFile.CSV
 {
-    public class CsvAnalyzer : ISchemaAnalyzer
+    public class CsvAnalyzer : ISchemaAnalyzer, ISourcedConnector
     {
         private readonly string _config;
         private IDataSource? _source;
@@ -27,7 +28,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
             }
             var defs = new List<StreamDefinition>();
             string? lastName = null;
-            await foreach (var (sName, stream) in _source.GetDataAsync()) {
+            await foreach (var (sName, stream) in _source.GetTextAsync()) {
                 try {
                     if (lastName != sName) {
                         defs.Add(AnalyzeFile(sName, stream));
@@ -40,7 +41,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
             return new DataDictionary(name, defs.ToArray());
         }
 
-        private static StreamDefinition AnalyzeFile(string name, Stream stream)
+        private static StreamDefinition AnalyzeFile(string name, TextReader stream)
         {
             using var csvReader = new ChoCSVReader(stream)
                 .WithMaxScanRows(10).WithFirstLineHeader(false).AutoDetectDelimiter(true)

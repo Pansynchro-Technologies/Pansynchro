@@ -11,6 +11,7 @@ using PReader = Parquet.ParquetReader;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Helpers;
 using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.Parquet
@@ -55,7 +56,7 @@ namespace Pansynchro.Connectors.Parquet
 
         private static DataStream ReadDataStream(StreamDefinition streamDef, Stream stream)
         {
-            using var lStream = ParquetStreamHelper.CheckStream(stream);
+            using var lStream = StreamHelper.SeekableStream(stream);
             var table = PReader.ReadTableFromStream(lStream);
             return new DataStream(streamDef.Name, StreamSettings.None, new ParquetTableReader(table, streamDef));
         }

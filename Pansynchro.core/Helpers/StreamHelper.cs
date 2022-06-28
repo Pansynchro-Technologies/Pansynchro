@@ -1,10 +1,10 @@
 ﻿using System.IO;
 
-namespace Pansynchro.Connectors.Parquet
+namespace Pansynchro.Core.Helpers
 {
-    internal static class ParquetStreamHelper
+    public static class StreamHelper
     {
-        internal static Stream CheckStream(Stream input)
+        public static Stream SeekableStream(Stream input)
         {
             if (input.CanSeek) {
                 return input;

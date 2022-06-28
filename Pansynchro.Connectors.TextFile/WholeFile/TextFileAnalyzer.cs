@@ -8,7 +8,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.WholeFile
 {
-    public class TextFileAnalyzer : ISchemaAnalyzer
+    public class TextFileAnalyzer : ISchemaAnalyzer, ISourcedConnector
     {
         private readonly string _config;
         private IDataSource? _source;
@@ -25,7 +25,7 @@ namespace Pansynchro.Connectors.TextFile.WholeFile
             }
             var defs = new List<StreamDefinition>();
             string? lastName = null;
-            await foreach (var (sName, stream) in _source.GetDataAsync()) {
+            await foreach (var (sName, stream) in _source.GetTextAsync()) {
                 try {
                     if (lastName != sName) {
                         defs.Add(AnalyzeFile(sName));
