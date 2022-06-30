@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Pansynchro-Technologies/Pansynchro/main/Logo.png" width="256" height="256" />
+
 # The fastest, most cost-effective data integration solution
 Pansynchro is a modern, open-source, high-efficiency data transfer and processing framework for data integration and synchronization at any scale.  Heavily optimized with domain-specific algorithms, Pansynchro is designed from the ground up to minimize the time and network bandwidth, and therefore money, spent on data integration tasks.  Pansynchro is designed to make your data integration workflow as simple and efficient as possible, whether you're looking at basic API ingestion or data replication for analysis, ETL or ELT, local data or a few terabytes in the cloud.
 
