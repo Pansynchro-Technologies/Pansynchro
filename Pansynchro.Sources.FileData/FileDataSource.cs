@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
+using DotNet.Globbing;
 using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
+using Pansynchro.Core.Helpers;
 
 namespace Pansynchro.Sources.Files
 {
@@ -34,12 +37,14 @@ namespace Pansynchro.Sources.Files
         {
             foreach (var (name, specs) in _conn) {
                 foreach (var spec in specs) {
-                    foreach (var filename in new FileSet(spec).Files) {
+                    foreach (var filename in GetFiles(spec)) {
                         yield return (name, filename);
                     }
                 }
             }
         }
+
+        private IEnumerable<string> GetFiles(string spec) => new GlobFileScanner(spec).Files;
 
         public async IAsyncEnumerable<(string name, Stream data)> GetDataAsync()
         {

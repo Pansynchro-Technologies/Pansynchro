@@ -19,8 +19,8 @@ namespace Pansynchro.Core
 
     public interface IDataSink
     {
-        TextWriter WriteText(string streamName);
-        Stream WriteBinary(string streamName);
+        Stream WriteData(string streamName);
+        TextWriter WriteText(string streamName) => new StreamWriter(WriteData(streamName));
     }
 
     public interface ISinkConnector
