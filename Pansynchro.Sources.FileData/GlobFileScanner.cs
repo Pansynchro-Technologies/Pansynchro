@@ -23,7 +23,7 @@ namespace Pansynchro.Sources.Files
             _filter = Glob.Parse(pattern);
             _literal = GlobHelper.IsLiteralPattern(_filter);
             _baseDir = GlobHelper.ExtractBaseDirectory(_filter);
-            _recursive = GlobHelper.LastDirSeparatorIndex(_filter) > _baseDir.Length;
+            _recursive = GlobHelper.LastDirSeparatorIndex(_filter) > _baseDir.Length - 1;
         }
 
         private string[]? _files;
