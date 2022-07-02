@@ -12,13 +12,9 @@ namespace Pansynchro.Sources.S3
 
         public override SourceCapabilities Capabilities => SourceCapabilities.Source;
 
-        public override IDataSource GetSource(string config)
-            => new S3DataSource(config);
+        public override IDataSource GetSource(string config) => new S3DataSource(config);
 
-        public override IDataSink GetSink(string config)
-        {
-            throw new NotImplementedException();
-        }
+        public override IDataSink GetSink(string config) => new S3DataSink(config);
 
         public override string ConfigSchema =>
 @"{
@@ -78,7 +74,7 @@ namespace Pansynchro.Sources.S3
     ""Conn"": {
         ""AccessKeyId"": ""0123456789abcdef"",
         ""SecretAccessKey"": ""SVQnUyBBIFNFQ1JFVCBUTyBFVkVSWUJPRFku"",
-        ""RegionCode"": null
+        ""RegionCode"": ""us-west-1""
     },
     ""Files"": [
         {
@@ -87,6 +83,76 @@ namespace Pansynchro.Sources.S3
             ""StreamName"": ""S3Data""
         }
     ]
+}";
+
+        public override string SinkConfigSchema =>
+@"{
+  ""title"": ""S3WriteConfig"",
+  ""definitions"": {
+    ""S3Config"": {
+      ""type"": ""object"",
+      ""additionalProperties"": false,
+      ""properties"": {
+        ""Conn"": {
+          ""type"": ""object"",
+          ""additionalProperties"": false,
+          ""properties"": {
+            ""AccessKeyId"": {
+              ""type"": ""string""
+            },
+            ""SecretAccessKey"": {
+              ""type"": ""string""
+            },
+            ""RegionCode"": {
+              ""type"": ""string""
+            }
+          }
+        },
+        ""Bucket"": {
+          ""type"": ""string""
+        },
+        ""Files"": {
+          ""type"": ""array"",
+          ""items"": {
+            ""type"": ""object"",
+            ""additionalProperties"": false,
+            ""properties"": {
+              ""Pattern"": {
+                ""type"": ""string""
+              },
+              ""StreamName"": {
+                ""type"": ""string""
+              }
+            }
+          }
+        },
+        ""MissingFilenameSpec"": {
+          ""type"": ""string""
+        },
+        ""UploadPartSize"": {
+          ""type"": ""integer""
+        }
+      }
+    },
+  }
+}";
+
+        public override string EmptySinkConfig =>
+@"{
+    ""Conn"": {
+        ""AccessKeyId"": ""0123456789abcdef"",
+        ""SecretAccessKey"": ""SVQnUyBBIFNFQ1JFVCBUTyBFVkVSWUJPRFku"",
+        ""RegionCode"": ""us-west-1""
+    },
+    ""Files"": [
+        {
+            ""Bucket"": ""BucketName"",
+            ""Pattern"": ""*.csv"",
+            ""StreamName"": ""S3Data""
+        }
+    ],
+    ""MissingFilenameSpec"": ""PansynchroData/Missing/*"",
+    ""UploadPartSize"": 5
 }";
 
         [ModuleInitializer]

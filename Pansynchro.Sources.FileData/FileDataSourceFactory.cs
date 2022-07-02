@@ -57,6 +57,65 @@ namespace Pansynchro.Sources.Files
   ]
 }";
 
+        public override string SinkConfigSchema =>
+@"{
+  ""type"": ""object"",
+  ""additionalProperties"": false,
+  ""properties"": {
+    ""Files"": {
+      ""description"": ""The set of streams for the Data Source to save"",
+      ""type"": ""array"",
+      ""items"": {
+        ""type"": ""object"",
+        ""additionalProperties"": false,
+        ""properties"": {
+          ""StreamName"": {
+            ""description"": ""A stream name or pattern to match a stream name"",
+            ""type"": ""string""
+          },
+          ""Filename"": {
+            ""description"": ""The name of the file to save the stream to.  A * will insert the stream name into the filename."",
+            ""type"": ""string""
+          }
+        }
+      }
+    },
+    ""MissingFilenameSpec"": {
+      ""description"": ""A filename to save unmatched stream names to.  A * will insert the stream name into the filename.  Optional; if this is blank, an unmatched stream name will raise an error."",
+      ""type"": ""string""
+    },
+    ""DuplicateFilenameAction"": {
+      ""description"": ""Action to take if the filename already exists."",
+      ""type"": ""integer"",
+      ""description"": """",
+      ""x-enumNames"": [
+        ""Append"",
+        ""Overwrite"",
+        ""SequenceNumber"",
+        ""Error""
+      ],
+      ""enum"": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  }
+}";
+
+        public override string EmptySinkConfig =>
+@"{
+  ""Files"": [
+    {
+      ""StreamName"": ""*"",
+      ""Filename"": ""C:\\PansynchroData\\*""
+    }
+  ],
+  ""MissingFilenameSpec"": ""C:\\PansynchroData\\Missing\\*"",
+  ""DuplicateFilenameAction"": 0
+}";
+
         [ModuleInitializer]
         public static void Register()
         {

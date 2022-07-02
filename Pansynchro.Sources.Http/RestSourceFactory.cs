@@ -55,6 +55,10 @@ namespace Pansynchro.Sources.Http
     ""Next"": null
 }";
 
+        public override string SinkConfigSchema => throw new System.NotImplementedException();
+
+        public override string EmptySinkConfig => throw new System.NotImplementedException();
+
         [ModuleInitializer]
         public static void Register()
         {

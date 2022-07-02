@@ -47,7 +47,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Sqlit
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Parquet", "Pansynchro.Connectors.Parquet\Pansynchro.Connectors.Parquet.csproj", "{D882E6F4-5F7C-420E-93F0-BDE10A863CAA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Sources.S3", "Pansynchro.Sources.S3\Pansynchro.Sources.S3.csproj", "{BE5BBEB7-348F-4E16-8EA9-975424A0517E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Sources.S3", "Pansynchro.Sources.S3\Pansynchro.Sources.S3.csproj", "{BE5BBEB7-348F-4E16-8EA9-975424A0517E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

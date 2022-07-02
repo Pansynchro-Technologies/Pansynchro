@@ -12,6 +12,7 @@ using DotNet.Globbing.Token;
 using Newtonsoft.Json;
 
 using Pansynchro.Core;
+using Pansynchro.Core.Helpers;
 
 namespace Pansynchro.Sources.S3
 {
@@ -72,13 +73,13 @@ namespace Pansynchro.Sources.S3
         private static async IAsyncEnumerable<string> ListFiles(
             AmazonS3Client client, string group, KeyValuePair<string, Glob>[] patterns)
         {
-            if (patterns.All(p => IsLiteralPattern(p.Value))) {
+            if (patterns.All(p => GlobHelper.IsLiteralPattern(p.Value))) {
                 foreach (var pair in patterns) {
                     yield return pair.Value.ToString();
                 }
-            } else if (patterns.All(p => StartsWithLiteralPattern(p.Value))) {
+            } else if (patterns.All(p => GlobHelper.StartsWithLiteralPattern(p.Value))) {
                 var starts = patterns
-                    .Select(p => ExtractLiteralPrefix(p.Value))
+                    .Select(p => GlobHelper.ExtractLiteralPrefix(p.Value))
                     .Distinct()
                     .ToArray();
                 await foreach (var result in ListS3Files(client, group, starts)) {
@@ -123,26 +124,6 @@ namespace Pansynchro.Sources.S3
                 req.ContinuationToken = response.NextContinuationToken;
             }
             while (response.IsTruncated);
-        }
-
-        private static bool IsLiteralPattern(Glob pattern)
-            => pattern.Tokens.Length == 1 && (pattern.Tokens[0] is LiteralToken or PathSeparatorToken);
-
-        private static bool StartsWithLiteralPattern(Glob pattern)
-            => pattern.Tokens.Length >= 1 && pattern.Tokens[0] is LiteralToken or PathSeparatorToken;
-
-        private static string ExtractLiteralPrefix(Glob value)
-            => string.Concat(value.Tokens.TakeWhile(t => t is LiteralToken or PathSeparatorToken).Select(ExtractStringValue));
-
-        private static object ExtractStringValue(IGlobToken tok)
-        {
-            if (tok is LiteralToken lt) {
-                return lt.Value;
-            }
-            if (tok is PathSeparatorToken ps) {
-                return ps.Value;
-            }
-            throw new Exception("Should not reach here");
         }
 
         public async IAsyncEnumerable<(string name, Stream data)> GetDataAsync()

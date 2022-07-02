@@ -8,7 +8,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {
-    class JsonConnector : ConnectorCore
+    public class JsonConnector : ConnectorCore
     {
         public override string Name => "JSON";
 

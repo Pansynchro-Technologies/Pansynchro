@@ -4,16 +4,16 @@
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <AssemblyVersion>0.5.2</AssemblyVersion>
-    <FileVersion>0.5.2</FileVersion>
-    <Version>0.5.2</Version>
+    <AssemblyVersion>0.5.3</AssemblyVersion>
+    <FileVersion>0.5.3</FileVersion>
+    <Version>0.5.3</Version>
     <Authors>Pansynchro Technologies</Authors>
     <Product>Pansynchro Core</Product>
     <Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
     <Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
     <PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
     <PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
-    <PackageReleaseNotes>Adding Pansynchro.Core.Helpers.StreamHelper class</PackageReleaseNotes>
+    <PackageReleaseNotes>Improving IDataSink support</PackageReleaseNotes>
     <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 

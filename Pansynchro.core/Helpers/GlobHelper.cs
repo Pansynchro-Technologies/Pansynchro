@@ -33,7 +33,7 @@ namespace Pansynchro.Core.Helpers
         {
             var tokens = pattern.Tokens;
             for (int i = tokens.Length - 1; i >= 0; --i) {
-                if (tokens[i] is PathSeparatorToken) {
+                if (tokens[i] is PathSeparatorToken or WildcardDirectoryToken) {
                     return i;
                 }
             }

@@ -8,7 +8,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.CSV
 {
-    class CsvConnector : ConnectorCore
+    public class CsvConnector : ConnectorCore
     {
         public override string Name => "CSV";
 

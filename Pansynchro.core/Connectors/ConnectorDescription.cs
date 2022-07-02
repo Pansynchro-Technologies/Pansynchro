@@ -67,6 +67,8 @@ namespace Pansynchro.Core.Connectors
         public abstract IDataSink GetSink(string config);
         public abstract string ConfigSchema { get; }
         public abstract string EmptyConfig { get; }
+        public abstract string SinkConfigSchema { get; }
+        public abstract string EmptySinkConfig { get; }
 
         public bool HasSource => Capabilities.HasFlag(SourceCapabilities.Source);
         public bool HasSink => Capabilities.HasFlag(SourceCapabilities.Sink);

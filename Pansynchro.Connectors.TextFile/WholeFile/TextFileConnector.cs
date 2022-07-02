@@ -8,11 +8,11 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.WholeFile
 {
-    class TextFileConnector : ConnectorCore
+    public class TextFileConnector : ConnectorCore
     {
         public override string Name => "Text File (whole)";
 
-        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.RandomAccessReader;
+        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Writer | Capabilities.Analyzer | Capabilities.RandomAccessReader;
 
         public override NameStrategyType Strategy => NameStrategyType.NameOnly;
 
@@ -25,10 +25,7 @@ namespace Pansynchro.Connectors.TextFile.WholeFile
 
         public override IReader GetReader(string config) => new TextFileReader(config);
 
-        public override IWriter GetWriter(string config)
-        {
-            throw new NotImplementedException();
-        }
+        public override IWriter GetWriter(string config) => new TextFileWriter();
 
         [ModuleInitializer]
         public static void Run()
