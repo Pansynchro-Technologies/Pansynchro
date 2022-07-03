@@ -24,17 +24,17 @@ Connectors:
 		assembly Pansynchro.Connectors.Sqlite
 
 	Connector CSV:
-		supports Analyzer, Reader, Configurator
+		supports Analyzer, Reader, Writer, Configurator
 		requires DataSource
 		assembly Pansynchro.Connectors.TextFile
 
 	Connector "Text File (whole)":
-		supports Analyzer, Reader, Configurator
+		supports Analyzer, Reader, Writer, Configurator
 		requires DataSource
 		assembly Pansynchro.Connectors.TextFile
 
 	Connector "Text File (lines)":
-		supports Analyzer, Reader, Configurator
+		supports Analyzer, Reader, Writer, Configurator
 		requires DataSource
 		assembly Pansynchro.Connectors.TextFile
 
@@ -44,7 +44,7 @@ Connectors:
 		assembly Pansynchro.Connectors.TextFile
 
 	Connector Parquet:
-		supports Analyzer, Reader, Configurator
+		supports Analyzer, Reader, Writer, Configurator
 		requires DataSource
 		assembly Pansynchro.Connectors.Parquet
 

@@ -76,9 +76,9 @@ namespace Pansynchro.Sources.S3
         ""SecretAccessKey"": ""SVQnUyBBIFNFQ1JFVCBUTyBFVkVSWUJPRFku"",
         ""RegionCode"": ""us-west-1""
     },
+    ""Bucket"": ""BucketName"",
     ""Files"": [
         {
-            ""Bucket"": ""BucketName"",
             ""Pattern"": ""*.csv"",
             ""StreamName"": ""S3Data""
         }
@@ -144,9 +144,9 @@ namespace Pansynchro.Sources.S3
         ""SecretAccessKey"": ""SVQnUyBBIFNFQ1JFVCBUTyBFVkVSWUJPRFku"",
         ""RegionCode"": ""us-west-1""
     },
+    ""Bucket"": ""BucketName"",
     ""Files"": [
         {
-            ""Bucket"": ""BucketName"",
             ""Pattern"": ""*.csv"",
             ""StreamName"": ""S3Data""
         }

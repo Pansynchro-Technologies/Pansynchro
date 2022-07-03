@@ -78,7 +78,7 @@ namespace Pansynchro.Connectors.Parquet
             private readonly Table _table;
             private readonly KeyValuePair<string, int>[] _fields;
             private readonly Dictionary<string, int> _fieldDict;
-            private int _index = 0;
+            private int _index = -1;
             private bool _closed = false;
 
             public ParquetTableReader(Table table, StreamDefinition streamDef)
@@ -159,7 +159,7 @@ namespace Pansynchro.Connectors.Parquet
 
             public DataTable? GetSchemaTable()
             {
-                throw new NotImplementedException();
+                return null;
             }
 
             public string GetString(int i) => _table[_index].GetString(_fields[i].Value);

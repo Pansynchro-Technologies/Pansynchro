@@ -12,7 +12,7 @@ namespace Pansynchro.Sources.Files
 
         public override SourceCapabilities Capabilities => SourceCapabilities.Source;
 
-        public override IDataSink GetSink(string config) => throw new System.NotImplementedException();
+        public override IDataSink GetSink(string config) => new FileDataSink(config);
 
         public override IDataSource GetSource(string config) => new FileDataSource(config);
 

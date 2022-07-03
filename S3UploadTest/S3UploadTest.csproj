@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <OutputType>Exe</OutputType>
+	  <TargetFramework>net6.0</TargetFramework>
+	  <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pansynchro.Connectors.Parquet\Pansynchro.Connectors.Parquet.csproj" />
+    <ProjectReference Include="..\Pansynchro.Connectors.TextFile\Pansynchro.Connectors.TextFile.csproj" />
+    <ProjectReference Include="..\Pansynchro.Sources.FileData\Pansynchro.Sources.Files.csproj" />
+    <ProjectReference Include="..\Pansynchro.Sources.S3\Pansynchro.Sources.S3.csproj" />
+  </ItemGroup>
+
+</Project>

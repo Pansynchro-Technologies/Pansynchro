@@ -43,9 +43,9 @@ namespace Pansynchro.Core.Helpers
         public static IGlobToken[] ExtractBaseDirectory(Glob pattern)
         {
             var list = ExtractLiteralPrefixTokens(pattern).ToList();
-            if (list.Count > 0 && list[list.Count - 1] is not LiteralToken) {
+            if (list.Count > 0 && list[list.Count - 1] is LiteralToken) {
                 list.RemoveAt(list.Count - 1);
-                if (list.Count > 0 && list[list.Count - 1] is not LiteralToken) {
+                if (list.Count > 0 && list[list.Count - 1] is LiteralToken) {
                     throw new ArgumentException($"Invalid file pattern: {pattern}");
                 }
             }
@@ -66,7 +66,7 @@ namespace Pansynchro.Core.Helpers
         }
 
         public static bool IsLiteralPattern(Glob pattern)
-            => pattern.Tokens.Length == 1 && (pattern.Tokens[0] is LiteralToken or PathSeparatorToken);
+            => pattern.Tokens.All(t => t is LiteralToken or PathSeparatorToken);
 
         public static bool StartsWithLiteralPattern(Glob pattern)
             => pattern.Tokens.Length >= 1 && pattern.Tokens[0] is LiteralToken or PathSeparatorToken;
