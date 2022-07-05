@@ -14,7 +14,7 @@ namespace Pansynchro.Core
 
         public override string ToString()
         {
-            return Namespace == null ? Name : Namespace + "." + Name;
+            return string.IsNullOrEmpty(Namespace) ? Name : Namespace + "." + Name;
         }
     }
 }

@@ -56,7 +56,7 @@ namespace Pansynchro.Core.Readers
 
         public double GetDouble(int i) => (double)_buffer[i];
 
-        public Type GetFieldType(int i) => _buffer[i].GetType();
+        public virtual Type? GetFieldType(int i) => _buffer[i]?.GetType();
 
         public float GetFloat(int i) => (float)_buffer[i];
 
@@ -68,10 +68,7 @@ namespace Pansynchro.Core.Readers
 
         public long GetInt64(int i) => (long)_buffer[i];
 
-        public DataTable GetSchemaTable()
-        {
-            throw new NotImplementedException();
-        }
+        public DataTable? GetSchemaTable() => null;
 
         public string GetString(int i) => (string)_buffer[i];
 
@@ -89,7 +86,7 @@ namespace Pansynchro.Core.Readers
         public bool NextResult() => Read();
         public abstract bool Read();
         public abstract string GetName(int i);
-        public abstract int GetOrdinal(string name);
+        public virtual int GetOrdinal(string name) => _nameMap[name];
         public abstract void Dispose();
     }
 }

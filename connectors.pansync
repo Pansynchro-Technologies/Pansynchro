@@ -48,6 +48,11 @@ Connectors:
 		requires DataSource
 		assembly Pansynchro.Connectors.Parquet
 
+	Connector Avro:
+		supports Analyzer, Reader, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.Avro
+
 DataSources:
 	Source Http:
 		Assembly Pansynchro.Sources.Http

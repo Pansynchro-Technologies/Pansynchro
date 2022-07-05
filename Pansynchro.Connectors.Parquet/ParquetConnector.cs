@@ -11,7 +11,7 @@ namespace Pansynchro.Connectors.Parquet
     {
         public override string Name => "Parquet";
 
-        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator | Capabilities.RandomAccessReader;
+        public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Writer | Capabilities.Analyzer | Capabilities.Configurator | Capabilities.RandomAccessReader;
 
         public override NameStrategyType Strategy => NameStrategyType.Identity;
 
