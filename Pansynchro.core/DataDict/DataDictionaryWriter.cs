@@ -105,7 +105,10 @@ namespace Pansynchro.Core.DataDict
             var flArgs = new List<Expression>();
             flArgs.Add(fieldTypeExpr);
             if (field.Type.Nullable) {
-                flArgs.Add(WriteName("NULL"));
+                flArgs.Add(NULL_EXPR);
+            }
+            if (field.CustomRead != null) {
+                flArgs.Add(new StringNode(field.CustomRead));
             }
             var fieldList = new NamedListNode(name, flArgs.ToArray());
             var result = new Command(typeName, new[] { fieldList });
@@ -239,6 +242,8 @@ namespace Pansynchro.Core.DataDict
             return new StreamDefinition(name, fields, identity) { RareChangeFields = rcf, DomainReductions = drs, SeqIdIndex = sid };
         }
 
+        private static readonly Expression NULL_EXPR = WriteName("NULL");
+
         private static FieldDefinition ParseField(Command ast, string typeName)
         {
             if (ast.Name != typeName) {
@@ -246,17 +251,23 @@ namespace Pansynchro.Core.DataDict
             }
             var fieldMie = (NamedListNode)ast.Arguments[0];
             var name = fieldMie.Name.ToString();
-            var nullable = fieldMie.Arguments.Length == 2;
+            var nullable = fieldMie.Arguments.Length >= 2 && fieldMie.Arguments[1].Matches(NULL_EXPR);
+            var hasCustom = (nullable && fieldMie.Arguments.Length > 2)
+                || (fieldMie.Arguments.Length == 2 && !nullable);
+            var custom = hasCustom ? fieldMie.Arguments[^1].ToString() : null;
             var fieldType = ParseType(fieldMie.Arguments[0], nullable);
-            return new FieldDefinition(name, fieldType);
+            return new FieldDefinition(name, fieldType, custom);
         }
 
         private static FieldType ParseType(Expression typeExpr, bool nullable)
         {
             return typeExpr switch {
                 NamedListNode nln =>
-                    new FieldType(Enum.Parse<TypeTag>(
-                        nln.Name.ToString()), nullable, CollectionType.None, string.Join<Expression>(", ", nln.Arguments)),
+                    new FieldType(
+                        Enum.Parse<TypeTag>(nln.Name.ToString()),
+                        nullable,
+                        CollectionType.None,
+                        string.Join<Expression>(", ", nln.Arguments)),
                 _ => new FieldType(Enum.Parse<TypeTag>(typeExpr.ToString()), nullable, CollectionType.None, null)
             };
         }

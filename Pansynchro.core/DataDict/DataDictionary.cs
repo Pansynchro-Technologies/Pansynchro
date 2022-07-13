@@ -96,7 +96,7 @@ namespace Pansynchro.Core.DataDict
         }
     }
 
-    public record FieldDefinition(string Name, FieldType Type);
+    public record FieldDefinition(string Name, FieldType Type, string? CustomRead = null);
 
     public record FieldType(TypeTag Type, bool Nullable, CollectionType CollectionType, string? Info)
     {

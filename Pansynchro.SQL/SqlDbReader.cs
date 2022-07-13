@@ -52,7 +52,9 @@ namespace Pansynchro.SQL
                 ? stream.NameList.Except(rcf).Concat(rcf)
                 : stream.NameList;
             var formatter = SqlFormatter;
-            var columns = string.Join(", ", columnList.Select(formatter.QuoteName)); ;
+            var columns = (stream.Fields.Any(f => f.CustomRead != null))
+                ? GetCustomColumnList(stream, columnList, formatter)
+                : string.Join(", ", columnList.Select(formatter.QuoteName));
             var sql = $"select {columns} from {formatter.QuoteName(stream.Name)}";
             if (rcf?.Length > 0) {
                 var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
@@ -65,6 +67,19 @@ namespace Pansynchro.SQL
             query.CommandText = sql;
             query.CommandTimeout = 0;
             return await query.ExecuteReaderAsync();
+        }
+
+        public static string GetCustomColumnList(
+            StreamDefinition stream, IEnumerable<string> columnList, ISqlFormatter formatter)
+        {
+            var result = new List<string>();
+            foreach (var column in columnList) {
+                var field = stream.Fields.First(f => f.Name == column);
+                var fcr = field.CustomRead;
+                var qn = formatter.QuoteName(column);
+                result.Add(fcr != null ? $"({fcr}) AS {qn}" : qn);
+            }
+            return string.Join(", ", result);
         }
 
         protected virtual string QueryWithMaxRows(string sql, int maxRows)
