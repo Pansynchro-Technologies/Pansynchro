@@ -16,7 +16,7 @@ namespace Pansynchro.Sources.S3
 
         public override IDataSink GetSink(string config) => new S3DataSink(config);
 
-        public override string ConfigSchema =>
+        public override string SourceConfigSchema =>
 @"{
   ""title"": ""S3 Configuration"",
   ""type"": ""object"",
@@ -69,7 +69,7 @@ namespace Pansynchro.Sources.S3
   ""required"": [""Conn"", ""Bucket"", ""Files""]
 }";
 
-        public override string EmptyConfig =>
+        public override string EmptySourceConfig =>
 @"{
     ""Conn"": {
         ""AccessKeyId"": ""0123456789abcdef"",

@@ -17,8 +17,10 @@ namespace Pansynchro.Core.Connectors
 
         private static readonly Dictionary<string, ConnectorCore> _factories = new();
         private static readonly Dictionary<string, DataSourceFactoryCore> _sources = new();
+        private static readonly Dictionary<string, DataProcessorFactoryCore> _procesors = new();
         private static readonly Dictionary<string, ConnectorDescription> _connectors = new();
         private static readonly Dictionary<string, SourceDescription> _sourceLoaders = new();
+        private static readonly Dictionary<string, SourceDescription> _procLoaders = new();
 
         static ConnectorRegistry()
         {
@@ -55,15 +57,21 @@ namespace Pansynchro.Core.Connectors
             }
         }
 
-        public static void RegisterSource(DataSourceFactoryCore factory)
+        public static void LoadDataProcessors(IEnumerable<SourceDescription> sources)
         {
-            _sources.Add(factory.Name, factory);
+            foreach (var src in sources) {
+                _procLoaders.Add(src.Name, src);
+            }
         }
 
+        public static void RegisterSource(DataSourceFactoryCore factory)
+            => _sources.Add(factory.Name, factory);
+
         public static void RegisterConnector(ConnectorCore connector)
-        {
-            _factories.Add(connector.Name, connector);
-        }
+            => _factories.Add(connector.Name, connector);
+
+        public static void RegisterProcessor(DataProcessorFactoryCore factory)
+            => _procesors.Add(factory.Name, factory);
 
         private static ConnectorCore GetFactory(string name)
         {
@@ -146,6 +154,37 @@ namespace Pansynchro.Core.Connectors
 
         public static IDataSource GetSource(string name, string connectionString)
             => GetSourceFactory(name).GetSource(connectionString);
+
+        public static DataProcessorFactoryCore GetProcessorFactory(string name)
+        {
+            if (_procesors.TryGetValue(name, out var factory)) {
+                return factory;
+            }
+            if (_procLoaders.TryGetValue(name, out var desc)) {
+                if (desc.Assembly == null) {
+                    throw new ArgumentException($"No assembly is defined for '{name}'.");
+                }
+                var laResult = LoadAssembly(desc.Assembly);
+                HandleResult(name, laResult);
+                if (_procesors.TryGetValue(name, out factory)) {
+                    return factory;
+                }
+            }
+            throw new ArgumentException($"No data source named '{name}' is registered.");
+
+        }
+
+        public static IDataInputProcessor GetInputProcessor(string name, string config)
+        {
+            var factory = GetProcessorFactory(name);
+            return factory.GetSource(config);
+        }
+
+        public static IDataOutputProcessor GetOutputProcessor(string name, string config)
+        {
+            var factory = GetProcessorFactory(name);
+            return factory.GetSink(config);
+        }
 
         private static void HandleResult(string name, LoadAssemblyResult laResult)
         {

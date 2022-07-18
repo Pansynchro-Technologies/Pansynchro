@@ -16,7 +16,7 @@ namespace Pansynchro.Sources.Http
 
         public override IDataSource GetSource(string config) => new HttpDataSource(config);
 
-        public override string ConfigSchema => @"{
+        public override string SourceConfigSchema => @"{
     ""type"": ""object"",
     ""properties"": {
         ""Urls"": {
@@ -42,7 +42,7 @@ namespace Pansynchro.Sources.Http
     ""required"": [""Urls""]
 }";
 
-        public override string EmptyConfig =>
+        public override string EmptySourceConfig =>
 @"{
   ""Urls"": [
     {

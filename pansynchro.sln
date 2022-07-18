@@ -51,6 +51,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Sources.S3", "Pa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Avro", "Pansynchro.Connectors.Avro\Pansynchro.Connectors.Avro.csproj", "{EF090F7E-5D38-44F6-ACB2-95BCDDB6FBB4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Sources.Compression", "Pansynchro.Sources.Compression\Pansynchro.Sources.Compression.csproj", "{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -121,6 +123,10 @@ Global
 		{EF090F7E-5D38-44F6-ACB2-95BCDDB6FBB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EF090F7E-5D38-44F6-ACB2-95BCDDB6FBB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EF090F7E-5D38-44F6-ACB2-95BCDDB6FBB4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,6 +148,7 @@ Global
 		{D882E6F4-5F7C-420E-93F0-BDE10A863CAA} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
 		{BE5BBEB7-348F-4E16-8EA9-975424A0517E} = {ACB226C5-A51B-422D-A3D9-B3BBA3DC530B}
 		{EF090F7E-5D38-44F6-ACB2-95BCDDB6FBB4} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
+		{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34} = {ACB226C5-A51B-422D-A3D9-B3BBA3DC530B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3B92743-4CDC-4144-861D-33F822FA824B}

@@ -16,7 +16,7 @@ namespace Pansynchro.Sources.Files
 
         public override IDataSource GetSource(string config) => new FileDataSource(config);
 
-        public override string ConfigSchema =>
+        public override string SourceConfigSchema =>
 @"{
     ""type"": ""object"",
     ""properties"": {
@@ -47,7 +47,7 @@ namespace Pansynchro.Sources.Files
     ""required"": [""Files""]
 }";
 
-        public override string EmptyConfig =>
+        public override string EmptySourceConfig =>
 @"{
   ""Files"": [
     {

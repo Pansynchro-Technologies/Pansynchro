@@ -65,3 +65,10 @@ DataSources:
 
 	Source S3:
 		Assembly Pansynchro.Sources.S3
+
+DataProcessors:
+	Source Brotli:
+		Assembly Pansynchro.Sources.Compression
+
+	Source Gzip:
+		Assembly Pansynchro.Sources.Compression

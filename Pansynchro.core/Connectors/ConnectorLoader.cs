@@ -29,6 +29,11 @@ namespace Pansynchro.Core.Connectors
                 .OfType<Command>()
                 .Select(ParseDataSource).ToArray();
             ConnectorRegistry.LoadDataSources(sourceDescs);
+            var procDescs = ast.OfType<Command>().First(ms => ms.Name == "DataProcessors")
+                .Body!
+                .OfType<Command>()
+                .Select(ParseDataSource).ToArray();
+            ConnectorRegistry.LoadDataProcessors(procDescs);
         }
 
         private static readonly NameNode REQ_DATA_SOURCE = new("DataSource");

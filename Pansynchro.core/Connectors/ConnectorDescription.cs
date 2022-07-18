@@ -65,8 +65,23 @@ namespace Pansynchro.Core.Connectors
         public abstract SourceCapabilities Capabilities { get; }
         public abstract IDataSource GetSource(string config);
         public abstract IDataSink GetSink(string config);
-        public abstract string ConfigSchema { get; }
-        public abstract string EmptyConfig { get; }
+        public abstract string SourceConfigSchema { get; }
+        public abstract string EmptySourceConfig { get; }
+        public abstract string SinkConfigSchema { get; }
+        public abstract string EmptySinkConfig { get; }
+
+        public bool HasSource => Capabilities.HasFlag(SourceCapabilities.Source);
+        public bool HasSink => Capabilities.HasFlag(SourceCapabilities.Sink);
+    }
+
+    public abstract class DataProcessorFactoryCore
+    {
+        public abstract string Name { get; }
+        public abstract SourceCapabilities Capabilities { get; }
+        public abstract IDataInputProcessor GetSource(string config);
+        public abstract IDataOutputProcessor GetSink(string config);
+        public abstract string SourceConfigSchema { get; }
+        public abstract string EmptySourceConfig { get; }
         public abstract string SinkConfigSchema { get; }
         public abstract string EmptySinkConfig { get; }
 

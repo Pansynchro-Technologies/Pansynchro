@@ -27,4 +27,8 @@ namespace Pansynchro.Core
     {
         void SetDataSink(IDataSink sink);
     }
+
+    public interface IDataInputProcessor : IDataSource, ISourcedConnector { }
+
+    public interface IDataOutputProcessor : IDataSink, ISinkConnector { }
 }
