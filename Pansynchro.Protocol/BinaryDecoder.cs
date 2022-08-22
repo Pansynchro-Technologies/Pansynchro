@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Streams;
 
 namespace Pansynchro.Protocol
 {
@@ -42,11 +43,6 @@ namespace Pansynchro.Protocol
             ReadVersion();
             ReadDictHash();
             return ReadStreams(source.Streams.Length, source);
-        }
-
-        public void SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
-        {
-            throw new NotImplementedException();
         }
 
         private void ReadVersion()

@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Pansynchro.Protocol
+namespace Pansynchro.Core.Streams
 {
     public class MeteredStream : Stream
     {

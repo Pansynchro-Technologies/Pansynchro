@@ -4,9 +4,9 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 
-using Microsoft.Hadoop.Avro;
-using Microsoft.Hadoop.Avro.Container;
-using Microsoft.Hadoop.Avro.Schema;
+using Avro;
+using Avro.File;
+using Avro.Generic;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
@@ -30,15 +30,10 @@ namespace Pansynchro.Connectors.Avro
                 throw new DataException("Must call SetDataSource before calling ReadFrom");
             }
             await foreach (var (_, stream) in _source.GetDataAsync()) {
-                using var reader = AvroContainer.CreateGenericReader(stream, false);
-                var schema = (RecordSchema)reader.Schema;
+                using var reader = DataFileReader<GenericRecord>.OpenReader(stream);
+                var schema = (RecordSchema)reader.GetSchema();
                 yield return new DataStream(new(schema.Namespace, schema.Name), StreamSettings.None, new AvroDataReader(reader));
             }
-        }
-
-        public void SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
-        {
-            throw new NotImplementedException();
         }
 
         public Task<Exception?> TestConnection() => Task.FromResult<Exception?>(null);
@@ -50,7 +45,7 @@ namespace Pansynchro.Connectors.Avro
             }
             var stream = source.GetStream(name);
             var readers = _source.GetDataAsync(name)
-                .Select(s => new AvroDataReader(AvroContainer.CreateGenericReader(s)))
+                .Select(s => new AvroDataReader(DataFileReader<GenericRecord>.OpenReader(s)))
                 .ToEnumerable();
             return Task.FromResult<IDataReader>(new GroupingReader(readers));
         }
@@ -63,21 +58,21 @@ namespace Pansynchro.Connectors.Avro
 
         private class AvroDataReader : ArrayReader
         {
-            private readonly IAvroReader<object> _reader;
+            private readonly IFileReader<GenericRecord> _reader;
             private readonly RecordSchema _schema;
-            private IAvroReaderBlock<object>? _block;
-            private IEnumerator<AvroRecord> _enumerator = null!;
-            private readonly Func<AvroRecord, object[]> _interpreter;
+            private IEnumerator<GenericRecord> _enumerator = null!;
+            private readonly Func<GenericRecord, object[]> _interpreter;
 
-            public AvroDataReader(IAvroReader<object> reader)
+            public AvroDataReader(IFileReader<GenericRecord> reader)
             {
                 _reader = reader;
-                _schema = (RecordSchema)reader.Schema;
+                _schema = (RecordSchema)reader.GetSchema();
                 _buffer = new object[_schema.Fields.Count];
                 for (int i = 0; i < _schema.Fields.Count; i++) {
                     _nameMap[_schema.Fields[i].Name] = i;
                 }
                 _interpreter = BuildInterpreter(_schema);
+                _enumerator = reader.NextEntries.GetEnumerator();
             }
 
             public override int RecordsAffected => throw new NotImplementedException();
@@ -86,18 +81,16 @@ namespace Pansynchro.Connectors.Avro
 
             public override bool Read()
             {
-                while (_block == null || !_enumerator.MoveNext()) {
-                    if (!NextBlock()) {
-                        return false;
-                    }
+                if (!_enumerator.MoveNext()) {
+                    return false;
                 }
                 _buffer = _interpreter(_enumerator.Current);
                 return true;
             }
 
-            private Func<AvroRecord, object[]> BuildInterpreter(RecordSchema schema)
+            private Func<GenericRecord, object[]> BuildInterpreter(RecordSchema schema)
             {
-                var indices = schema.Fields.IndexWhere(f => f.TypeSchema is EnumSchema).ToArray();
+                var indices = schema.Fields.IndexWhere(f => f.Schema is EnumSchema).ToArray();
                 if (indices.Length == 0) {
                     return this.ReadRecord;
                 }
@@ -112,35 +105,19 @@ namespace Pansynchro.Connectors.Avro
                 };
             }
 
-            private object[] ReadRecord(AvroRecord item)
+            private static Action<object[]> BuildEnumInterpreter(int i) =>
+                arr => {
+                    var e = (GenericEnum)arr[i];
+                    arr[i] = e.Schema.Ordinal(e.Value);
+                };
+
+            private object[] ReadRecord(GenericRecord item)
             {
                 var result = new object[_schema.Fields.Count];
                 for (var i = 0; i < _schema.Fields.Count; i++) {
-                    result[i] = item[i];
+                    result[i] = item.GetValue(i);
                 }
                 return result;
-            }
-
-
-            private static Action<object[]> BuildEnumInterpreter(int i) =>
-                arr => arr[i] = ((AvroEnum)arr[i]).IntegerValue;
-
-            private bool NextBlock()
-            {
-                _enumerator?.Dispose();
-                _block?.Dispose();
-                if (!_reader.MoveNext()) {
-                    return false;
-                }
-                _block = _reader.Current;
-                _enumerator = _block.Objects.Cast<AvroRecord>().GetEnumerator();
-                return true;
-            }
-
-            public override Type? GetFieldType(int i)
-            {
-                var result = _schema.Fields[i].TypeSchema.RuntimeType;
-                return result == typeof(AvroEnum) ? typeof(int) : result;
             }
 
             public override void Dispose()

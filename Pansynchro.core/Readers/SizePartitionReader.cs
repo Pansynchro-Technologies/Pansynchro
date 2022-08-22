@@ -1,35 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 
+using Pansynchro.Core.Streams;
+
 namespace Pansynchro.Core.Readers
 {
-    public class GroupingReader : IDataReader
+    public class SizePartitionReader : IDataReader
     {
-        private readonly IEnumerator<IDataReader> _readers;
-        private IDataReader _reader = null!;
-        private bool _done = false;
+        private readonly IDataReader _reader;
+        private readonly MeteredStream _meter;
+        private readonly long _sizeLimit;
 
-        public GroupingReader(IEnumerable<IDataReader> readers)
+        public bool Finished { get; private set; }
+
+        public SizePartitionReader(IDataReader reader, MeteredStream meter, long sizeLimit)
         {
-            _readers = readers.GetEnumerator();
-            LoadReader();
+            _reader = reader;
+            _meter = meter;
+            _sizeLimit = sizeLimit;
         }
 
-        private void LoadReader()
-        {
-            _reader?.Dispose();
-            if (_readers.MoveNext())
-            {
-                _reader = _readers.Current;
-            }
-            else _done = true;
-        }
+        public object this[int i] => ((IDataRecord)_reader)[i];
 
-        public object this[int i] => _reader[i];
-
-        public object this[string name] => _reader[name];
+        public object this[string name] => ((IDataRecord)_reader)[name];
 
         public int Depth => _reader.Depth;
 
@@ -42,7 +36,6 @@ namespace Pansynchro.Core.Readers
         public void Close()
         {
             _reader.Close();
-            _done = true;
         }
 
         public bool GetBoolean(int i)
@@ -95,6 +88,7 @@ namespace Pansynchro.Core.Readers
             return _reader.GetDouble(i);
         }
 
+        [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
         public Type GetFieldType(int i)
         {
             return _reader.GetFieldType(i);
@@ -162,30 +156,28 @@ namespace Pansynchro.Core.Readers
 
         public bool NextResult()
         {
-            while (!_reader.NextResult())
-            {
-                LoadReader();
-                if (_done)
-                    return false;
-            }
-            return true;
+            return _reader.NextResult();
         }
 
         public bool Read()
         {
-            while (!_reader.Read())
-            {
-                LoadReader();
-                if (_done)
-                    return false;
+            if (_meter.TotalBytesWritten >= _sizeLimit) {
+                return false;
             }
-            return true;
+            // the next two lines are slightly convoluted, but the intent is that:
+            // 1) the return value of this method will be the same as that of _reader.Read()
+            // 2) if _reader.Read() returns false, then _finished will be set to true and _reader will
+            //    get disposed in the Dispose() call
+            // 3) if we hit the meter limit, _finished will be false and _reader will *not* be disposed
+            Finished = !_reader.Read();
+            return !Finished;
         }
 
         public void Dispose()
         {
-            _reader.Dispose();
-            _readers.Dispose();
+            if (Finished) {
+                _reader.Dispose();
+            }
             GC.SuppressFinalize(this);
         }
     }

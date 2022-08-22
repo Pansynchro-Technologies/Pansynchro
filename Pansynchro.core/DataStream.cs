@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Pansynchro.Core.Helpers;
 using Pansynchro.Core.Readers;
@@ -18,7 +16,7 @@ namespace Pansynchro.Core
         Incremental = 2,
     }
 
-    public record DataStream(StreamDescription Name, StreamSettings Settings, IDataReader Reader)
+    public record DataStream(StreamDescription Name, StreamSettings Settings, IDataReader Reader) : IDisposable
     { 
         public DataStream Transformed(Func<IDataReader, IEnumerable<object[]>> transformer)
         {
@@ -32,6 +30,12 @@ namespace Pansynchro.Core
                     Reader = new GroupingReader(group.Select(g => g.Reader).ToEnumerable())
                 };
             }
+        }
+
+        public void Dispose()
+        {
+            Reader.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

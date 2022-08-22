@@ -108,7 +108,7 @@ order by table_name;";
             { "blob", TypeTag.Blob },
         };
 
-        protected override TypeTag GetTagType(string v)
+        private static TypeTag GetTagType(string v)
             => TYPE_MAP.TryGetValue(v.ToLowerInvariant(), out var result) ? result : TypeTag.Unstructured;
     }
 }

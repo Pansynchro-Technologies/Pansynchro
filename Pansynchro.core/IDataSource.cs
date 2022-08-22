@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -28,7 +29,7 @@ namespace Pansynchro.Core
         void SetDataSink(IDataSink sink);
     }
 
-    public interface IDataInputProcessor : IDataSource, ISourcedConnector { }
+    public interface IDataInputProcessor : IDataSource, ISourcedConnector, IDisposable { }
 
-    public interface IDataOutputProcessor : IDataSink, ISinkConnector { }
+    public interface IDataOutputProcessor : IDataSink, ISinkConnector, IDisposable { }
 }

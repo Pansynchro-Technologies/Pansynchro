@@ -4,12 +4,16 @@ namespace Pansynchro.Core
 {
     public record StreamDescription(string? Namespace, string Name)
     {
-        public StreamDescription ToLower() => new(Namespace?.ToLower(CultureInfo.InvariantCulture), Name.ToLower(CultureInfo.InvariantCulture));
-
         public static StreamDescription Parse(string name)
         {
             var pieces = name.Split('.');
-            return pieces.Length == 1 ? new StreamDescription(null, pieces[0]) : new StreamDescription(pieces[0], pieces[1]);
+            if (pieces.Length == 1) { 
+                return new StreamDescription(null, pieces[0]);
+            }
+            if (pieces.Length == 2) { 
+                return new StreamDescription(pieces[0], pieces[1]);
+            }
+            return new StreamDescription(string.Join('.', pieces[0..^2]), pieces[pieces.Length - 1]);
         }
 
         public override string ToString()

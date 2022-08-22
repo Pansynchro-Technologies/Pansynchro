@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.IO.Compression;
@@ -60,6 +61,13 @@ namespace Pansynchro.Sources.Compression
             var stream = await _sink.WriteData(streamName);
             var result = new BrotliStream(stream, (CompressionLevel)4, false);
             return result;
+        }
+
+        public void Dispose()
+        {
+            (_source as IDisposable)?.Dispose();
+            (_sink as IDisposable)?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

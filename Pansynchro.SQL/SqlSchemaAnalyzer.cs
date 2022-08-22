@@ -50,15 +50,21 @@ namespace Pansynchro.SQL
 
         protected abstract Task<StreamDescription[][]> BuildStreamDependencies();
 
-        private async Task<StreamDefinition[]> BuildStreamDefinitions()
+        protected virtual async Task<StreamDefinition[]> BuildStreamDefinitions()
         {
             var fields = await SqlHelper.ReadValuesAsync(_conn, ColumnsQuery, BuildFieldDefinition)
                 .ToLookupAsync(pair => pair.table, pair => pair.column);
-            var pks = await SqlHelper.ReadValuesAsync(_conn, PkQuery, BuildPkDefintion)
-                .ToLookupAsync(pair => pair.table, pair => pair.column);
+            var pks = await GetPKs(fields.Select(g => g.Key));
             return fields
                 .Select(g => new StreamDefinition(g.Key, g.ToArray(), pks.Contains(g.Key) ? pks[g.Key].ToArray() : Array.Empty<string>()))
                 .ToArray();
+        }
+
+        protected virtual async Task<ILookup<StreamDescription, string>> GetPKs(
+            IEnumerable<StreamDescription> tables)
+        {
+            return await SqlHelper.ReadValuesAsync(_conn, PkQuery, BuildPkDefintion)
+                .ToLookupAsync(pair => pair.table, pair => pair.column);
         }
 
         protected virtual Task<Dictionary<string, FieldType>> LoadCustomTypes() => Task.FromResult(new Dictionary<string, FieldType>());
@@ -67,27 +73,17 @@ namespace Pansynchro.SQL
 
         protected abstract (StreamDescription table, string column) BuildPkDefintion(IDataReader reader);
 
-        protected virtual CollectionType GetCollType(string v)
-        {
-            return CollectionType.None;
-        }
-
-        protected abstract TypeTag GetTagType(string v);
-
         protected static IEnumerable<StreamDescription[]> OrderDeps(
             List<StreamDescription> names, List<KeyValuePair<StreamDescription, StreamDescription>> deps)
         {
-            while (names.Count > 0)
-            {
+            while (names.Count > 0) {
                 var uncounted = names.Count;
                 var freeList = names.Except(deps.Select(p => p.Value)).ToArray();
-                if (freeList.Length == 0)
-                {
+                if (freeList.Length == 0) {
                     throw new Exception($"Circular references found in {freeList.Length} tables.");
                 }
                 yield return freeList;
-                foreach (var free in freeList)
-                {
+                foreach (var free in freeList) {
                     names.Remove(free);
                     deps.RemoveAll(p => p.Key == free);
                 }

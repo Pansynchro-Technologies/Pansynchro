@@ -52,13 +52,13 @@ namespace Pansynchro.Core.DataDict
 
         public static DataDictionary LoadFromFile(string filename) 
             => DataDictionaryWriter.Parse(File.ReadAllText(filename));
+
         public void SaveToFile(string filename) => File.WriteAllText(filename, DataDictionaryWriter.Write(this));
 
         public IncrementalStrategy IncrementalStrategyFor(StreamDescription stream)
         {
-            if (this.Incremental.TryGetValue(stream, out var result))
-                return result;
-            return IncrementalStrategy.None;
+            this.Incremental.TryGetValue(stream, out var result); // will always be 0 (None) if not found
+            return result;
         }
 
         public override string ToString()

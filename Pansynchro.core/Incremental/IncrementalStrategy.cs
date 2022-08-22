@@ -4,7 +4,6 @@
     {
         None,
         Cdc,
-        Column,
-        AuditTable
+        Column
     }
 }

@@ -3,30 +3,33 @@
 	<PropertyGroup>
 		<TargetFrameworks>net6.0;net6.0-windows</TargetFrameworks>
 		<Nullable>enable</Nullable>
-		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<AssemblyVersion>0.5.7</AssemblyVersion>
 		<FileVersion>0.5.7</FileVersion>
 		<Version>0.5.7</Version>
 		<Authors>Pansynchro Technologies</Authors>
-		<Product>Pansynchro Avro Connector</Product>
-		<Description>Pansynchro connector to read from Avro files.</Description>
+		<Product>Pansynchro Snowflake Connector</Product>
+		<Description>Pansynchro connector to read from Snowflake databases.</Description>
 		<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
 		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
-		<PackageTags>pansynchro;data;data-integration;etl;elt;avro</PackageTags>
-		<PackageReleaseNotes>Adding Avro writer.  Changing from Microsoft's Avro library to Apache's.</PackageReleaseNotes>
+		<PackageTags>pansynchro;data;data-integration;etl;elt;snowflake</PackageTags>
+		<PackageReleaseNotes>First public version!</PackageReleaseNotes>
 		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<OutputPath>..\bin\</OutputPath>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Tortuga.Data.Snowflake" Version="3.1.0" />
+	</ItemGroup>
 	
 	<ItemGroup>
-		<PackageReference Include="Apache.Avro" Version="1.11.1" />
-	</ItemGroup>
-
-	<ItemGroup>
+		<ProjectReference Include="..\Pansynchro.Connectors.Avro\Pansynchro.Connectors.Avro.csproj" />
 		<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+		<ProjectReference Include="..\Pansynchro.Sources.Compression\Pansynchro.Sources.Compression.csproj" />
+		<ProjectReference Include="..\Pansynchro.Sources.FileData\Pansynchro.Sources.Files.csproj" />
+		<ProjectReference Include="..\Pansynchro.SQL\Pansynchro.SQL.csproj" />
 	</ItemGroup>
-
+	
 </Project>

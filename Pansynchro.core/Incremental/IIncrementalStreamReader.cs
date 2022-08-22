@@ -5,7 +5,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Core.Incremental
 {
-    public interface IIncrementalReader
+    public interface IIncrementalStreamReader
     {
         Task<IDataReader> ReadStreamAsync(StreamDefinition stream);
         IncrementalStrategy Strategy { get; }

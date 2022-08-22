@@ -152,10 +152,9 @@ where t.is_user_defined = 1";
             { "xml", TypeTag.Xml}
         };
 
-        protected override TypeTag GetTagType(string v)
+        private static TypeTag GetTagType(string v)
         {
-            if (TYPE_MAP.TryGetValue(v, out var result))
-            {
+            if (TYPE_MAP.TryGetValue(v, out var result)) {
                 return result;
             }
             throw new ArgumentException($"Unknown SQL data type '{v}'.");

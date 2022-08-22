@@ -73,11 +73,6 @@ namespace Pansynchro.Connectors.TextFile.CSV
             _source = source;
         }
 
-        public void SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
-        {
-            throw new NotImplementedException();
-        }
-
         async Task<Exception?> IReader.TestConnection()
         {
             if (_source == null) {

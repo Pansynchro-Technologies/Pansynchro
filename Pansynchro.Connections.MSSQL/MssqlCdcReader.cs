@@ -12,7 +12,7 @@ using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.MSSQL
 {
-    class MssqlCdcReader : IIncrementalReader
+    class MssqlCdcReader : IIncrementalStreamReader
     {
         private readonly SqlConnection _conn;
         private readonly int _bookmarkLength;
@@ -42,7 +42,7 @@ namespace Pansynchro.Connectors.MSSQL
  where ct.capture_instance = @name
  order by column_ordinal";
 
-        async Task<IDataReader> IIncrementalReader.ReadStreamAsync(StreamDefinition stream)
+        async Task<IDataReader> IIncrementalStreamReader.ReadStreamAsync(StreamDefinition stream)
         {
             var name = stream.Name;
             var tableName = SqlHelper.ReadValues(_conn, 

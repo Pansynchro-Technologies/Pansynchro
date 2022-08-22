@@ -12,12 +12,12 @@ using Pansynchro.SQL;
 
 namespace Pansynchro.SQL
 {
-    public abstract class SqlDbReader : IDbReader, IRandomStreamReader
+    public abstract class SqlDbReader : IDbReader, IRandomStreamReader, IIncrementalReader
     {
         protected readonly DbConnection _conn;
         public DbConnection Conn => _conn;
 
-        protected IIncrementalReader? _incrementalReader;
+        protected IIncrementalStreamReader? _incrementalReader;
         protected Func<StreamDefinition, Task<IDataReader>> _getReader;
         private Dictionary<StreamDescription, string>? _incrementalPlan;
 

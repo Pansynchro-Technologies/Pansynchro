@@ -61,11 +61,6 @@ namespace Pansynchro.Connectors.Parquet
             return new DataStream(streamDef.Name, StreamSettings.None, new ParquetTableReader(table, streamDef));
         }
 
-        public void SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
-        {
-            throw new NotImplementedException();
-        }
-
         public Task<Exception?> TestConnection() => Task.FromResult<Exception?>(null);
 
         public void Dispose()

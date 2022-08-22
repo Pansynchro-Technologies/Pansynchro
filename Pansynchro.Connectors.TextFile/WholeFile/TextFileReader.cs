@@ -52,11 +52,6 @@ namespace Pansynchro.Connectors.TextFile.WholeFile
 
         void ISourcedConnector.SetDataSource(IDataSource source) => _source = source;
 
-        void IReader.SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
-        {
-            throw new NotImplementedException();
-        }
-
         async Task<Exception?> IReader.TestConnection()
         {
             if (_source == null) {

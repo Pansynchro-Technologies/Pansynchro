@@ -196,8 +196,7 @@ namespace Pansynchro.Core.DataDict
 
         protected virtual ITransformer? Transform(ILookup<string, ConversionLine> conversions, Dictionary<string, string> nameLookup, DataDictionary source, DataDictionary dest)
         {
-            if (conversions.Count == 0)
-            {
+            if (conversions.Count == 0) {
                 return null;
             }
             return new ComparisonTransformer(conversions, nameLookup, source);
@@ -210,15 +209,12 @@ namespace Pansynchro.Core.DataDict
                 Dictionary<string, string> nameLookup,
                 DataDictionary schema)
             {
-                foreach (var pair in nameLookup)
-                {
-                    if (pair.Key != pair.Value)
-                    {
+                foreach (var pair in nameLookup) {
+                    if (pair.Key != pair.Value) {
                         _nameMap.Add(StreamDescription.Parse(pair.Key), StreamDescription.Parse(pair.Value));
                     }
                 }
-                foreach (var group in conversions)
-                {
+                foreach (var group in conversions) {
                     _streamDict.Add(group.Key, BuildConversion(group, nameLookup[group.Key], schema.GetStream(group.Key)));
                 }
             }
@@ -227,10 +223,8 @@ namespace Pansynchro.Core.DataDict
                 IGrouping<string, ConversionLine> group, string destName, StreamDefinition schema)
             {
                 Action<object[]> action = null!;
-                foreach (var line in group)
-                {
-                    action += line switch
-                    {
+                foreach (var line in group) {
+                    action += line switch {
                         PromotionLine pLine => PromotionConversion(pLine, schema),
                         NamedConversionLine nLine => NamedConversion(nLine, schema),
                         _ => throw new ArgumentException($"Unknown conversion line type: {line.GetType().Name}")
@@ -239,12 +233,15 @@ namespace Pansynchro.Core.DataDict
                 return Impl;
                 IEnumerable<object[]> Impl(IDataReader source)
                 {
-                    var dest = new object[source.FieldCount];
-                    while (source.Read())
-                    {
-                        source.GetValues(dest);
-                        action(dest);
-                        yield return dest;
+                    try { 
+                        var dest = new object[source.FieldCount];
+                        while (source.Read()) {
+                            source.GetValues(dest);
+                            action(dest);
+                            yield return dest;
+                        }
+                    } finally {
+                        source.Dispose();
                     }
                 };
             }

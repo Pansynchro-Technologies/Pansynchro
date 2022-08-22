@@ -13,7 +13,15 @@
 	<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
-	<PackageReleaseNotes>Fixing an edge case in StreamDescription.  Improving ArrayReader to make it more tooling-friendly.</PackageReleaseNotes>
+	<PackageReleaseNotes>
+		Making DataStream disposable for convenience.
+		Adding some new helpers.
+		Adding data input and output processor concepts.
+		Renaming IIncrementalReader to IIncrementalStreamReader and adding a new IIncrementalReader that applies to IReader, not to individual streams.
+		Adding SizePartitionReader and SizePartitionTransformer to break up data output streams into chunks not to exceed a given maximum size.
+		Improving StreamDescription.Parse to deal with non-trivial namespaces.
+		Moving MeteredStream into this assembly.
+	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 

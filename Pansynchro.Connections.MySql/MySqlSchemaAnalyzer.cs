@@ -37,7 +37,7 @@ order by TABLE_NAME, COLUMN_NAME";
             return (new StreamDescription(null, reader.GetString(0)), reader.GetString(1));
         }
 
-        private FieldType GetFieldType(IDataReader reader)
+        private static FieldType GetFieldType(IDataReader reader)
         {
             var nullable = reader.GetString(2) == "YES";
             var tag = GetTagType(reader.GetString(3));
@@ -64,10 +64,9 @@ order by TABLE_NAME, COLUMN_NAME";
             { "varchar", TypeTag.Varchar },
         };
 
-        protected override TypeTag GetTagType(string v)
+        protected static TypeTag GetTagType(string v)
         {
-            if (TYPE_MAP.TryGetValue(v, out var result))
-            {
+            if (TYPE_MAP.TryGetValue(v, out var result)) {
                 return result;
             }
             throw new ArgumentException($"Unknown SQL data type '{v}'.");
@@ -123,14 +122,13 @@ WHERE t.constraint_type='PRIMARY KEY'
         {
             var names = new List<StreamDescription>();
             var deps = new List<KeyValuePair<StreamDescription, StreamDescription>>();
-            await foreach (var name in SqlHelper.ReadStringsAsync(_conn, TableQuery))
-            {
+            await foreach (var name in SqlHelper.ReadStringsAsync(_conn, TableQuery)) {
                 names.Add(new StreamDescription(null, name.Trim()));
             }
             await foreach (var pair in SqlHelper.ReadValuesAsync(_conn, DepsQuery,
                 r => KeyValuePair.Create(
                     new StreamDescription(null, r.GetString(0).Trim()),
-                    new StreamDescription(null, r.GetString(1).Trim()))))
+                    new StreamDescription(null, r.GetString(1).Trim())))) 
             {
                 deps.Add(pair);
             }

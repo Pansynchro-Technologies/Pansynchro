@@ -138,14 +138,19 @@ namespace Pansynchro.Connectors.TextFile.JSON
             } else throw new ValidationException($"Stream {ns} is not a JSON object");
         }
 
-        public void SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
+        public async Task<Exception?> TestConnection()
         {
-            throw new NotImplementedException();
-        }
-
-        public Task<Exception?> TestConnection()
-        {
-            throw new NotImplementedException();
+            if (_source == null) {
+                return new DataException("No data source has been set.");
+            }
+            try {
+                await foreach (var (name, stream) in _source.GetDataAsync()) {
+                    break;
+                }
+            } catch (Exception e) {
+                return e;
+            }
+            return null;
         }
 
         void ISourcedConnector.SetDataSource(IDataSource source)

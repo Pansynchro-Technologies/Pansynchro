@@ -12,8 +12,12 @@ namespace Pansynchro.Core
     public interface IReader : IDisposable
     {
         IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source);
-        void SetIncrementalPlan(Dictionary<StreamDescription, string> plan);
         Task<Exception?> TestConnection();
+    }
+
+    public interface IIncrementalReader
+    {
+        void SetIncrementalPlan(Dictionary<StreamDescription, string> plan);
     }
 
     public interface IRandomStreamReader

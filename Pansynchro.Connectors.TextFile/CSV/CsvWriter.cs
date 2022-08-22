@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,19 +24,21 @@ namespace Pansynchro.Connectors.TextFile.CSV
             }
             await foreach (var (name, settings, stream) in streams) {
                 try {
-                    using var writer = await CreateWriter(name.ToString());
-                    writer.Write(stream);
+                    using var tw = await _sink!.WriteText(name.ToString());
+                    using var writer = CreateWriter(tw);
+                    ChoCSVWriter.Write(writer, stream);
                 } finally {
                     stream.Dispose();
                 }
             }
         }
 
-        private async ValueTask<ChoCSVWriter> CreateWriter(string name)
+        private static ChoCSVWriter CreateWriter(TextWriter tw)
         {
-            return (ChoCSVWriter) new ChoCSVWriter(await _sink!.WriteText(name))
-                .WithFirstLineHeader()
-                .QuoteAllFields(false);
+            var result = (ChoCSVWriter) new ChoCSVWriter(tw)
+                .WithFirstLineHeader();
+            result.Configuration.EscapeQuoteAndDelimiter = true;
+            return result;
         }
 
         public void SetDataSink(IDataSink sink)

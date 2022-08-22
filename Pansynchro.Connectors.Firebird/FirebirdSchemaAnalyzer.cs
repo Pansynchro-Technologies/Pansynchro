@@ -141,11 +141,6 @@ where RDB$RELATION_TYPE = 0
             return OrderDeps(names, deps).Reverse().ToArray();
         }
 
-        protected override TypeTag GetTagType(string v)
-        {
-            throw new NotImplementedException();
-        }
-
         protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
             => $"select {fieldList} from (select first {threshold} (*) from {tableName}) a;";
     }

@@ -49,9 +49,13 @@ Connectors:
 		assembly Pansynchro.Connectors.Parquet
 
 	Connector Avro:
-		supports Analyzer, Reader, Configurator
+		supports Analyzer, Reader, Writer, Configurator
 		requires DataSource
 		assembly Pansynchro.Connectors.Avro
+
+	Connector Snowflake:
+		supports Analyzer, Reader, Writer, Configurator
+		assembly Pansynchro.Connectors.Snowflake
 
 DataSources:
 	Source Http:

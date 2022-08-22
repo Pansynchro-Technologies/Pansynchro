@@ -54,15 +54,10 @@ namespace Pansynchro.Connectors.TextFile.Lines
 
         void ISourcedConnector.SetDataSource(IDataSource source) => _source = source;
 
-        void IReader.SetIncrementalPlan(Dictionary<StreamDescription, string> plan)
-        {
-            throw new NotImplementedException();
-        }
-
         async Task<Exception?> IReader.TestConnection()
         {
             if (_source == null) {
-                return new Exception("No data source has been set.");
+                return new DataException("No data source has been set.");
             }
             try {
                 await foreach (var (name, stream) in _source.GetDataAsync()) {

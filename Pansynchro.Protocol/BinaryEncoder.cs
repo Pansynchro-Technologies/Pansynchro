@@ -16,7 +16,9 @@ using Newtonsoft.Json.Linq;
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
 using Pansynchro.Core.DataDict;
-
+#if DEBUG
+using Pansynchro.Core.Streams;
+#endif
 namespace Pansynchro.Protocol
 {
     public class BinaryEncoder : IWriter
