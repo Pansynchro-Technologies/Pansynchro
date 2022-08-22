@@ -26,8 +26,7 @@ namespace Pansynchro.Core
                 if (_streamDict.TryGetValue(stream.Name.ToString(), out var processor)) {
                     Console.WriteLine("Stream found");
                     result = stream.Transformed(processor);
-                }
-                else {
+                } else {
                     Console.WriteLine("Stream not found");
                     result = stream;
                 }

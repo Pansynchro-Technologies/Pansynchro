@@ -40,14 +40,12 @@ namespace Pansynchro.Connectors.MSSQL
 
         private void Finish()
         {
-            foreach (var table in _order!.Streams)
-            {
+            foreach (var table in _order!.Streams) {
                 Console.WriteLine($"{DateTime.Now}: Merging table '{table.Name}'");
                 MetadataHelper.MergeTable(_conn, table.Name);
             }
             Console.WriteLine($"{DateTime.Now}: Truncating");
-            foreach (var table in _order.Streams)
-            {
+            foreach (var table in _order.Streams) {
                 MetadataHelper.TruncateTable(_conn, table.Name);
             }
         }
@@ -90,8 +88,7 @@ namespace Pansynchro.Connectors.MSSQL
             try {
                 while (inc.Read()) {
                     WriteIncrementalRow(name, inc, tran, writers);
-                    if (++count % inc.BookmarkLength == 0)
-                    {
+                    if (++count % inc.BookmarkLength == 0) {
                         tran.Commit();
                         tran = _conn.BeginTransaction(IsolationLevel.Serializable);
                         latestBookmark = inc.Bookmark(count);
@@ -109,8 +106,7 @@ namespace Pansynchro.Connectors.MSSQL
         private void WriteIncrementalRow(StreamDescription name, IncrementalDataReader inc, SqlTransaction tran, Action<List<string>, SqlParameterCollection>[] writers)
         {
             List<string> names; SqlCommand cmd;
-            switch (inc.UpdateType)
-            {
+            switch (inc.UpdateType) {
                 case UpdateRowType.Insert:
                     var template = $"insert into [{name.Namespace}].[{name.Name}] ({{0}}) values ({{1}})";
                     (names, cmd) = RunIncrementalWritersForInsert(inc, tran, writers);
@@ -147,8 +143,7 @@ namespace Pansynchro.Connectors.MSSQL
         {
             var names = new List<string>();
             var cmd = new SqlCommand(null, _conn, tran);
-            for (int i = 0; i < writers.Length; ++i)
-            {
+            for (int i = 0; i < writers.Length; ++i) {
                 writers[i](names, cmd.Parameters);
             }
             return (names, cmd);
@@ -158,8 +153,7 @@ namespace Pansynchro.Connectors.MSSQL
         {
             var names = new List<string>();
             var cmd = new SqlCommand(null, _conn, tran);
-            foreach (var column in inc.AffectedColumns)
-            {
+            foreach (var column in inc.AffectedColumns) {
                 writers[column](names, cmd.Parameters);
             }
             return (names, cmd);
@@ -168,8 +162,7 @@ namespace Pansynchro.Connectors.MSSQL
         private static Action<List<string>, SqlParameterCollection>[] BuildIncrementalWriters(StreamDescription name, IncrementalDataReader inc)
         {
             var result = new Action<List<string>, SqlParameterCollection>[inc.FieldCount];
-            for (int i = 0; i < inc.FieldCount; ++i)
-            {
+            for (int i = 0; i < inc.FieldCount; ++i) {
                 result[i] = BuildWriter(i, inc);
             }
             return result;
@@ -186,8 +179,7 @@ namespace Pansynchro.Connectors.MSSQL
         {
             ulong progress = 0;
             MetadataHelper.TruncateTable(_conn, name);
-            using var copy = new SqlBulkCopy(_conn, COPY_OPTIONS, null)
-            {
+            using var copy = new SqlBulkCopy(_conn, COPY_OPTIONS, null) {
                 BatchSize = BATCH_SIZE,
                 DestinationTableName = $"Pansynchro.[{name.Name}]",
                 EnableStreaming = true,

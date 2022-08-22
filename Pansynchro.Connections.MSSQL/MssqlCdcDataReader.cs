@@ -35,15 +35,12 @@ namespace Pansynchro.Connectors.MSSQL
 
         public override IEnumerable<int> AffectedColumns
         {
-            get
-            {
+            get {
                 var mask = (byte[])_reader.GetValue(2);
                 Array.Reverse(mask);
                 var bits = new BitArray(mask);
-                for (int i = 0; i < bits.Length; ++i)
-                {
-                    if (bits[i])
-                    {
+                for (int i = 0; i < bits.Length; ++i) {
+                    if (bits[i]) {
                         yield return _fieldMap[i];
                     }
                 }
