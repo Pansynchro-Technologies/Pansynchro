@@ -110,5 +110,10 @@ order by table_name;";
 
         private static TypeTag GetTagType(string v)
             => TYPE_MAP.TryGetValue(v.ToLowerInvariant(), out var result) ? result : TypeTag.Unstructured;
+
+        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -20,7 +20,7 @@ namespace Pansynchro.Protocol
         private readonly BinaryReader _blockReader;
         private readonly Func<BinaryReader, object>[] _decoders;
         private readonly int _rcfFieldCount;
-        private readonly int _seqIdField;
+        private readonly int? _seqIdField;
         private readonly bool _seqIdIsLong;
         private readonly Action _onComplete;
         private MemoryStream _bufferStream = new();
@@ -39,7 +39,7 @@ namespace Pansynchro.Protocol
                 _nameMap.Add(schema.NameList[i], i);
             }
             _seqIdField = schema.SeqIdIndex;
-            _seqIdIsLong = _seqIdField >= 0 && schema.Fields[_seqIdField].Type.Type == TypeTag.Long;
+            _seqIdIsLong = _seqIdField.HasValue && schema.Fields[_seqIdField.Value].Type.Type == TypeTag.Long;
             _blockReader = new(_bufferStream);
         }
 

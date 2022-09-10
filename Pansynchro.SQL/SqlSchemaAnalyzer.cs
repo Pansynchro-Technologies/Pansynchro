@@ -19,7 +19,7 @@ namespace Pansynchro.SQL
         /// column name, and enough info to construct the column's full type.  No computed columns.
         protected abstract string ColumnsQuery { get; }
         protected abstract string PkQuery { get; }
-        protected string DatabaseName { get; private set; } = "";
+        protected string DatabaseName => Conn.Database;
 
         public DbConnection Conn => _conn;
 
@@ -32,21 +32,45 @@ namespace Pansynchro.SQL
         {
             await _conn.OpenAsync();
             try {
-                DatabaseName = name;
                 var types = await LoadCustomTypes();
                 var tables = await BuildStreamDefinitions();
                 var dependencies = await BuildStreamDependencies();
-                var incremental = await LoadIncrementalData();
-                return new DataDictionary(name, tables, dependencies, types, incremental);
+                return new DataDictionary(name, tables, dependencies, types);
             } finally {
                 await _conn.CloseAsync();
             }
         }
 
-        protected virtual Task<Dictionary<StreamDescription, IncrementalStrategy>> LoadIncrementalData()
+        public async ValueTask<DataDictionary> AddCustomTables(DataDictionary input, ISqlFormatter formatter, params (StreamDescription name, string query)[] tables)
         {
-            return Task.FromResult(new Dictionary<StreamDescription, IncrementalStrategy>());
+            var streams = input.Streams.ToList();
+            foreach (var (name, query) in tables) {
+                streams.Add(await AnalyzeCustomTable(name, query, formatter));
+            }
+            return input with { Streams = streams.ToArray() };
         }
+
+        private async ValueTask<StreamDefinition> AnalyzeCustomTable(
+            StreamDescription name,
+            string query,
+            ISqlFormatter formatter)
+        {
+            await _conn.OpenAsync();
+            try {
+                var lQuery = formatter.LimitRows(query, 1);
+                using var cmd = _conn.CreateCommand();
+                cmd.CommandText = lQuery;
+                using var reader = await cmd.ExecuteReaderAsync();
+                return AnalyzeCustomTableSchema(name, reader) with { CustomQuery = query };
+            } finally {
+                await _conn.CloseAsync();
+            }
+        }
+
+        private StreamDefinition AnalyzeCustomTableSchema(StreamDescription name, IDataReader reader) 
+            => new StreamDefinition(name, AnalyzeCustomTableFields(reader), Array.Empty<string>());
+
+        protected abstract FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader);
 
         protected abstract Task<StreamDescription[][]> BuildStreamDependencies();
 
@@ -167,7 +191,7 @@ namespace Pansynchro.SQL
         {
             var result = new KeyValuePair<string, int>[reader.FieldCount];
             for (int i = 0; i < reader.FieldCount; ++i) {
-                result[i] = KeyValuePair.Create(reader.GetName(i), (int)reader.GetValue(i));
+                result[i] = KeyValuePair.Create(reader.GetName(i), reader.GetInt32(i));
             }
             return result;
         }

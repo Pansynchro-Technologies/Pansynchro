@@ -1,4 +1,5 @@
-﻿using Pansynchro.SQL;
+﻿using Pansynchro.Core.Helpers;
+using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Firebird
 {
@@ -12,5 +13,8 @@ namespace Pansynchro.Connectors.Firebird
         {
             return '"' + name + '"';
         }
+
+        public string LimitRows(string query, int limit)
+            => query.ReplaceFirst("select ", $"select first {limit} ");
     }
 }

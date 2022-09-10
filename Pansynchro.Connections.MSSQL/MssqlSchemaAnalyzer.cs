@@ -16,7 +16,7 @@ namespace Pansynchro.Connectors.MSSQL
 {
     public class MssqlSchemaAnalyzer : SqlSchemaAnalyzer
     {
-        public MssqlSchemaAnalyzer (string connectionString) : base(new SqlConnection(connectionString))
+        public MssqlSchemaAnalyzer(string connectionString) : base(new SqlConnection(connectionString))
         { }
 
         protected override string ColumnsQuery =>
@@ -82,10 +82,8 @@ where t.is_user_defined = 1";
         {
             var formalType = !reader.IsDBNull(8);
             var typeName = reader.GetString(formalType ? 8 : 3);
-            if (formalType)
-            {
-                if (_customTypes.ContainsKey(typeName))
-                {
+            if (formalType) {
+                if (_customTypes.ContainsKey(typeName)) {
                     return new FieldType(TypeTag.Custom, false, CollectionType.None, typeName);
                 }
             }
@@ -104,7 +102,7 @@ where t.is_user_defined = 1";
             _ => throw new ArgumentOutOfRangeException($"Type tag '{type}' does not support extended info")
         };
 
-        private static readonly HashSet<TypeTag> _typesWithInfo = new() { 
+        private static readonly HashSet<TypeTag> _typesWithInfo = new() {
             TypeTag.Varbinary, TypeTag.Varchar, TypeTag.Char, TypeTag.Binary, TypeTag.Nvarchar,
             TypeTag.Nchar, TypeTag.Time, TypeTag.DateTimeTZ, TypeTag.VarDateTime,
             TypeTag.Decimal, TypeTag.Float
@@ -195,19 +193,6 @@ order by TableName";
             return OrderDeps(names, deps).Reverse().ToArray();
         }
 
-        private const string CDC_QUERY = "select SCHEMA_NAME(schema_id) as ns, name from sys.tables where is_tracked_by_cdc = 1";
-
-        protected override async Task<Dictionary<StreamDescription, IncrementalStrategy>> LoadIncrementalData()
-        {
-            var result = new Dictionary<StreamDescription, IncrementalStrategy>();
-            await foreach (var stream in SqlHelper.ReadValuesAsync(_conn, CDC_QUERY,
-                r => new StreamDescription(r.GetString(0), r.GetString(1))))
-            {
-                result.Add(stream, IncrementalStrategy.Cdc);
-            }
-            return result;
-        }
-
         protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
             => $"select {fieldList} from (select top {threshold} * from {tableName}) a;";
 
@@ -221,5 +206,39 @@ order by TableName";
   AND s.name = N'{name.Namespace}'
   AND p.index_id IN (0,1);";
 
+        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+        {
+            var schema = reader.GetSchemaTable()!;
+            var columns = schema.Select();
+            var fields = columns.Select(BuildFieldDef).ToArray();
+            return fields;
+        }
+
+        private FieldDefinition BuildFieldDef(DataRow row)
+        {
+            var name = (string)row["ColumnName"];
+            return new FieldDefinition(name, BuildFieldType(row));
+        }
+
+        private FieldType BuildFieldType(DataRow row)
+        {
+            var typeName = (string)row["DataTypeName"];
+            if (_customTypes.ContainsKey(typeName)) {
+                return new FieldType(TypeTag.Custom, false, CollectionType.None, typeName);
+            }
+            var type = GetTagType(typeName);
+            var info = HasInfo(type) ? TypeInfo(type, row) : null;
+            var nullable = (bool)row["AllowDBNull"];
+            return new FieldType(type, nullable, CollectionType.None, info);
+        }
+
+        private static string? TypeInfo(TypeTag type, DataRow row) => type switch
+        {
+            TypeTag.Varbinary or TypeTag.Varchar or TypeTag.Char or TypeTag.Binary => (bool)row["IsLong"] ? null : row["ColumnSize"].ToString(),
+            TypeTag.Nvarchar or TypeTag.Nchar => (bool)row["IsLong"] ? null : ((int)row["ColumnSize"] / 2).ToString(CultureInfo.InvariantCulture),
+            TypeTag.Time or TypeTag.DateTimeTZ or TypeTag.VarDateTime => ((byte)row["NumericScale"]).ToString(CultureInfo.InvariantCulture),
+            TypeTag.Decimal or TypeTag.Float => $"{((byte)row["NumericPrecision"])},{((byte)row["NumericScale"])}",
+            _ => throw new ArgumentOutOfRangeException($"Type tag '{type}' does not support extended info")
+        };
     }
 }

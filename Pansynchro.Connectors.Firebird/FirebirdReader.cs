@@ -19,8 +19,5 @@ namespace Pansynchro.Connectors.Firebird
             => new FbConnection(connectionString);
 
         protected override ISqlFormatter SqlFormatter => FirebirdFormatter.Instance;
-
-        protected override string QueryWithMaxRows(string sql, int maxRows)
-            => sql.ReplaceFirst("select ", $"select first {maxRows} ");
     }
 }

@@ -137,5 +137,73 @@ WHERE t.constraint_type='PRIMARY KEY'
 
         protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
             => $"select {fieldList} from (select * from {tableName} limit {threshold}) a;";
+
+        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+        {
+            var table = reader.GetSchemaTable()!;
+            var columns = table.Select();
+            var fields = columns.Select(BuildFieldDef).ToArray();
+            return fields;
+        }
+
+        private FieldDefinition BuildFieldDef(DataRow row)
+        {
+            var name = (string)row["ColumnName"];
+            return new FieldDefinition(name, BuildFieldType(row));
+        }
+
+        private static FieldType BuildFieldType(DataRow row)
+        {
+            var msType = (MySqlDbType)row["ProviderType"];
+            var info = HasInfo(msType) ? TypeInfo(msType, row) : null;
+            var type = GetTypeTag(msType);
+            var nullable = (bool)row["AllowDBNull"];
+            return new FieldType(type, nullable, CollectionType.None, info);
+        }
+
+        private static TypeTag GetTypeTag(MySqlDbType type) => type switch
+        {
+            MySqlDbType.Bool => TypeTag.Boolean,
+            MySqlDbType.Decimal => TypeTag.Decimal,
+            MySqlDbType.Byte => TypeTag.SByte,
+            MySqlDbType.Int16 => TypeTag.Short,
+            MySqlDbType.Int32 => TypeTag.Int,
+            MySqlDbType.Int64 => TypeTag.Long,
+            MySqlDbType.Float => TypeTag.Float,
+            MySqlDbType.Double => TypeTag.Double,
+            MySqlDbType.Timestamp or MySqlDbType.DateTime => TypeTag.DateTime,
+            MySqlDbType.Date => TypeTag.Date,
+            MySqlDbType.Time => TypeTag.Time,
+            MySqlDbType.VarString or MySqlDbType.String or MySqlDbType.VarChar => TypeTag.Nvarchar,
+            MySqlDbType.Text => TypeTag.Ntext,
+            MySqlDbType.Blob or MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob => TypeTag.Blob,
+            MySqlDbType.JSON => TypeTag.Json,
+            MySqlDbType.UByte => TypeTag.Byte,
+            MySqlDbType.UInt16 => TypeTag.UShort,
+            MySqlDbType.UInt32 => TypeTag.UInt,
+            MySqlDbType.UInt64 => TypeTag.ULong,
+            MySqlDbType.Binary or MySqlDbType.VarBinary => TypeTag.Binary,
+            MySqlDbType.Text or MySqlDbType.TinyText or MySqlDbType.MediumText or MySqlDbType.LongText => TypeTag.Text,
+            MySqlDbType.Guid => TypeTag.Guid,
+            _ => throw new DataException($"Data type {type} is not supported")
+        };
+
+        private static readonly HashSet<MySqlDbType> _infoTypes = new() {
+            MySqlDbType.Binary,
+            MySqlDbType.VarBinary,
+            MySqlDbType.VarChar,
+            MySqlDbType.VarString,
+            MySqlDbType.String,
+            MySqlDbType.Decimal
+        };
+
+        private static bool HasInfo(MySqlDbType type) => _infoTypes.Contains(type);
+
+        private static string? TypeInfo(MySqlDbType type, DataRow row) => type switch
+        {
+            MySqlDbType.Binary or MySqlDbType.VarBinary or MySqlDbType.String or MySqlDbType.VarChar or MySqlDbType.VarString => (bool)row["IsLong"] ? null : row["ColumnSize"].ToString(),
+            MySqlDbType.Decimal => $"{((byte)row["NumericPrecision"])},{((byte)row["NumericScale"])}",
+            _ => throw new ArgumentOutOfRangeException($"Type tag '{type}' does not support extended info")
+        };
     }
 }

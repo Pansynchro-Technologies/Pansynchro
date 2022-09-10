@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+using Pansynchro.Core.Helpers;
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.MSSQL
@@ -17,5 +19,8 @@ namespace Pansynchro.Connectors.MSSQL
         {
             return '[' + name + ']';
         }
+        
+        public string LimitRows(string query, int limit)
+            => query.ReplaceFirst("select ", $"select top {limit} ");
     }
 }

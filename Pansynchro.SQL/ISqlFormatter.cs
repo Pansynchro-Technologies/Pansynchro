@@ -16,5 +16,7 @@ namespace Pansynchro.SQL
         }
 
         string QuoteName(StreamDescription stream) => QuoteName(stream.Namespace, stream.Name);
+
+        string LimitRows(string query, int limit) => $"{query} LIMIT {limit}";
     }
 }

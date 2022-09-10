@@ -192,6 +192,36 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
             return OrderDeps(names, deps).Reverse().ToArray();
         }
         protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
-            => $"select {fieldList} from (select (*) from {tableName} limit {threshold}) a;";
+            => $"select {fieldList} from (select * from {tableName} limit {threshold}) a;";
+
+        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+        {
+            var columnschema = ((NpgsqlDataReader)reader).GetColumnSchema();
+            var table = reader.GetSchemaTable()!;
+            var columns = table.Select();
+            var fields = columns.Select(BuildFieldDef).ToArray();
+            return fields;
+        }
+
+        private FieldDefinition BuildFieldDef(DataRow row)
+        {
+            var name = (string)row["ColumnName"];
+            return new FieldDefinition(name, BuildFieldType(row));
+        }
+
+        private static FieldType BuildFieldType(DataRow row)
+        {
+            var typeName = (string)row["DataTypeName"];
+            string? info = null;
+            if (typeName.EndsWith(')')) {
+                var startPos = typeName.LastIndexOf('(');
+                info = typeName[(startPos + 1)..^1];
+                typeName = typeName.Substring(0, startPos);
+            }
+            var type = GetTagType(typeName);
+            // BUG: https://github.com/npgsql/npgsql/issues/4639
+            var nullable = row["AllowDBNull"] is bool b ? b : true;
+            return new FieldType(type, nullable, CollectionType.None, info);
+        }
     }
 }

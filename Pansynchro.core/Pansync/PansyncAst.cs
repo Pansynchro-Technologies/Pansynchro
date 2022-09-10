@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -70,7 +71,38 @@ namespace Pansynchro.Core.Pansync
 
         protected override bool DoesMatch(PansyncNode other) => ((StringNode)other).Value == Value;
 
-        public override string ToString() => '"' + Value + '"';
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            sb.Append('"');
+            WriteStringData(Value, sb);
+            sb.Append('"');
+            return sb.ToString();
+        }
+
+        public static void WriteStringData(string text, StringBuilder builder)
+        {
+            foreach (char ch in text) {
+                switch (ch) {
+                    case '\r':
+                        builder.Append("\\r");
+                        break;
+                    case '\n':
+                        builder.Append("\\n");
+                        break;
+                    case '\\':
+                        builder.Append("\\\\");
+                        break;
+                    case '"':
+                        builder.Append("\\\"");
+                        break;
+                    default:
+                        builder.Append(ch);
+                        break;
+                }
+            }
+        }
+
     }
 
     public class IntegerNode : Expression

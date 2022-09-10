@@ -29,23 +29,7 @@ namespace Pansynchro.Core.DataDict
                 body.Add(SerializeStream(stream));
             body.Add(SerializeDeps(schema.DependencyOrder));
             body.Add(SerializeCustomTypes(schema.CustomTypes));
-            if (schema.Incremental.Count > 0) {
-                body.Add(SerializeIncrementalData(schema.Incremental));
-            }
             var result = new Command("DataDictionary", new[] { WriteName(schema.Name) }, null, body.ToArray());
-            return result;
-        }
-
-        private static Statement SerializeIncrementalData(Dictionary<StreamDescription, IncrementalStrategy> data)
-        {
-            var lookup = data.ToLookup(kvp => kvp.Value, kvp => kvp.Key);
-            var args = new List<Expression>();
-            foreach (var group in lookup) {
-                var list = new List<Expression>();
-                list.AddRange(group.Select(sd => WriteName(sd.ToString())));
-                args.Add(new NamedListNode(new NameNode(group.Key.ToString()), list.ToArray()));
-            }
-            var result = new Command("Incremental", args.ToArray());
             return result;
         }
 
@@ -87,9 +71,17 @@ namespace Pansynchro.Core.DataDict
                 var drs = new Command(DOMAIN_REDUCTION.Name, new[] { new KvListNode(pairs) });
                 body.Add(drs);
             }
-            if (stream.SeqIdIndex != -1) {
-                var sid = new Command(SEQ_ID.Name, new[] { new IntegerNode(stream.SeqIdIndex) });
+            if (stream.SeqIdIndex.HasValue) {
+                var sid = new Command(SEQ_ID.Name, new[] { new IntegerNode(stream.SeqIdIndex.Value) });
                 body.Add(sid);
+            }
+            if (stream.CustomQuery != null) {
+                var cq = new Command(QUERY.Name, new[] { new StringNode(stream.CustomQuery) });
+                body.Add(cq);
+            }
+            if (stream.AuditFieldIndex.HasValue) {
+                var aud = new Command(AUDIT_ID.Name, new[] { new IntegerNode(stream.AuditFieldIndex.Value) });
+                body.Add(aud);
             }
             var result = new Command("Stream", new[] { WriteName(stream.Name.ToString()) }, body: body.ToArray());
             return result;
@@ -138,8 +130,7 @@ namespace Pansynchro.Core.DataDict
         private static Expression WriteName(string v) => v.Contains(' ') ? new StringNode(v) : new NameNode(Capitalize(v));
 
         private static string Capitalize(string input) =>
-            input switch
-            {
+            input switch {
                 null => throw new ArgumentNullException(nameof(input)),
                 "" => throw new ArgumentException($"{nameof(input)} cannot be empty", nameof(input)),
                 _ => input.First().ToString().ToUpper() + input[1..]
@@ -172,8 +163,7 @@ namespace Pansynchro.Core.DataDict
             var deps = ParseDeps(ast.Body.OfType<Command>().Single(m => m.Name == "DependencyOrder"));
             var customTypes = ParseCustomTypes(ast.Body.OfType<Command>().Single(m => m.Name == "CustomTypes"))
                 .ToDictionary(f => f.Name, f => f.Type, StringComparer.OrdinalIgnoreCase);
-            var incremental = ParseIncrementalData(ast.Body.OfType<Command>().SingleOrDefault(m => m.Name == "Incremental"));
-            return new DataDictionary(name, streams, deps, customTypes, incremental);
+            return new DataDictionary(name, streams, deps, customTypes);
         }
 
         private static string ParseNameExpr(Expression expr) =>
@@ -183,27 +173,10 @@ namespace Pansynchro.Core.DataDict
                 _ => expr.ToString()
             };
 
-        private static Dictionary<StreamDescription, IncrementalStrategy> ParseIncrementalData(Command? data)
-        {
-            var result = new Dictionary<StreamDescription, IncrementalStrategy>();
-            if (data?.Arguments.Length > 0) {
-                var values = (KvListNode)data.Arguments[0];
-                foreach (var pair in values.Values) {
-                    var key = Enum.Parse<IncrementalStrategy>(pair.Key);
-                    var streams = (NamedListNode)pair.Value;
-                    foreach (var item in streams.Arguments) {
-                        result.Add(StreamDescription.Parse(item.ToString()), key);
-                    }
-                }
-            }
-            return result;
-        }
-
         private static IEnumerable<FieldDefinition> ParseCustomTypes(Command types)
         {
             if (types.Body != null) {
-                foreach (var entry in types.Body)
-                {
+                foreach (var entry in types.Body) {
                     yield return ParseField((Command)entry, "Type");
                 }
             }
@@ -212,7 +185,9 @@ namespace Pansynchro.Core.DataDict
         private static readonly NameNode IDENTITY = new("Identity");
         private static readonly NameNode RCF = new("RarelyChangedFields");
         private static readonly NameNode DOMAIN_REDUCTION = new("DomainReduction");
-        private static readonly NameNode SEQ_ID = new("SequentialIndexId");
+        private static readonly NameNode SEQ_ID = new("SequentialIndex");
+        private static readonly NameNode AUDIT_ID = new("AuditIndex");
+        private static readonly NameNode QUERY = new("CustomQuery");
 
         private static StreamDefinition ParseStream(Command ast)
         {
@@ -238,8 +213,18 @@ namespace Pansynchro.Core.DataDict
             var drExpr = exprs.SingleOrDefault(e => e.Name == DOMAIN_REDUCTION.Name);
             var drs = drExpr == null ? Array.Empty<KeyValuePair<string, long>>() : ParseDomainReduction((KvListNode)drExpr.Arguments[0]);
             var sidExpr = exprs.SingleOrDefault(e => e.Name == SEQ_ID.Name);
-            var sid = sidExpr == null ? -1 : (int)((IntegerNode)sidExpr.Arguments[0]).Value;
-            return new StreamDefinition(name, fields, identity) { RareChangeFields = rcf, DomainReductions = drs, SeqIdIndex = sid };
+            int? sid = sidExpr == null ? null : (int)((IntegerNode)sidExpr.Arguments[0]).Value;
+            var cqExpr = exprs.SingleOrDefault(e => e.Name == QUERY.Name);
+            var cq = cqExpr == null ? null : (string)((StringNode)cqExpr.Arguments[0]).Value;
+            var audExpr = exprs.SingleOrDefault(e => e.Name == AUDIT_ID.Name);
+            int? aud = audExpr == null ? null : (int)((IntegerNode)audExpr.Arguments[0]).Value;
+            return new StreamDefinition(name, fields, identity) { 
+                RareChangeFields = rcf,
+                DomainReductions = drs,
+                SeqIdIndex = sid,
+                AuditFieldIndex = aud,
+                CustomQuery = cq
+            };
         }
 
         private static readonly Expression NULL_EXPR = WriteName("NULL");
@@ -249,13 +234,13 @@ namespace Pansynchro.Core.DataDict
             if (ast.Name != typeName) {
                 throw new ArgumentException($"Invalid field data: {ast.ToString()}");
             }
-            var fieldMie = (NamedListNode)ast.Arguments[0];
-            var name = fieldMie.Name.ToString();
-            var nullable = fieldMie.Arguments.Length >= 2 && fieldMie.Arguments[1].Matches(NULL_EXPR);
-            var hasCustom = (nullable && fieldMie.Arguments.Length > 2)
-                || (fieldMie.Arguments.Length == 2 && !nullable);
-            var custom = hasCustom ? fieldMie.Arguments[^1].ToString() : null;
-            var fieldType = ParseType(fieldMie.Arguments[0], nullable);
+            var fieldArgs = (NamedListNode)ast.Arguments[0];
+            var name = fieldArgs.Name.ToString();
+            var nullable = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments[1].Matches(NULL_EXPR);
+            var hasCustom = (nullable && fieldArgs.Arguments.Length > 2)
+                || (fieldArgs.Arguments.Length == 2 && !nullable);
+            var custom = hasCustom ? fieldArgs.Arguments[^1].ToString() : null;
+            var fieldType = ParseType(fieldArgs.Arguments[0], nullable);
             return new FieldDefinition(name, fieldType, custom);
         }
 

@@ -55,18 +55,48 @@ namespace Pansynchro.SQL
             var columns = (stream.Fields.Any(f => f.CustomRead != null))
                 ? GetCustomColumnList(stream, columnList, formatter)
                 : string.Join(", ", columnList.Select(formatter.QuoteName));
-            var sql = $"select {columns} from {formatter.QuoteName(stream.Name)}";
+            var sql = stream.CustomQuery != null
+                ? $"select {columns} from ({stream.CustomQuery}) cq"
+                : $"select {columns} from {formatter.QuoteName(stream.Name)}";
             if (rcf?.Length > 0) {
                 var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
                 sql = $"{sql} order by {string.Join(", ", order.Select(formatter.QuoteName))}";
             }
             if (maxRows >= 0) {
-                sql = QueryWithMaxRows(sql, maxRows);
+                sql = formatter.LimitRows(sql, maxRows);
             }
             var query = _conn.CreateCommand();
             query.CommandText = sql;
             query.CommandTimeout = 0;
             return await query.ExecuteReaderAsync();
+        }
+
+        private async Task<IDataReader> AuditReader(StreamDefinition stream)
+        {
+            var rcf = stream.RareChangeFields;
+            var columnList = rcf?.Length > 0
+                ? stream.NameList.Except(rcf).Concat(rcf)
+                : stream.NameList;
+            var formatter = SqlFormatter;
+            var columns = (stream.Fields.Any(f => f.CustomRead != null))
+                ? GetCustomColumnList(stream, columnList, formatter)
+                : string.Join(", ", columnList.Select(formatter.QuoteName));
+            var sql = stream.CustomQuery != null 
+                ? $"select {columns} from ({stream.CustomQuery})"
+                : $"select {columns} from {formatter.QuoteName(stream.Name)}";
+            var bookmark = _incrementalPlan?.TryGetValue(stream.Name, out var av) == true ? av : null;
+            if (bookmark != null) {
+                var auditColumn = formatter.QuoteName(stream.Fields[stream.AuditFieldIndex!.Value].Name);
+                sql = $"{sql} where {auditColumn} > {bookmark}";
+            }
+            if (rcf?.Length > 0) {
+                var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
+                sql = $"{sql} order by {string.Join(", ", order.Select(formatter.QuoteName))}";
+            }
+            var query = _conn.CreateCommand();
+            query.CommandText = sql;
+            query.CommandTimeout = 0;
+            return new SqlAuditReader(await query.ExecuteReaderAsync(), stream.Fields[stream.AuditFieldIndex!.Value].Name);
         }
 
         public static string GetCustomColumnList(
@@ -81,9 +111,6 @@ namespace Pansynchro.SQL
             }
             return string.Join(", ", result);
         }
-
-        protected virtual string QueryWithMaxRows(string sql, int maxRows)
-            => $"{sql} LIMIT {maxRows}";
 
         public async Task<IDataReader> ReadStream(DataDictionary source, string name, int maxResults)
         {
@@ -108,13 +135,9 @@ namespace Pansynchro.SQL
                     var recordSize = PayloadSizeAnalyzer.AverageSize(_conn, stream, SqlFormatter);
                     Console.WriteLine($"{DateTime.Now}: Average data size: {recordSize}");
                     if (_incrementalPlan != null) {
-                        var strat = source.IncrementalStrategyFor(name);
-                        if (strat == IncrementalStrategy.None) {
-                            continue;
-                        }
-                        SetIncrementalStrategy(strat);
+                        _getReader = GetIncrementalStrategy(stream);
                         _incrementalPlan.TryGetValue(name, out var bookmark);
-                        _incrementalReader!.StartFrom(bookmark);
+                        _incrementalReader?.StartFrom(bookmark);
                     }
                     var settings = StreamSettings.None;
                     if (_getReader == FullSyncReader) {
@@ -129,11 +152,10 @@ namespace Pansynchro.SQL
             }
         }
 
-        public virtual bool SetIncrementalStrategy(IncrementalStrategy strategy)
-        {
-            _getReader = this.FullSyncReader;
-            return false;
-        }
+        public virtual Func<StreamDefinition, Task<IDataReader>> GetIncrementalStrategy(StreamDefinition stream)
+            => stream.AuditFieldIndex.HasValue
+                ? this.AuditReader
+                : this.FullSyncReader;
 
         public void Dispose()
         {

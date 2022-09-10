@@ -4,16 +4,19 @@
     <TargetFrameworks>net6.0;net6.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.7</AssemblyVersion>
-	<FileVersion>0.5.7</FileVersion>
-	<Version>0.5.7</Version>
+	<AssemblyVersion>0.5.8</AssemblyVersion>
+	<FileVersion>0.5.8</FileVersion>
+	<Version>0.5.8</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro MS SQL Server Connector</Product>
 	<Description>Pansynchro connector to read from or write to SQL Server databases.</Description>
 	<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;mssql;sql-server</PackageTags>
-	<PackageReleaseNotes>Removing an unused method</PackageReleaseNotes>
+	<PackageReleaseNotes>
+		Adding custom stream support
+		Reworking CDC support
+	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 

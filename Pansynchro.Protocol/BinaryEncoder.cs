@@ -34,24 +34,25 @@ namespace Pansynchro.Protocol
         private readonly MeteredStream _meter;
 #endif
 
-        public BinaryEncoder(Stream output)
+        public BinaryEncoder(Stream output, int compressionLevel = 4)
         {
+            var cl = GetCompressionLevel(compressionLevel);
+            _output = new BrotliStream(output, cl, false);
 #if DEBUG
-            _meter = new MeteredStream(output);
+            _meter = new MeteredStream(_output);
             _output = _meter;
-#else
-            _output = output;
 #endif
             _outputWriter = new BinaryWriter(_output, Encoding.UTF8);
         }
 
-        public BinaryEncoder(TcpListener server, DataDictionary dict)
+        public BinaryEncoder(TcpListener server, DataDictionary dict, int compressionLevel = 4)
         {
             this._server = server;
             _server.Start();
             _client = _server.AcceptTcpClient();
             var buffer = new BufferedStream(_client.GetStream());
-            _output = new BrotliStream(buffer, CompressionLevel.Fastest, false);
+            var cl = GetCompressionLevel(compressionLevel);
+            _output = new BrotliStream(buffer, cl, false);
 #if DEBUG
             _meter = new MeteredStream(_output);
             _output = _meter;
@@ -59,6 +60,18 @@ namespace Pansynchro.Protocol
             _outputWriter = new BinaryWriter(_output, Encoding.UTF8);
             _dataDict = dict;
         }
+
+        // NOTE: This will no longer be valid in .NET 7, which introduces a breaking change (and a better
+        // way of dealing with compression levels).  Fix it during the upgrade once .NET 7 is RTM.
+        // https://github.com/dotnet/runtime/issues/42820
+        private static CompressionLevel GetCompressionLevel(int level)
+            => level switch {
+                0 => CompressionLevel.NoCompression,
+                1 or 2 or 3 => CompressionLevel.Fastest,
+                4 or 5 or 6 or 7 or 8 or 9 or 10 => (CompressionLevel) level,
+                11 => CompressionLevel.SmallestSize,
+                _ => throw new ArgumentException("Valid Brotli compression levels are 0 - 11")
+            };
 
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
@@ -127,7 +140,7 @@ namespace Pansynchro.Protocol
             _bufferStream.SetLength(0);
         }
 
-        private bool ProcessBlock(IDataReader reader, Action<object, BinaryWriter>[] rowWriters, int rcfCount, int sequentialID)
+        private bool ProcessBlock(IDataReader reader, Action<object, BinaryWriter>[] rowWriters, int rcfCount, int? sequentialID)
         {
             var rowSize = reader.FieldCount;
             int i = 0;
@@ -146,7 +159,7 @@ namespace Pansynchro.Protocol
         }
 
         private void WriteBlock(int count, int rowSize, Action<object, BinaryWriter>[] rowWriters,
-            int rcfCount, int sequentialID)
+            int rcfCount, int? sequentialID)
         {
             using var writer = new BinaryWriter(_bufferStream, Encoding.UTF8, true);
             writer.Write7BitEncodedInt(count);

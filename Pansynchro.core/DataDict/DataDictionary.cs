@@ -11,11 +11,10 @@ namespace Pansynchro.Core.DataDict
         string Name,
         StreamDefinition[] Streams,
         StreamDescription[][] DependencyOrder,
-        Dictionary<string, FieldType> CustomTypes,
-        Dictionary<StreamDescription, IncrementalStrategy> Incremental)
+        Dictionary<string, FieldType> CustomTypes)
     {
         public DataDictionary(string name, StreamDefinition[] streams)
-            : this(name, streams, Array.Empty<StreamDescription[]>(), new(), new()) { }
+            : this(name, streams, Array.Empty<StreamDescription[]>(), new()) { }
 
         public Dictionary<string, string[]> Names => Streams.ToDictionary(s => s.Name.ToString(), s => s.NameList, StringComparer.InvariantCultureIgnoreCase);
 
@@ -55,12 +54,6 @@ namespace Pansynchro.Core.DataDict
 
         public void SaveToFile(string filename) => File.WriteAllText(filename, DataDictionaryWriter.Write(this));
 
-        public IncrementalStrategy IncrementalStrategyFor(StreamDescription stream)
-        {
-            this.Incremental.TryGetValue(stream, out var result); // will always be 0 (None) if not found
-            return result;
-        }
-
         public override string ToString()
         {
             return DataDictionaryWriter.Write(this);
@@ -75,19 +68,19 @@ namespace Pansynchro.Core.DataDict
             this.Streams = original.Streams;
             this.DependencyOrder = original.DependencyOrder;
             this.CustomTypes = original.CustomTypes;
-            this.Incremental = original.Incremental;
         }
     }
 
-    public record StreamDefinition(StreamDescription Name, FieldDefinition[] Fields, string[] Identity)
+    public record StreamDefinition(StreamDescription Name, FieldDefinition[] Fields, string[] Identity, string? CustomQuery = null)
     {
         public string[] NameList => Fields.Select(f => f.Name).ToArray();
         public string[] RareChangeFields { get; set; } = Array.Empty<string>();
         public KeyValuePair<string, long>[] DomainReductions { get; set; } = Array.Empty<KeyValuePair<string, long>>();
-        public int SeqIdIndex { get; set; } = -1;
+        public int? SeqIdIndex { get; set; }
+        public int? AuditFieldIndex { get; set; }
 
         public StreamDefinition WithOptimizations(
-            string[] rcfFields, KeyValuePair<string, long>[] domainShifts, int seqId)
+            string[] rcfFields, KeyValuePair<string, long>[] domainShifts, int? seqId)
         {
             var fixedFields = Fields.Where(f => !rcfFields.Contains(f.Name))
                 .Concat(rcfFields.Select(n => Fields.First(f => f.Name == n)))
@@ -100,7 +93,6 @@ namespace Pansynchro.Core.DataDict
 
     public record FieldType(TypeTag Type, bool Nullable, CollectionType CollectionType, string? Info)
     {
-
         public bool CanAssignNotNullToNull(in FieldType dest) => (!Nullable) && dest.Nullable
                 && Type == dest.Type
                 && Info == dest.Info
@@ -115,16 +107,13 @@ namespace Pansynchro.Core.DataDict
         public override string ToString()
         {
             var result = Type.ToString();
-            if (Info != null)
-            {
+            if (Info != null) {
                 result += $"({Info})";
             }
-            if (Nullable)
-            {
+            if (Nullable) {
                 result += " NULL";
             }
-            if (CollectionType != CollectionType.None)
-            {
+            if (CollectionType != CollectionType.None) {
                 result = $"{CollectionType}[{result}]";
             }
             return result;

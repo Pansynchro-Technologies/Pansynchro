@@ -143,5 +143,71 @@ where RDB$RELATION_TYPE = 0
 
         protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
             => $"select {fieldList} from (select first {threshold} (*) from {tableName}) a;";
+
+        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+        {
+            var table = reader.GetSchemaTable()!;
+            var columns = table.Select();
+            var fields = columns.Select(BuildFieldDef).ToArray();
+            return fields;
+        }
+
+        private FieldDefinition BuildFieldDef(DataRow row)
+        {
+            var name = (string)row["ColumnName"];
+            return new FieldDefinition(name, BuildFieldType(row));
+        }
+
+        private static FieldType BuildFieldType(DataRow row)
+        {
+            var fbType = (FbDbType)row["ProviderType"];
+            var info = HasInfo(fbType) ? TypeInfo(fbType, row) : null;
+            var type = GetTypeTag(fbType);
+            var nullable = (bool)row["AllowDBNull"];
+            return new FieldType(type, nullable, CollectionType.None, info);
+        }
+
+        private static TypeTag GetTypeTag(FbDbType type) => type switch
+        {
+            FbDbType.Binary => TypeTag.Binary,
+            FbDbType.Boolean => TypeTag.Boolean,
+            FbDbType.Char => TypeTag.Nchar,
+            FbDbType.Date => TypeTag.Date,
+            FbDbType.Decimal => TypeTag.Decimal,
+            FbDbType.Double => TypeTag.Double,
+            FbDbType.Float => TypeTag.Float,
+            FbDbType.Guid => TypeTag.Guid,
+            FbDbType.Integer => TypeTag.Int,
+            FbDbType.Numeric => TypeTag.Numeric,
+            FbDbType.SmallInt => TypeTag.Short,
+            FbDbType.Text => TypeTag.Ntext,
+            FbDbType.Time => TypeTag.Time,
+            FbDbType.TimeStamp => TypeTag.DateTime,
+            FbDbType.VarChar => TypeTag.Nvarchar,
+            FbDbType.TimeStampTZ => TypeTag.DateTimeTZ,
+            FbDbType.TimeTZ => TypeTag.TimeTZ,
+            FbDbType.Int128 => TypeTag.Int128,
+            _ => throw new DataException($"Data type {type} is not supported")
+        };
+
+        private static readonly HashSet<FbDbType> _infoTypes = new() {
+            FbDbType.Array,
+            FbDbType.Binary,
+            FbDbType.Char,
+            FbDbType.Decimal,
+            FbDbType.Numeric,
+            FbDbType.VarChar,
+            FbDbType.Text
+        };
+
+        private static bool HasInfo(FbDbType type) => _infoTypes.Contains(type);
+
+        private static string? TypeInfo(FbDbType type, DataRow row) => type switch
+        {
+            FbDbType.Binary or FbDbType.Char or FbDbType.VarChar => (bool)row["IsLong"] ? null : row["ColumnSize"].ToString(),
+            FbDbType.Text => null,
+            FbDbType.Decimal or FbDbType.Numeric => $"{((byte)row["NumericPrecision"])},{((byte)row["NumericScale"])}",
+            _ => throw new ArgumentOutOfRangeException($"Type tag '{type}' does not support extended info")
+        };
     }
 }

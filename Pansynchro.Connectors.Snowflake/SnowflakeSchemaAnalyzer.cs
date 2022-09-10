@@ -167,7 +167,8 @@ $$; ";
             var result = await base.BuildStreamDefinitions();
             foreach (var pair in _identity) {
                 var sd = result.First(d => d.Name == pair.Key);
-                sd.SeqIdIndex = Array.IndexOf(sd.NameList, pair.Value);
+                var idx = Array.IndexOf(sd.NameList, pair.Value);
+                sd.SeqIdIndex = idx >= 0 ? idx : null;
             }
             return result;
         }
@@ -310,5 +311,9 @@ where table_catalog = '{DatabaseName}'
 from information_schema.tables t
 where t.table_schema = '{name.Namespace}' and t.table_name = '{name.Name}'";
 
+        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -21,6 +21,7 @@ namespace Pansynchro.Protocol
     {
         private readonly TcpClient? _client;
         private readonly MeteredStream _meter;
+        private readonly BrotliStream _decompressor;
         private readonly BinaryReader _reader;
         private readonly DataDictionary _sourceDict;
 
@@ -34,7 +35,8 @@ namespace Pansynchro.Protocol
         public BinaryDecoder(Stream source, DataDictionary sourceDict)
         {
             _meter = new MeteredStream(source);
-            _reader = new BinaryReader(_meter, Encoding.UTF8);
+            _decompressor = new BrotliStream(_meter, CompressionMode.Decompress);
+            _reader = new BinaryReader(_decompressor, Encoding.UTF8);
             _sourceDict = sourceDict;
         }
 
