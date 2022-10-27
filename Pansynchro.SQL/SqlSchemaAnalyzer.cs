@@ -60,7 +60,7 @@ namespace Pansynchro.SQL
                 var lQuery = formatter.LimitRows(query, 1);
                 using var cmd = _conn.CreateCommand();
                 cmd.CommandText = lQuery;
-                using var reader = await cmd.ExecuteReaderAsync();
+                using var reader = await cmd.ExecuteReaderAsync(CommandBehavior.KeyInfo);
                 return AnalyzeCustomTableSchema(name, reader) with { CustomQuery = query };
             } finally {
                 await _conn.CloseAsync();
