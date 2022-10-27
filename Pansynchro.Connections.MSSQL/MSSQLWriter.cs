@@ -19,6 +19,7 @@ namespace Pansynchro.Connectors.MSSQL
     {
         private readonly SqlConnection _conn;
         private readonly SqlConnection? _perfConn;
+        private readonly string _connectionString;
 
         private DataDictionary? _order;
         private StateManager _stateManager = null!;
@@ -30,6 +31,7 @@ namespace Pansynchro.Connectors.MSSQL
             if (perfConnectionString != null) {
                 _perfConn = new SqlConnection(perfConnectionString);
             }
+            _connectionString = connectionString;
         }
 
         private void Setup(DataDictionary dest)
@@ -38,16 +40,21 @@ namespace Pansynchro.Connectors.MSSQL
             _order = dest;
         }
 
-        private void Finish()
+        private readonly List<Task> _cleanup = new();
+
+        private async Task Finish()
         {
-            foreach (var table in _order!.Streams) {
-                Console.WriteLine($"{DateTime.Now}: Merging table '{table.Name}'");
-                MetadataHelper.MergeTable(_conn, table.Name);
-            }
-            Console.WriteLine($"{DateTime.Now}: Truncating");
-            foreach (var table in _order.Streams) {
-                MetadataHelper.TruncateTable(_conn, table.Name);
-            }
+            await Task.WhenAll(_cleanup);
+        }
+
+        private void Finish(StreamDescription table)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            Console.WriteLine($"{DateTime.Now}: Merging table '{table.Name}'");
+            MetadataHelper.MergeTable(conn, table);
+            MetadataHelper.TruncateTable(conn, table);
+            Console.WriteLine($"{DateTime.Now}: Finished merging table '{table.Name}'");
         }
 
         const SqlBulkCopyOptions COPY_OPTIONS = SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.KeepNulls | SqlBulkCopyOptions.TableLock | SqlBulkCopyOptions.UseInternalTransaction;
@@ -75,7 +82,7 @@ namespace Pansynchro.Connectors.MSSQL
                 }
                 reader.Dispose();
             }
-            Finish();
+            await Finish();
         }
 
         private string? IncrementalSync(StreamDescription name, IncrementalDataReader inc)
@@ -177,6 +184,7 @@ namespace Pansynchro.Connectors.MSSQL
 
         private void FullStreamSync(StreamDescription name, StreamSettings settings, IDataReader reader)
         {
+            Console.WriteLine($"{ DateTime.Now}: Writing to {name}");
             ulong progress = 0;
             MetadataHelper.TruncateTable(_conn, name);
             using var copy = new SqlBulkCopy(_conn, COPY_OPTIONS, null) {
@@ -191,6 +199,7 @@ namespace Pansynchro.Connectors.MSSQL
             stopwatch.Start();
             copy.WriteToServer(reader);
             stopwatch.Stop();
+            _cleanup.Add(Task.Run(() => Finish(name)));
             //LogThroughput(name, progress, averageSize, stopwatch);
         }
 

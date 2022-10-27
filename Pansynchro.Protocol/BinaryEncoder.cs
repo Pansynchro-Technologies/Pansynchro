@@ -120,13 +120,13 @@ namespace Pansynchro.Protocol
         private void WriteStreamContents(IDataReader reader, BinaryWriter writer, StreamDefinition schema, bool useRcf)
         {
             _outputWriter.Write((byte)StreamMode.InsertOnly);
-            Action<object, BinaryWriter>[] columnWriters = BuildColumnWriters(reader, schema);
             //loop until it returns false
             while (ProcessBlock(reader,
                 columnWriters,
                 useRcf ? schema.RareChangeFields.Length : 0,
                 schema.SeqIdIndex))
             { }
+            Action<object, BinaryWriter>[] columnWriters = BuildColumnWriters(reader, schema, _dataDict);
             _outputWriter.Write((byte)0);
         }
 
@@ -380,7 +380,8 @@ namespace Pansynchro.Protocol
         }
         */
 
-        private static Action<object, BinaryWriter>[] BuildColumnWriters(IDataReader reader, StreamDefinition schema)
+        private static Action<object, BinaryWriter>[] BuildColumnWriters(
+            IDataReader reader, StreamDefinition schema, DataDictionary dict)
         {
             Debug.Assert(reader.FieldCount == schema.Fields.Length);
             var len = schema.Fields.Length;
@@ -390,18 +391,19 @@ namespace Pansynchro.Protocol
                 var field = schema.Fields[i];
                 var type = field.Type;
                 drs.TryGetValue(field.Name, out var dr);
-                Action<object, BinaryWriter> writer = GetWriter(i, type, dr);
+                Action<object, BinaryWriter> writer = GetWriter(i, type, dr, dict);
                 result[i] = writer;
             }
             return result;
         }
 
-        private static Action<object, BinaryWriter> GetWriter(int i, FieldType type, long domainReduction)
+        private static Action<object, BinaryWriter> GetWriter(
+            int i, FieldType type, long domainReduction, DataDictionary dict)
         {
             Action<object, BinaryWriter> writer = type.Type switch
             {
                 TypeTag.Unstructured => Unimplemented(type, i),
-                TypeTag.Custom => Unimplemented(type, i),
+                TypeTag.Custom => GetCustomTypeWriter(i, type, domainReduction, dict),
                 TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml
                     => (o, s) => s.Write((string)o),
                 TypeTag.Json => (o, s) => s.Write(((JToken)o).ToString()),
@@ -429,6 +431,15 @@ namespace Pansynchro.Protocol
             }
 
             return writer;
+        }
+
+        private static Action<object, BinaryWriter> GetCustomTypeWriter(
+            int i, FieldType type, long domainReduction, DataDictionary dict)
+        {
+            if (dict.CustomTypes.TryGetValue(type.Info!, out var ft)) {
+                return GetWriter(i, ft, domainReduction, dict);
+            }
+            return Unimplemented(type, i);
         }
 
         private static Action<object, BinaryWriter> MakeTimeSpanWriter() => (o, s) => 

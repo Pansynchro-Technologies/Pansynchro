@@ -19,11 +19,14 @@ namespace Pansynchro.NetworkClient
         public async static Task<IReader> Run(string endpoint, DataDictionary dict)
         {
             try {
+                Console.WriteLine($"{DateTime.Now} Attempting to connect to {endpoint}");
                 var client = new TcpClient(endpoint, NetworkInfo.TCP_PORT);
                 client.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.KeepAlive, true);
                 client.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 1);
                 var stream = client.GetStream();
+                Console.WriteLine($"{DateTime.Now} Connected, sending handshake");
                 await SendHandshake(stream);
+                Console.WriteLine($"{DateTime.Now} Handshake successful");
                 return new BinaryDecoder(client, dict);
             } catch (Exception e) {
                 Console.WriteLine(e);

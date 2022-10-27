@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.Data.SqlClient;
@@ -167,15 +168,18 @@ THEN INSERT ({3}) VALUES ({4});";
             var inserterCols = string.Join(", ", columns);
             var inserterVals = string.Join(", ", columns.Select(c => "SOURCE." + c));
             var hasID = (int)new SqlCommand($"SELECT OBJECTPROPERTY(OBJECT_ID('{name}'), 'TableHasIdentity')", conn).ExecuteScalar() == 1;
-            if (hasID)
-            {
+            if (hasID) {
                 conn.Execute($"set IDENTITY_INSERT {name} ON");
             }
             var SQL = string.Format(MERGE_LINK_TEMPLATE,
                 name, $"Pansynchro.[{name}]", pkMatch, inserterCols, inserterVals);
-            conn.Execute(SQL);
-            if (hasID)
-            {
+            try {
+                conn.Execute(SQL);
+            } catch (SqlException) {
+                Console.WriteLine($"SqlException while writing query:{Environment.NewLine}{SQL}");
+				throw;
+            }
+            if (hasID) {
                 conn.Execute($"set IDENTITY_INSERT {name} OFF");
             }
         }
@@ -196,15 +200,18 @@ THEN INSERT ({5}) VALUES ({6});";
             var inserterCols = string.Join(", ", columns);
             var inserterVals = string.Join(", ", columns.Select(c => "SOURCE." + c));
             var hasID = (int)new SqlCommand($"SELECT OBJECTPROPERTY(OBJECT_ID('{name}'), 'TableHasIdentity')", conn).ExecuteScalar() == 1;
-            if (hasID)
-            {
+            if (hasID) {
                 conn.Execute($"set IDENTITY_INSERT {name} ON");
             }
             var SQL = string.Format(MERGE_NORMAL_TEMPLATE,
                 name.Namespace, name.Name, $"Pansynchro.[{name.Name}]", pkMatch, updater, inserterCols, inserterVals);
-            conn.Execute(SQL);
-            if (hasID)
-            {
+            try {
+                conn.Execute(SQL);
+            } catch (SqlException) {
+                Console.WriteLine($"SqlException while writing query:{Environment.NewLine}{SQL}");
+				throw;
+            }
+            if (hasID) {
                 conn.Execute($"set IDENTITY_INSERT {name} OFF");
             }
         }

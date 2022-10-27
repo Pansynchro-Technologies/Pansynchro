@@ -136,14 +136,14 @@ namespace Pansynchro.SQL
             }
         }
 
-        private int GetSeqId(StreamDefinition stream)
+        private static int? GetSeqId(StreamDefinition stream)
         {
             if (stream.Identity.Length != 1)
-                return -1;
+                return null;
             var id = stream.Fields.Single(f => f.Name == stream.Identity[0]);
             if (id.Type.Nullable)
-                return -1;
-            return id.Type.Type is TypeTag.Int or TypeTag.Long ? Array.IndexOf(stream.Fields, id) : -1;
+                return null;
+            return id.Type.Type is TypeTag.Int or TypeTag.Long ? Array.IndexOf(stream.Fields, id) : null;
         }
 
         private async Task<KeyValuePair<string, long>[]> ExtractDomainShifts(StreamDefinition stream) =>
@@ -191,7 +191,9 @@ namespace Pansynchro.SQL
         {
             var result = new KeyValuePair<string, int>[reader.FieldCount];
             for (int i = 0; i < reader.FieldCount; ++i) {
-                result[i] = KeyValuePair.Create(reader.GetName(i), reader.GetInt32(i));
+                result[i] = KeyValuePair.Create(
+                    reader.GetName(i),
+                    reader.IsDBNull(i) ? 0 : reader.GetInt32(i));
             }
             return result;
         }
@@ -200,7 +202,9 @@ namespace Pansynchro.SQL
         {
             var result = new KeyValuePair<string, long>[reader.FieldCount];
             for (int i = 0; i < reader.FieldCount; ++i) {
-                result[i] = KeyValuePair.Create(reader.GetName(i), reader.GetDateTime(i).Ticks);
+                result[i] = KeyValuePair.Create(
+                    reader.GetName(i),
+                    reader.IsDBNull(i) ? 0 : reader.GetDateTime(i).Ticks);
             }
             return result;
         }
@@ -209,7 +213,9 @@ namespace Pansynchro.SQL
         {
             var result = new KeyValuePair<string, long>[reader.FieldCount];
             for (int i = 0; i < reader.FieldCount; ++i) {
-                result[i] = KeyValuePair.Create(reader.GetName(i), ((DateTimeOffset)reader.GetValue(i)).Ticks);
+                result[i] = KeyValuePair.Create(
+                    reader.GetName(i), 
+                    reader.IsDBNull(i) ? 0 : ((DateTimeOffset)reader.GetValue(i)).Ticks);
             }
             return result;
         }

@@ -21,7 +21,7 @@ IDENTIFIER
 		)*
 	;
 
-INTEGER : DIGIT+ 'L'?;
+INTEGER : SUBTRACT? DIGIT+ 'L'?;
 
 fragment
 ID_LETTER

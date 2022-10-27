@@ -237,17 +237,17 @@ namespace Pansynchro.Protocol
             for (int i = 0; i < len; ++i) {
                 var type = schema.Fields[i].Type;
                 drs.TryGetValue(schema.Fields[i].Name, out var dr);
-                result[i] = GetReader(i, type, dr);
+                result[i] = GetReader(i, type, dr, dict);
             }
             return result;
         }
 
-        private static Func<BinaryReader, object> GetReader(int i, FieldType type, long domainReduction)
+        private static Func<BinaryReader, object> GetReader(int i, FieldType type, long domainReduction, DataDictionary dict)
         {
             Func<BinaryReader, object> reader = type.Type switch
             {
                 TypeTag.Unstructured => Unimplemented(type),
-                TypeTag.Custom => Unimplemented(type),
+                TypeTag.Custom => GetCustomTypeReader(i, type, domainReduction, dict),
                 TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml
                     => StringReader,
                 TypeTag.Json => JsonReader,
@@ -274,6 +274,14 @@ namespace Pansynchro.Protocol
             }
 
             return reader;
+        }
+
+        private static Func<BinaryReader, object> GetCustomTypeReader(int i, FieldType type, long domainReduction, DataDictionary dict)
+        {
+            if (dict.CustomTypes.TryGetValue(type.Info!, out var ft)) {
+                return GetReader(i, ft, domainReduction, dict);
+            }
+            return Unimplemented(type);
         }
 
         private static Func<BinaryReader, object> MakeNullable(Func<BinaryReader, object> reader) => r =>
