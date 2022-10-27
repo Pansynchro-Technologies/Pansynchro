@@ -89,18 +89,19 @@ namespace Pansynchro.Protocol
                     _outputWriter.Write(name.Name);
                     var schema = _dataDict.GetStream(name.ToString());
                     Debug.Assert(_bufferStream.Length == 0);
-                    WriteStreamContents(reader, bufferWriter, schema,
+                    await WriteStreamContents(reader, bufferWriter, schema,
                         settings.HasFlag(StreamSettings.UseRcf));
                     _outputWriter.Write((byte)0);
 #if DEBUG
                     Console.WriteLine($"Stream {name} written with settings ({settings}): {(_meter.TotalBytesWritten - progress).ToString("N0")} bytes");
 #endif
                 }
-                finally { 
+                finally {
                     reader.Dispose();
                 }
             }
             _outputWriter.Write((byte)Markers.End);
+            _outputWriter.Flush();
         }
 
         private static bool RcfChanged(object l, object r)
@@ -115,18 +116,31 @@ namespace Pansynchro.Protocol
         }
 
         private const int BUFFER_LENGTH = 16 * 1024;
-        private readonly object[][] _buffer = new object[BUFFER_LENGTH][];
+        private object[][] _buffer = new object[BUFFER_LENGTH][];
+        private static readonly BoundedChannelOptions CHANNEL_OPTIONS
+            = new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true, SingleWriter = true };
 
-        private void WriteStreamContents(IDataReader reader, BinaryWriter writer, StreamDefinition schema, bool useRcf)
+        private async Task WriteStreamContents(
+            IDataReader reader, BinaryWriter writer, StreamDefinition schema, bool useRcf)
         {
             _outputWriter.Write((byte)StreamMode.InsertOnly);
-            //loop until it returns false
-            while (ProcessBlock(reader,
-                columnWriters,
-                useRcf ? schema.RareChangeFields.Length : 0,
-                schema.SeqIdIndex))
-            { }
             Action<object, BinaryWriter>[] columnWriters = BuildColumnWriters(reader, schema, _dataDict);
+            var ch = Channel.CreateBounded<WriteJob>(CHANNEL_OPTIONS);
+            var writeTask = Task.Run(() => WriteBlocks(ch.Reader));
+            try
+            {
+                //loop until it returns false
+                while (await ProcessBlock(reader,
+                    columnWriters,
+                    useRcf ? schema.RareChangeFields.Length : 0,
+                    schema.SeqIdIndex, ch.Writer))
+                { }
+                ch.Writer.Complete();
+            } catch (Exception e) {
+                ch.Writer.Complete(e);
+                throw;
+            }
+            await writeTask;
             _outputWriter.Write((byte)0);
         }
 
@@ -140,7 +154,9 @@ namespace Pansynchro.Protocol
             _bufferStream.SetLength(0);
         }
 
-        private bool ProcessBlock(IDataReader reader, Action<object, BinaryWriter>[] rowWriters, int rcfCount, int? sequentialID)
+        private async ValueTask<bool> ProcessBlock(
+            IDataReader reader, Action<object, BinaryWriter>[] rowWriters, int rcfCount,
+            int? sequentialID, ChannelWriter<WriteJob> writer)
         {
             var rowSize = reader.FieldCount;
             int i = 0;
@@ -154,45 +170,65 @@ namespace Pansynchro.Protocol
                 reader.GetValues(arr);
                 ++i;
             }
-            WriteBlock(i, rowSize, rowWriters, rcfCount, sequentialID);
+            await WriteBlock(i, rowSize, rowWriters, rcfCount, sequentialID, writer);
             return result;
         }
 
-        private void WriteBlock(int count, int rowSize, Action<object, BinaryWriter>[] rowWriters,
-            int rcfCount, int? sequentialID)
+        private record WriteJob(object[][] Buffer, int Count, int RowSize,
+            Action<object, BinaryWriter>[] RowWriters, int RcfCount, int? SequentialID);
+
+        private async ValueTask WriteBlock(int count, int rowSize, Action<object, BinaryWriter>[] rowWriters,
+            int rcfCount, int? sequentialID, ChannelWriter<WriteJob> writer)
+        {
+            var job = new WriteJob(_buffer, count, rowSize, rowWriters, rcfCount, sequentialID);
+            await writer.WriteAsync(job);
+            _buffer = new object[BUFFER_LENGTH][];
+            //DoWriteBlock(_buffer, count, rowSize, rowWriters, rcfCount, sequentialID);
+        }
+
+        private async Task WriteBlocks(ChannelReader<WriteJob> reader)
+        {
+            await foreach (var job in reader.ReadAllAsync())
+            {
+                DoWriteBlock(job.Buffer, job.Count, job.RowSize, job.RowWriters, job.RcfCount, job.SequentialID);
+            }
+        }
+
+        private void DoWriteBlock(object[][] buffer, int count, int rowSize,
+            Action<object, BinaryWriter>[] rowWriters, int rcfCount, int? sequentialID)
         {
             using var writer = new BinaryWriter(_bufferStream, Encoding.UTF8, true);
             writer.Write7BitEncodedInt(count);
             var normalColumnCount = rowSize - rcfCount;
             for (int i = 0; i < normalColumnCount; ++i) {
                 if (i == sequentialID) {
-                    WriteSequentialIDColumn(i, count, writer);
-                } else WriteColumn(i, rowWriters[i], count, writer);
+                    WriteSequentialIDColumn(buffer, i, count, writer);
+                } else WriteColumn(buffer, i, rowWriters[i], count, writer);
             }
             for (int i = normalColumnCount; i < rowSize; ++i) {
-                WriteRcfColumn(i, rowWriters[i], count, writer);
+                WriteRcfColumn(buffer, i, rowWriters[i], count, writer);
             }
             FlushBuffer();
         }
 
-        private void WriteColumn(int column, Action<object, BinaryWriter> action, int count,
-            BinaryWriter writer)
+        private static void WriteColumn(object[][] buffer, int column,
+            Action<object, BinaryWriter> action, int count, BinaryWriter writer)
         {
             for (int i = 0; i < count; ++i) {
-                action(_buffer[i][column], writer);
+                action(buffer[i][column], writer);
             }
         }
 
-        private void WriteRcfColumn(int column, Action<object, BinaryWriter> action, int count,
-            BinaryWriter writer)
+        private static void WriteRcfColumn(object[][] buffer, int column,
+            Action<object, BinaryWriter> action, int count, BinaryWriter writer)
         {
             int lastIdx = 0;
             while (lastIdx < count) {
-                var value = _buffer[lastIdx][column];
+                var value = buffer[lastIdx][column];
                 action(value, writer);
                 var runEnd = lastIdx;
                 for (int i = lastIdx + 1; i < count; ++i) {
-                    if (RcfChanged(value, _buffer[i][column])) {
+                    if (RcfChanged(value, buffer[i][column])) {
                         runEnd = i;
                         break;
                     }
@@ -205,38 +241,41 @@ namespace Pansynchro.Protocol
             }
         }
 
-        private void WriteSequentialIDColumn(int column, int count, BinaryWriter writer)
+        private static void WriteSequentialIDColumn(object[][] buffer, int column, int count,
+            BinaryWriter writer)
         {
             if (count > 0) {
-                var type = _buffer[0][column].GetType();
+                var type = buffer[0][column].GetType();
                 if (type == typeof(int)) {
-                    WriteSequentialIntColumn(column, count, writer);
+                    WriteSequentialIntColumn(buffer, column, count, writer);
                 } else {
                     if (type != typeof(long)) {
                         throw new DataException($"Unknown sequential ID column type: {type.FullName}");
                     }
-                    WriteSequentialLongColumn(column, count, writer);
+                    WriteSequentialLongColumn(buffer, column, count, writer);
                 }
             }
         }
 
-        private void WriteSequentialIntColumn(int column, int count, BinaryWriter writer)
+        private static void WriteSequentialIntColumn(object[][] buffer, int column, int count,
+            BinaryWriter writer)
         {
-            var last = (int)_buffer[0][column];
+            var last = (int)buffer[0][column];
             writer.Write7BitEncodedInt(last);
             for (int i = 1; i < count; ++i) {
-                var next = (int)_buffer[i][column];
+                var next = (int)buffer[i][column];
                 writer.Write7BitEncodedInt(next - last);
                 last = next;
             }
         }
 
-        private void WriteSequentialLongColumn(int column, int count, BinaryWriter writer)
+        private static void WriteSequentialLongColumn(object[][] buffer, int column, int count,
+            BinaryWriter writer)
         {
-            var last = (long)_buffer[0][column];
+            var last = (long)buffer[0][column];
             writer.Write7BitEncodedInt64(last);
             for (int i = 1; i < count; ++i) {
-                var next = (long)_buffer[i][column];
+                var next = (long)buffer[i][column];
                 writer.Write7BitEncodedInt64(next - last);
                 last = next;
             }

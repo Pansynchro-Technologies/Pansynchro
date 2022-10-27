@@ -52,9 +52,17 @@ namespace Pansynchro.Connectors.MSSQL
         private const string CDC_QUERY = "select SCHEMA_NAME(schema_id) as ns, name from sys.tables where is_tracked_by_cdc = 1";
 
         protected List<StreamDescription> LoadCdcTables()
-            => SqlHelper.ReadValues(
-                    _conn, CDC_QUERY, r => new StreamDescription(r.GetString(0), r.GetString(1)))
-                .ToList();
+        {
+            _conn.Open();
+            try
+            {
+                return SqlHelper.ReadValues(
+                        _conn, CDC_QUERY, r => new StreamDescription(r.GetString(0), r.GetString(1)))
+                    .ToList();
+            } finally {
+                _conn.Close();
+            }
+        }
 
         void IDisposable.Dispose()
         {

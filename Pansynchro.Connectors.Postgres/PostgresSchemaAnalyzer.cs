@@ -196,7 +196,7 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
 
         protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
         {
-            var columnschema = ((NpgsqlDataReader)reader).GetColumnSchema();
+            var columnschema = ((NpgsqlDataReader)reader).GetColumnSchemaAsync().GetAwaiter().GetResult();
             var table = reader.GetSchemaTable()!;
             var columns = table.Select();
             var fields = columns.Select(BuildFieldDef).ToArray();

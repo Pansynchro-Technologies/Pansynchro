@@ -28,17 +28,38 @@ namespace Pansynchro.SQL
             _conn = conn;
         }
 
-        public async ValueTask<DataDictionary> AnalyzeAsync(string name)
+        public ValueTask<DataDictionary> AnalyzeAsync(string name) => AnalyzeAsync(name, null);
+
+        public async ValueTask<DataDictionary> AnalyzeAsync(string name, string[]? tableNames)
         {
             await _conn.OpenAsync();
             try {
                 var types = await LoadCustomTypes();
-                var tables = await BuildStreamDefinitions();
+                var tables = await BuildStreamDefinitions(tableNames);
                 var dependencies = await BuildStreamDependencies();
+                if (tableNames != null && tableNames.Length > 0) {
+                    dependencies = TrimDependencies(dependencies, tableNames);
+                }
                 return new DataDictionary(name, tables, dependencies, types);
             } finally {
                 await _conn.CloseAsync();
             }
+        }
+
+        private StreamDescription[][] TrimDependencies(StreamDescription[][] dependencies, string[] tableNames)
+        {
+            var filter = tableNames.Select(t => t.ToUpperInvariant()).ToHashSet();
+            return dependencies
+                .Select(a => TrimDependencies(a, filter))
+                .Where(a => a.Length > 0)
+                .ToArray();
+        }
+
+        private StreamDescription[] TrimDependencies(StreamDescription[] dependencies, HashSet<string> filter)
+        {
+            return dependencies
+                .Where(d => filter.Contains(d.ToString().ToUpperInvariant()))
+                .ToArray();
         }
 
         public async ValueTask<DataDictionary> AddCustomTables(DataDictionary input, ISqlFormatter formatter, params (StreamDescription name, string query)[] tables)
@@ -73,6 +94,19 @@ namespace Pansynchro.SQL
         protected abstract FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader);
 
         protected abstract Task<StreamDescription[][]> BuildStreamDependencies();
+
+        protected virtual async Task<StreamDefinition[]> BuildStreamDefinitions(string[]? tables)
+        {
+            var whole = await BuildStreamDefinitions();
+            if (tables == null || tables.Length == 0)
+            {
+                return whole;
+            }
+            var filter = tables.Select(t => t.ToUpperInvariant()).ToHashSet();
+            return whole
+                .Where(t => filter.Contains(t.Name.ToString().ToUpperInvariant()))
+                .ToArray();
+        }
 
         protected virtual async Task<StreamDefinition[]> BuildStreamDefinitions()
         {
