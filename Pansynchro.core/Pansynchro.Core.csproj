@@ -4,9 +4,9 @@
 	<TargetFramework>net6.0</TargetFramework>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.8</AssemblyVersion>
-	<FileVersion>0.5.8</FileVersion>
-	<Version>0.5.8</Version>
+	<AssemblyVersion>0.5.9</AssemblyVersion>
+	<FileVersion>0.5.9</FileVersion>
+	<Version>0.5.9</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,10 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Removing Incremental from DataDictionary.
-		Adding custom-query streams.
-		SeqId is now nullable.
-		Adding the concept of an audit field to streams for incremental tracking.
+		Fixing a minor bug in .pansync file parsing
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>

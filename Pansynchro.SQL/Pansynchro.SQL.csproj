@@ -4,9 +4,9 @@
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.8</AssemblyVersion>
-	<FileVersion>0.5.8</FileVersion>
-	<Version>0.5.8</Version>
+	<AssemblyVersion>0.5.9</AssemblyVersion>
+	<FileVersion>0.5.9</FileVersion>
+	<Version>0.5.9</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro SQL Core</Product>
 	<Description>Library providing core functionality for SQL database connectors</Description>
@@ -14,8 +14,8 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;sql</PackageTags>
 	<PackageReleaseNotes>
-		Adding LimitRows to ISqlFormatter.
-		Reworking incremental reading to support audit columns.
+		Fixing a lingering SeqId bug.
+		Adding the ability for SqlSchemaAnalyzer to analyze only a limited set of tables rather than the entire database.
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
