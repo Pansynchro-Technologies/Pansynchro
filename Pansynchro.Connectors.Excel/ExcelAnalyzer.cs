@@ -16,17 +16,17 @@ namespace Pansynchro.Connectors.Excel
 
         public async ValueTask<DataDictionary> AnalyzeAsync(string dictName)
         {
-            if (_source == null)
-            {
+            if (_source == null) {
                 throw new DataException("Must call SetDataSource before calling ReadFrom");
             }
             var defs = new List<StreamDefinition>();
-            await foreach (var (name, stream) in _source.GetDataAsync())
-            {
+            await foreach (var (name, stream) in _source.GetDataAsync()) {
                 using var excelReader = ExcelReaderFactory.CreateReader(stream);
-                do
-                {
-                    defs.Add(AnalyzeReader(name, excelReader));
+                do {
+                    var sd = AnalyzeReader(name, excelReader);
+                    if (sd != null) {
+                        defs.Add(sd);
+                    }
                 } while (excelReader.NextResult());
             }
             return new DataDictionary(dictName, defs.ToArray());
@@ -34,10 +34,13 @@ namespace Pansynchro.Connectors.Excel
 
         private const int ANALYZER_ROWS = 10;
 
-        private static StreamDefinition AnalyzeReader(string fileName, IExcelDataReader excelReader)
+        private static StreamDefinition? AnalyzeReader(string fileName, IExcelDataReader excelReader)
         {
             var name = excelReader.CodeName;
             var fields = new List<FieldDefinition>();
+            if (!excelReader.Read()) {
+                return null;
+            }
             for (int i = 0; i < excelReader.FieldCount; ++i) {
                 fields.Add(new FieldDefinition(excelReader.GetString(i), new FieldType(TypeTag.Unstructured, false, CollectionType.None, null)));
             }

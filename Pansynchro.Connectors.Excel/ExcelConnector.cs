@@ -34,6 +34,7 @@ namespace Pansynchro.Connectors.Excel
         public static void Run()
         {
             ConnectorRegistry.RegisterConnector(new ExcelConnector());
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         }
     }
 }
