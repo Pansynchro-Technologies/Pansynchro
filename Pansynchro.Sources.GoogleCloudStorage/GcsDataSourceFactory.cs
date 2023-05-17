@@ -1,24 +1,23 @@
-﻿using System;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
-using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
+using Pansynchro.Core;
 
-namespace Pansynchro.Sources.S3
+namespace Pansynchro.Sources.GoogleCloudStorage
 {
-    public class S3DataSourceFactory : DataSourceFactoryCore
+    public class GcsDataSourceFactory : DataSourceFactoryCore
     {
-        public override string Name => "S3";
+        public override string Name => "Google Cloud Storage";
 
         public override SourceCapabilities Capabilities => SourceCapabilities.ALL;
 
-        public override IDataSource GetSource(string config) => new S3DataSource(config);
+        public override IDataSource GetSource(string config) => new GcsDataSource(config);
 
-        public override IDataSink GetSink(string config) => new S3DataSink(config);
+        public override IDataSink GetSink(string config) => new GcsDataSink(config);
 
         public override string SourceConfigSchema =>
 @"{
-  ""title"": ""S3 Configuration"",
+  ""title"": ""GCS Configuration"",
   ""type"": ""object"",
   ""additionalProperties"": false,
   ""properties"": {
@@ -158,7 +157,7 @@ namespace Pansynchro.Sources.S3
         [ModuleInitializer]
         public static void Register()
         {
-            ConnectorRegistry.RegisterSource(new S3DataSourceFactory());
+            ConnectorRegistry.RegisterSource(new GcsDataSourceFactory());
         }
     }
 }

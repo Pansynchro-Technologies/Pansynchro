@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+	  <Nullable>enable</Nullable>
+	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	  <AssemblyVersion>0.5.10</AssemblyVersion>
+	  <FileVersion>0.5.10</FileVersion>
+	  <Version>0.5.10</Version>
+	  <Authors>Pansynchro Technologies</Authors>
+	  <Product>Pansynchro Excel</Product>
+	  <Description>Pansynchro connector to read from Excel data files.</Description>
+	  <Copyright>Copyright 2023, Pansynchro Technologies</Copyright>
+	  <PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
+	  <PackageTags>pansynchro;data;data-integration;etl;elt;excel</PackageTags>
+	  <PackageReleaseNotes>Initial release</PackageReleaseNotes>
+	  <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ExcelDataReader" Version="3.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+  </ItemGroup>
+
+</Project>
