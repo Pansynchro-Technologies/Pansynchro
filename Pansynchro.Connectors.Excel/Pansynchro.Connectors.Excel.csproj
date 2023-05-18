@@ -4,16 +4,16 @@
 	  <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
 	  <Nullable>enable</Nullable>
 	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	  <AssemblyVersion>0.5.11</AssemblyVersion>
-	  <FileVersion>0.5.11</FileVersion>
-	  <Version>0.5.11</Version>
+	  <AssemblyVersion>0.5.14</AssemblyVersion>
+	  <FileVersion>0.5.14</FileVersion>
+	  <Version>0.5.14</Version>
 	  <Authors>Pansynchro Technologies</Authors>
-	  <Product>Pansynchro Excel</Product>
+	  <Product>Pansynchro Excel Connector</Product>
 	  <Description>Pansynchro connector to read from Excel data files.</Description>
 	  <Copyright>Copyright 2023, Pansynchro Technologies</Copyright>
 	  <PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	  <PackageTags>pansynchro;data;data-integration;etl;elt;excel</PackageTags>
-	  <PackageReleaseNotes>Fixing some bugs in the Excel connector</PackageReleaseNotes>
+	  <PackageReleaseNotes>Reading column names from Excel spreadsheets</PackageReleaseNotes>
 	  <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 

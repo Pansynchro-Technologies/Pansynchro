@@ -4,9 +4,9 @@
 	<TargetFrameworks>net6.0;net7.0</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.12</AssemblyVersion>
-	<FileVersion>0.5.12</FileVersion>
-	<Version>0.5.12</Version>
+	<AssemblyVersion>0.5.14</AssemblyVersion>
+	<FileVersion>0.5.14</FileVersion>
+	<Version>0.5.14</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Fixed an error in data dictionary serialization where field names with spaces or special characters could cause dictionaries to fail to save and load correctly.
+		Ensuring that a TransformingReader will use destination field names rather than source field names.
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>

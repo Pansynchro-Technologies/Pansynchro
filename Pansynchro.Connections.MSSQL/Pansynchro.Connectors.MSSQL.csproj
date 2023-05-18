@@ -4,9 +4,9 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.12</AssemblyVersion>
-	<FileVersion>0.5.12</FileVersion>
-	<Version>0.5.12</Version>
+	<AssemblyVersion>0.5.14</AssemblyVersion>
+	<FileVersion>0.5.14</FileVersion>
+	<Version>0.5.14</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro MS SQL Server Connector</Product>
 	<Description>Pansynchro connector to read from or write to SQL Server databases.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;mssql;sql-server</PackageTags>
 	<PackageReleaseNotes>
-		Adding a "NoStaging" option to disable MSSQLWriter's use of staging tables, for environments where the necessary permissions are not available.  This will decrease performance somewhat.
+		Fixing an error in MSSQLWriter NoStaging code
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
