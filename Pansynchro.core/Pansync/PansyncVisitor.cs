@@ -155,7 +155,7 @@ namespace Pansynchro.Core.Pansync
 
         public NamedListNode VisitNamedList(PansyncParser.Named_listContext context)
         {
-            var name = new NameNode(context.name().GetText());
+            var name = new NameNode(VisitTitle(context.title()).ToString());
             var args = VisitExpressionList(context.expression_list());
             return new NamedListNode(name, args);
         }
@@ -186,6 +186,14 @@ namespace Pansynchro.Core.Pansync
         public PansyncNode VisitKv_pair(PansyncParser.Kv_pairContext context)
         {
             throw new NotImplementedException();
+        }
+
+        public PansyncNode VisitTitle(PansyncParser.TitleContext context)
+        {
+            if (context.name() != null) {
+                return VisitName(context.name());
+            }
+            return VisitString(context.@string());
         }
     }
 }

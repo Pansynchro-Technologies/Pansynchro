@@ -52,7 +52,16 @@ namespace Pansynchro.Core.Pansync
 
         protected override bool DoesMatch(PansyncNode other) => ((NameNode)other).Name == Name;
 
-        public override string ToString() => Name;
+        public override string ToString()
+            => NameNode.IsIdStartLetter(Name[0]) && Name.All(IsIdLetter) ? Name : '"' + Name + '"';
+
+        private static bool IsIdStartLetter(char arg) => char.IsLetter(arg) || arg == '_';
+
+        private static bool IsIdLetter(char arg)
+        {
+            if (char.IsLetterOrDigit(arg)) return true;
+            return (arg is '_' or '.');
+        }
     }
 
     public class StringNode : Expression

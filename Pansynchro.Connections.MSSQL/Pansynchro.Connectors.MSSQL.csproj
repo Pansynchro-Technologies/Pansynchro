@@ -4,18 +4,17 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.9</AssemblyVersion>
-	<FileVersion>0.5.9</FileVersion>
-	<Version>0.5.9</Version>
+	<AssemblyVersion>0.5.12</AssemblyVersion>
+	<FileVersion>0.5.12</FileVersion>
+	<Version>0.5.12</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro MS SQL Server Connector</Product>
 	<Description>Pansynchro connector to read from or write to SQL Server databases.</Description>
-	<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
+	<Copyright>Copyright 2022-2013, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;mssql;sql-server</PackageTags>
 	<PackageReleaseNotes>
-		Improvements and bugfixes from external UAT
-		Improving the speed of MSSQLWriter's full sync
+		Adding a "NoStaging" option to disable MSSQLWriter's use of staging tables, for environments where the necessary permissions are not available.  This will decrease performance somewhat.
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>

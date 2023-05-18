@@ -24,6 +24,8 @@ namespace Pansynchro.Connectors.MSSQL
         private DataDictionary? _order;
         private StateManager _stateManager = null!;
 
+        public bool NoStaging { get; set; }
+
         public MSSQLWriter(string connectionString, string? perfConnectionString)
         {
             _conn = new SqlConnection(connectionString);
@@ -36,7 +38,9 @@ namespace Pansynchro.Connectors.MSSQL
 
         private void Setup(DataDictionary dest)
         {
-            MetadataHelper.EnsureScratchTables(_conn, dest);
+            if (!NoStaging) {
+                MetadataHelper.EnsureScratchTables(_conn, dest);
+            }
             _order = dest;
         }
 
@@ -187,19 +191,22 @@ namespace Pansynchro.Connectors.MSSQL
             Console.WriteLine($"{ DateTime.Now}: Writing to {name}");
             ulong progress = 0;
             MetadataHelper.TruncateTable(_conn, name);
+            var destName = NoStaging ? name.ToString() : $"Pansynchro.[{name.Name}]";
             using var copy = new SqlBulkCopy(_conn, COPY_OPTIONS, null) {
                 BatchSize = BATCH_SIZE,
-                DestinationTableName = $"Pansynchro.[{name.Name}]",
+                DestinationTableName = destName,
                 EnableStreaming = true,
                 NotifyAfter = BATCH_SIZE,
             };
             BuildColumnMapping(reader, copy.ColumnMappings);
             copy.SqlRowsCopied += (s, e) => progress = (ulong)e.RowsCopied;
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
+            //var stopwatch = new Stopwatch();
+            //stopwatch.Start();
             copy.WriteToServer(reader);
-            stopwatch.Stop();
-            _cleanup.Add(Task.Run(() => Finish(name)));
+            //stopwatch.Stop();
+            if (!NoStaging) {
+                _cleanup.Add(Task.Run(() => Finish(name)));
+            }
             //LogThroughput(name, progress, averageSize, stopwatch);
         }
 

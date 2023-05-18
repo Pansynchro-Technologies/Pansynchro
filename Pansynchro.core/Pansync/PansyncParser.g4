@@ -31,7 +31,9 @@ name : IDENTIFIER;
 
 string: SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING;
 
-named_list: name LPAREN expression_list RPAREN;
+title : name | string;
+
+named_list: title LPAREN expression_list RPAREN;
 
 kv_list: LBRACE (kv_pair (COMMA kv_pair)*)? RBRACE;
 
