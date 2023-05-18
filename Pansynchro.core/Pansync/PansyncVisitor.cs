@@ -191,7 +191,7 @@ namespace Pansynchro.Core.Pansync
         public PansyncNode VisitTitle(PansyncParser.TitleContext context)
         {
             if (context.name() != null) {
-                return VisitName(context.name());
+                return new NameNode(context.name().GetText());
             }
             return VisitString(context.@string());
         }
