@@ -50,7 +50,11 @@ jobs:
         nuget-version: 'latest'
 
     - name: Restore dependencies
-      run: nuget restore $env:SOLUTION
+      uses: nick-fields/retry@v2.8.3
+      with:
+        timeout_minutes: 10
+        max_attempts: 3
+        command: nuget restore $env:SOLUTION
 
     - name: Build
       run: dotnet build $env:SOLUTION --configuration $env:BUILD_CONFIG -p:Version=$env:BUILD_VERSION --no-restore
