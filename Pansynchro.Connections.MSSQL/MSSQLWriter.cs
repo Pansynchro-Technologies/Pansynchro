@@ -190,7 +190,9 @@ namespace Pansynchro.Connectors.MSSQL
         {
             Console.WriteLine($"{ DateTime.Now}: Writing to {name}");
             ulong progress = 0;
-            MetadataHelper.TruncateTable(_conn, name);
+            if (!NoStaging) {
+                MetadataHelper.TruncateTable(_conn, name);
+            }
             var destName = NoStaging ? name.ToString() : $"Pansynchro.[{name.Name}]";
             using var copy = new SqlBulkCopy(_conn, COPY_OPTIONS, null) {
                 BatchSize = BATCH_SIZE,

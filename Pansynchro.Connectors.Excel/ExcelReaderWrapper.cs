@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
+
 using ExcelDataReader;
 
 namespace Pansynchro.Connectors.Excel
@@ -7,15 +9,29 @@ namespace Pansynchro.Connectors.Excel
     internal class ExcelReaderWrapper : IDataReader
     {
         private readonly IExcelDataReader _reader;
+        private readonly List<string> _names = new();
 
         public ExcelReaderWrapper(IExcelDataReader excelReader)
         {
             _reader = excelReader;
+            if (_reader.Read()) {
+                for (int i = 0; i < _reader.FieldCount; i++) {
+                    _names.Add(_reader.GetString(i) ?? ExcelColumnName(i));
+                }
+            }
         }
 
-        public object this[int i] => ((IDataRecord)_reader)[i];
+        private static string ExcelColumnName(int i)
+        {
+            if (i < 26) {
+                return new string((char)((int)'A' + i), 1);
+            }
+            return new string((char)((int)'A' + i % 26), i / 26);
+        }
 
-        public object this[string name] => ((IDataRecord)_reader)[name];
+        public object this[int i] => _reader[i];
+
+        public object this[string name] => _reader[_names.IndexOf(name)];
 
         public int Depth => _reader.Depth;
 
@@ -112,12 +128,12 @@ namespace Pansynchro.Connectors.Excel
 
         public string GetName(int i)
         {
-            return _reader.GetName(i);
+            return _names[i];
         }
 
         public int GetOrdinal(string name)
         {
-            return _reader.GetOrdinal(name);
+            return _names.IndexOf(name);
         }
 
         public DataTable? GetSchemaTable()
@@ -138,8 +154,7 @@ namespace Pansynchro.Connectors.Excel
         public int GetValues(object[] values)
         {
             var fc = Math.Min(values.Length, _reader.FieldCount);
-            for (int i = 0; i < fc; ++i)
-            {
+            for (int i = 0; i < fc; ++i) {
                 values[i] = _reader.GetValue(i);
             }
             return fc;

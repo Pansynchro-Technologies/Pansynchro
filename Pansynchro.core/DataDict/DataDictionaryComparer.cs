@@ -207,7 +207,7 @@ namespace Pansynchro.Core.DataDict
             public ComparisonTransformer(
                 ILookup<string, ConversionLine> conversions,
                 Dictionary<string, string> nameLookup,
-                DataDictionary schema)
+                DataDictionary schema) : base(schema)
             {
                 foreach (var pair in nameLookup) {
                     if (pair.Key != pair.Value) {

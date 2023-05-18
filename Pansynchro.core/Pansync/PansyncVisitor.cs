@@ -193,7 +193,8 @@ namespace Pansynchro.Core.Pansync
             if (context.name() != null) {
                 return new NameNode(context.name().GetText());
             }
-            return VisitString(context.@string());
+            var str = (StringNode)VisitString(context.@string());
+            return new NameNode(str.Value);
         }
     }
 }

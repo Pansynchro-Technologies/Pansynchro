@@ -9,13 +9,13 @@ namespace Pansynchro.Core.Readers
         private readonly IDataReader _reader;
         private readonly IEnumerator<object?[]> _transformer;
 
-        public TransformingReader(IDataReader reader, Func<IDataReader, IEnumerable<object?[]>> transformer)
+        public TransformingReader(IDataReader reader, Func<IDataReader, IEnumerable<object?[]>> transformer, DataDict.StreamDefinition stream)
         {
             _reader = reader;
             _transformer = transformer(reader).GetEnumerator();
             for (int i = 0; i < _reader.FieldCount; ++i)
             {
-                _nameMap.Add(_reader.GetName(i), i);
+                _nameMap.Add(stream.Fields[i].Name, i);
             }
         }
 

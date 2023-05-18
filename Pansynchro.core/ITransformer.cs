@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
+using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Core
 {
@@ -17,20 +16,32 @@ namespace Pansynchro.Core
         protected Dictionary<string, Func<IDataReader, IEnumerable<object[]>>> _streamDict
             = new(System.StringComparer.InvariantCultureIgnoreCase);
         protected Dictionary<StreamDescription, StreamDescription> _nameMap = new();
+        protected readonly DataDictionary _destDict;
+
+        public StreamTransformerBase(DataDictionary destDict)
+        {
+            _destDict = destDict;
+        }
 
         public async IAsyncEnumerable<DataStream> Transform(IAsyncEnumerable<DataStream> input)
         {
             await foreach (var stream in input) {
                 DataStream result;
                 Console.WriteLine($"Processing Stream: {stream.Name}");
+                _nameMap.TryGetValue(stream.Name, out var destName);
                 if (_streamDict.TryGetValue(stream.Name.ToString(), out var processor)) {
-                    Console.WriteLine("Stream found");
-                    result = stream.Transformed(processor);
+                    var destStream = _destDict.GetStream(destName ?? stream.Name, NameStrategy.Get(NameStrategyType.Identity));
+                    if (destStream == null) {
+                        Console.WriteLine($"Stream name '{destName}' not found in data dictionary");
+                        result = stream;
+                    } else {
+                        Console.WriteLine("Stream found");
+                        result = stream.Transformed(processor, destStream);
+                    }
                 } else {
                     Console.WriteLine("Stream not found");
                     result = stream;
                 }
-                _nameMap.TryGetValue(stream.Name, out var destName);
                 yield return destName != null ? result with { Name = destName } : result;
             }
         }

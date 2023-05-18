@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-
+using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Core.Transformations
@@ -37,9 +37,10 @@ namespace Pansynchro.Core.Transformations
         }
         */
 
-        public static IDataReader AddLookup<K, V>(IDataReader stream, Dictionary<K, V> lookup, int keyColumn, bool nullable)
+        public static IDataReader AddLookup<K, V>
+            (IDataReader stream, Dictionary<K, V> lookup, int keyColumn, bool nullable, StreamDefinition definition)
             where K : notnull
-            => new TransformingReader(stream, MakeTransformer(lookup, keyColumn, nullable));
+            => new TransformingReader(stream, MakeTransformer(lookup, keyColumn, nullable), definition);
 
         /*
         public static IDataReader AddLookup<K>(IDataReader stream, Dictionary<K, object[]> lookup, int keyColumn, bool nullable)

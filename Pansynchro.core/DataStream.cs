@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-
+using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Helpers;
 using Pansynchro.Core.Readers;
 
@@ -18,9 +18,9 @@ namespace Pansynchro.Core
 
     public record DataStream(StreamDescription Name, StreamSettings Settings, IDataReader Reader) : IDisposable
     { 
-        public DataStream Transformed(Func<IDataReader, IEnumerable<object[]>> transformer)
+        public DataStream Transformed(Func<IDataReader, IEnumerable<object[]>> transformer, StreamDefinition stream)
         {
-            return this with { Reader = new TransformingReader(Reader, transformer) };
+            return this with { Reader = new TransformingReader(Reader, transformer, stream) };
         }
 
         public static async IAsyncEnumerable<DataStream> CombineStreamsByName(IAsyncEnumerable<DataStream> source)
