@@ -22,7 +22,7 @@ namespace Pansynchro.Core.Readers
         public bool IsClosed => _closed;
 
         public abstract int RecordsAffected { get; }
-        public int FieldCount => _buffer.Length;
+        public virtual int FieldCount => _buffer.Length;
 
         public bool GetBoolean(int i) => (bool)_buffer[i];
 
