@@ -45,7 +45,7 @@ jobs:
         dotnet-version:  ${{ matrix.dotnet }}
 
     - name: Setup NuGet
-      uses: NuGet/setup-nuget@v1.0.6
+      uses: NuGet/setup-nuget@v1.2.0
       with:
         nuget-version: 'latest'
 
