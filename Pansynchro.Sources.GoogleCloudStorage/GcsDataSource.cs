@@ -27,7 +27,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
 
         public async IAsyncEnumerable<(string name, Stream data)> GetDataAsync()
         {
-            using var client = await StorageClient.CreateAsync();
+            using var client = await CreateClient();
             await foreach (var group in GetFiles(client).GroupBy(k => k.stream)) {
                 await foreach (var key in group) {
                     yield return (group.Key, await DownloadFile(client, key.obj));
@@ -44,7 +44,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
 
         public async IAsyncEnumerable<Stream> GetDataAsync(string name)
         {
-            using var client = await StorageClient.CreateAsync();
+            using var client = await CreateClient();
             await foreach (var obj in GetFiles(client, name)) {
                 yield return await DownloadFile(client, obj);
             }
@@ -55,6 +55,11 @@ namespace Pansynchro.Sources.GoogleCloudStorage
             await foreach (var stream in GetDataAsync(name)) {
                 yield return new StreamReader(stream);
             }
+        }
+
+        private async ValueTask<StorageClient> CreateClient()
+        {
+            return await StorageClient.CreateAsync();
         }
 
         private async ValueTask<Stream> DownloadFile(StorageClient client, GObject key)

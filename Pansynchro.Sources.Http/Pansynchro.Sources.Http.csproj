@@ -4,16 +4,16 @@
 		<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<AssemblyVersion>0.5.3</AssemblyVersion>
-		<FileVersion>0.5.3</FileVersion>
-		<Version>0.5.3</Version>
+		<AssemblyVersion>0.6.0</AssemblyVersion>
+		<FileVersion>0.6.0</FileVersion>
+		<Version>0.6.0</Version>
 		<Authors>Pansynchro Technologies</Authors>
 		<Product>Pansynchro HTTP Data Source</Product>
 		<Description>Pansynchro data source to read from HTTP/HTTPS/REST API data.</Description>
-		<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
+		<Copyright>Copyright 2022, 2023 Pansynchro Technologies</Copyright>
 		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 		<PackageTags>pansynchro;data;data-integration;etl;elt;http;rest</PackageTags>
-		<PackageReleaseNotes>Updating factory classes with data sink configs</PackageReleaseNotes>
+		<PackageReleaseNotes>Updating dependencies</PackageReleaseNotes>
 		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	</PropertyGroup>
 
@@ -22,7 +22,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -75,6 +75,32 @@ ClientLibrary={1};ServerType=1;";
             return new(ReadIncrementalData(results));
         }
 
+        public override void MergeIncrementalData(Dictionary<StreamDescription, string> data)
+        {
+            if (_connectionID == 0) {
+                return;
+            }
+            using var cmd = (FbCommand)_conn.CreateCommand();
+            cmd.CommandText = "select STREAM_NAME from INCREMENTAL_DATA where SOURCE_ID = @id";
+            cmd.Parameters.AddWithValue("id", _connectionID);
+            cmd.Prepare();
+            StreamDescription[] missing;
+            using (var reader = cmd.ExecuteReader()) {
+                missing = data.Keys.Except(FirebirdStateManager.StreamNamesFrom(reader)).ToArray();
+            }
+            foreach (var stream in missing) {
+                SaveIncrementalData(stream, data[stream]);
+            }
+        }
+
+        private static IEnumerable<StreamDescription> StreamNamesFrom(FbDataReader reader)
+        {
+            while (reader.Read()) {
+                var name = reader.GetString(0);
+                yield return StreamDescription.Parse(name);
+            }
+        }
+
         public void Dispose()
         {
             _conn.Dispose();

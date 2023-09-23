@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
 	  <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
@@ -15,6 +15,10 @@
 	  <PackageTags>pansynchro;data;data-integration;etl;elt;excel</PackageTags>
 	  <PackageReleaseNotes>Reading column names from Excel spreadsheets</PackageReleaseNotes>
 	  <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	<OutputPath>..\bin\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>

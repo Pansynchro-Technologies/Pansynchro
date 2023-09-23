@@ -53,7 +53,7 @@ namespace Pansynchro.Core.Pansync
         protected override bool DoesMatch(PansyncNode other) => ((NameNode)other).Name == Name;
 
         public override string ToString()
-            => NameNode.IsIdStartLetter(Name[0]) && Name.All(IsIdLetter) ? Name : '"' + Name + '"';
+            => IsIdStartLetter(Name[0]) && Name.All(IsIdLetter) ? Name : '"' + Name + '"';
 
         private static bool IsIdStartLetter(char arg) => char.IsLetter(arg) || arg == '_';
 
@@ -278,7 +278,7 @@ namespace Pansynchro.Core.Pansync
         protected override bool DoesMatch(PansyncNode other)
         {
             var oFile = (PansyncFile)other;
-            return Body.Zip(oFile.Body).All(z => z.First.Matches(z.Second));
+            return Body.Length == oFile.Body.Length && Body.Zip(oFile.Body).All(z => z.First.Matches(z.Second));
         }
     }
 }

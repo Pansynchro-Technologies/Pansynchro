@@ -10,35 +10,22 @@ using NpgsqlTypes;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Postgres
 {
-    public class PostgresWriter : IWriter
+    public class PostgresWriter : SqlDbWriter
     {
-        private readonly NpgsqlConnection _conn;
         private DataDictionary? _dict;
 
-        public PostgresWriter(string connectionString)
-        {
-            _conn = new NpgsqlConnection(connectionString);
-        }
+        public PostgresWriter(string connectionString) : base(new NpgsqlConnection(connectionString))
+        { }
 
-        public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
+        protected override ISqlFormatter Formatter => PostgresFormatter.Instance;
+
+        protected override void FullStreamSync(StreamDescription name, StreamSettings settings, IDataReader reader)
         {
-            Setup(dest);
-            await _conn.OpenAsync();
-            try {
-                await foreach (var (name, _, reader) in streams) {
-                    try {
-                        BinCopy(name, reader);
-                    } finally {
-                        reader.Dispose();
-                    }
-                }
-                Finish();
-            } finally {
-                await _conn.CloseAsync();
-            }
+            BinCopy(name, reader);
         }
 
         private void BinCopy(StreamDescription name, IDataReader reader)
@@ -46,26 +33,29 @@ namespace Pansynchro.Connectors.Postgres
             Console.WriteLine($"{DateTime.Now}: Writing stream '{name}'.");
             var schema = ExtractSchema(name);
             var fields = string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(i => '"' + reader.GetName(i).ToLower(CultureInfo.InvariantCulture) + '"'));
-            using var importer = _conn.BeginBinaryImport($"COPY Pansynchro.\"{name.Name.ToLower(CultureInfo.InvariantCulture)}\" ({fields}) FROM STDIN (FORMAT BINARY)");
+            var lName = name.Name.ToLower(CultureInfo.InvariantCulture);
+            using var importer = ((NpgsqlConnection)_conn).BeginBinaryImport(
+                $"COPY Pansynchro.\"{lName}\" ({fields}) FROM STDIN (FORMAT BINARY)");
             var loader = BuildLoader(reader, schema);
             var buffer = new object[reader.FieldCount];
-            while (reader.Read())
-            {
+            while (reader.Read()) {
                 loader(reader, importer, buffer);
             }
             importer.Complete();
         }
 
-        private void Finish()
+        protected override Task Finish()
         {
+            var conn = (NpgsqlConnection)_conn;
             foreach (var table in _dict!.DependencyOrder.SelectMany(sd => sd).Reverse()) {
                 Console.WriteLine($"{DateTime.Now}: Merging table '{table}'");
-                MetadataHelper.MergeTable(_conn, table.Name, table.Namespace!);
+                MetadataHelper.MergeTable(conn, table.Name, table.Namespace!);
             }
             Console.WriteLine($"{DateTime.Now}: Truncating");
             foreach (var table in _dict.DependencyOrder.SelectMany(sd => sd)) {
-                MetadataHelper.TruncateTable(_conn, table.Name);
+                MetadataHelper.TruncateTable(conn, table.Name);
             }
+            return Task.CompletedTask;
         }
 
         private static Action<IDataReader, NpgsqlBinaryImporter, object[]> BuildLoader(IDataReader reader, Dictionary<string, NpgsqlDbType?> schema)
@@ -90,28 +80,22 @@ namespace Pansynchro.Connectors.Postgres
 
         private Dictionary<string, NpgsqlDbType?> ExtractSchema(StreamDescription name)
         {
-            using var cmd = new NpgsqlCommand($"select * from Pansynchro.{name.Name} where 1 = 0", _conn);
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = $"select * from Pansynchro.{Formatter.QuoteName(name.Name)} where 1 = 0";
             using var reader = cmd.ExecuteReader();
-            var schema = reader.GetColumnSchema();
+            var schema = ((NpgsqlDataReader)reader).GetColumnSchema();
             return schema.ToDictionary(c => c.ColumnName, c => c.NpgsqlDbType, StringComparer.InvariantCultureIgnoreCase);
         }
 
-        private void Setup(DataDictionary dest)
+        protected override void Setup(DataDictionary dest)
         {
             _dict = dest;
             _conn.OpenAsync().GetAwaiter().GetResult();
-            try
-            {
-                MetadataHelper.EnsureScratchTables(_conn, dest);
+            try {
+                MetadataHelper.EnsureScratchTables((NpgsqlConnection)_conn, dest);
             } finally {
                 _conn.Close();
             }
-        }
-
-        public void Dispose()
-        {
-            _conn.Dispose();
-            GC.SuppressFinalize(this);
         }
     }
 }

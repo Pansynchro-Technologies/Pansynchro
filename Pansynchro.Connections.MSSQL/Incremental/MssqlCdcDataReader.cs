@@ -5,10 +5,9 @@ using System.Data;
 using System.Linq;
 
 using Microsoft.Data.SqlClient;
-
 using Pansynchro.Core.Incremental;
 
-namespace Pansynchro.Connectors.MSSQL
+namespace Pansynchro.Connectors.MSSQL.Incremental
 {
     internal class MssqlCdcDataReader : IncrementalDataReader
     {
@@ -26,7 +25,8 @@ namespace Pansynchro.Connectors.MSSQL
                 .ToArray();
         }
 
-        public override UpdateRowType UpdateType => _reader.GetInt32(1) switch {
+        public override UpdateRowType UpdateType => _reader.GetInt32(1) switch
+        {
             1 => UpdateRowType.Delete,
             2 => UpdateRowType.Insert,
             4 => UpdateRowType.Update,
@@ -35,7 +35,8 @@ namespace Pansynchro.Connectors.MSSQL
 
         public override IEnumerable<int> AffectedColumns
         {
-            get {
+            get
+            {
                 var mask = (byte[])_reader.GetValue(2);
                 Array.Reverse(mask);
                 var bits = new BitArray(mask);

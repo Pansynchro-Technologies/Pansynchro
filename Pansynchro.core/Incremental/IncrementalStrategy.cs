@@ -4,6 +4,7 @@
     {
         None,
         Cdc,
-        Column
+        Column,
+        ChangeTracking
     }
 }

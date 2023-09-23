@@ -25,7 +25,7 @@ namespace Pansynchro.Protocol
         private readonly BinaryReader _reader;
         private readonly DataDictionary _sourceDict;
 
-        private const int VERSION = 5;
+        private const int VERSION = 6;
 
         public BinaryDecoder(TcpClient client, DataDictionary sourceDict) : this(client.GetStream(), sourceDict)
         {
@@ -49,7 +49,7 @@ namespace Pansynchro.Protocol
 
         private void ReadVersion()
         {
-            CheckEqual(_reader.ReadString(), "PANSYNCHRO", "Server validation check failed");
+            CheckEqual(_reader.ReadString(), "PANSYNCHRO", "Protocol validation check failed");
             CheckEqual(_reader.ReadByte(), (byte)Markers.Version, "Protocol version marker missing");
             CheckEqual(_reader.Read7BitEncodedInt(), VERSION, "Protocol version check failed");
         }
@@ -229,17 +229,159 @@ namespace Pansynchro.Protocol
             await Task.CompletedTask; // just to shut the compiler up
         }
 
-        internal static Func<BinaryReader, object>[] BuildBufferDecoders(StreamDefinition schema, DataDictionary dict)
+        internal static (Func<BinaryReader, object>[], IRcfReader[]) BuildBufferDecoders(StreamDefinition schema, DataDictionary dict)
         {
             var len = schema.Fields.Length;
             var result = new Func<BinaryReader, object>[schema.Fields.Length];
+            var rcfReaders = new List<IRcfReader>();
             var drs = new Dictionary<string, long>(schema.DomainReductions);
             for (int i = 0; i < len; ++i) {
-                var type = schema.Fields[i].Type;
-                drs.TryGetValue(schema.Fields[i].Name, out var dr);
-                result[i] = GetReader(i, type, dr, dict);
+                var field = schema.Fields[i]; 
+                var type = field.Type;
+                drs.TryGetValue(field.Name, out var dr);
+                result[i] = schema.RareChangeFields.Contains(field.Name) ? GetRcfReader(i, type, dr, dict, rcfReaders) : GetReader(i, type, dr, dict);
             }
-            return result;
+            return (result, rcfReaders.ToArray());
+        }
+
+		private static Func<BinaryReader, object> GetRcfReader(int i, FieldType type, long dr, DataDictionary dict, List<IRcfReader> rcfReaders)
+		{
+            var baseReader = GetReader(i, type, dr, dict);
+            return type.Nullable ? GetNullableRcfReader(baseReader!, type, rcfReaders) : GetPlainRcfReader(baseReader, type, rcfReaders);
+        }
+
+		private static Func<BinaryReader, object> GetPlainRcfReader(Func<BinaryReader, object> baseReader, FieldType type, List<IRcfReader> rcfReaders)
+		{
+            switch (type.Type) {
+                case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
+                    var result = new RcfReader<string>(baseReader);
+                    rcfReaders.Add(result);
+                    return result.Read;
+                case TypeTag.Json:
+                    result = new RcfReader<string>(baseReader);
+                    rcfReaders.Add(result);
+                    return b => JToken.Parse((string)result.Read(b));
+                case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
+                    var result2 = new RcfReader<byte[]>(baseReader);
+                    rcfReaders.Add(result2);
+                    return result2.Read;
+                case TypeTag.Boolean:
+                    var result3 = new RcfReader<bool>(baseReader);
+                    rcfReaders.Add(result3);
+                    return result3.Read;
+                case TypeTag.Byte:
+                    var result4 = new RcfReader<byte>(baseReader);
+                    rcfReaders.Add(result4);
+                    return result4.Read;
+                case TypeTag.Short:
+                    var result5 = new RcfReader<short>(baseReader);
+                    rcfReaders.Add(result5);
+                    return result5.Read;
+                case TypeTag.Int:
+                    var result6 = new RcfReader<int>(baseReader);
+                    rcfReaders.Add(result6);
+                    return result6.Read;
+                case TypeTag.Long:
+                    var result7 = new RcfReader<long>(baseReader);
+                    rcfReaders.Add(result7);
+                    return result7.Read;
+                case TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney:
+                    var result8 = new RcfReader<decimal>(baseReader);
+                    rcfReaders.Add(result8);
+                    return result8.Read;
+                case TypeTag.Single:
+                    var result9 = new RcfReader<int>(baseReader);
+                    rcfReaders.Add(result9);
+                    return result9.Read;
+                case TypeTag.Float or TypeTag.Double:
+                    var result10 = new RcfReader<double>(baseReader);
+                    rcfReaders.Add(result10);
+                    return result10.Read;
+                case TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime:
+                    var result11 = new RcfReader<DateTime>(baseReader);
+                    rcfReaders.Add(result11);
+                    return result11.Read;
+                case TypeTag.DateTimeTZ:
+                    var result12 = new RcfReader<DateTimeOffset>(baseReader);
+                    rcfReaders.Add(result12);
+                    return result12.Read;
+                case TypeTag.Guid:
+                    var result13 = new RcfReader<Guid>(baseReader);
+                    rcfReaders.Add(result13);
+                    return result13.Read;
+                case TypeTag.Time or TypeTag.Interval:
+                    var result14 = new RcfReader<TimeSpan>(baseReader);
+                    rcfReaders.Add(result14);
+                    return result14.Read;
+                default: throw new NotImplementedException();
+            }
+        }
+
+        private static Func<BinaryReader, object> GetNullableRcfReader(Func<BinaryReader, object> baseReader, FieldType type, List<IRcfReader> rcfReaders)
+		{
+            switch (type.Type) {
+                case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
+                    var result = new NullableRcfReader<string>(baseReader);
+                    rcfReaders.Add(result);
+                    return result.Read;
+				case TypeTag.Json:
+                    result = new NullableRcfReader<string>(baseReader);
+                    rcfReaders.Add(result);
+                    return b => JToken.Parse((string)result.Read(b));
+                case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
+                    var result2 = new NullableRcfReader<byte[]>(baseReader);
+                    rcfReaders.Add(result2);
+                    return result2.Read;
+                case TypeTag.Boolean:
+                    var result3 = new NullableRcfReader<bool>(baseReader);
+                    rcfReaders.Add(result3);
+                    return result3.Read;
+                case TypeTag.Byte:
+                    var result4 = new NullableRcfReader<byte>(baseReader);
+                    rcfReaders.Add(result4);
+                    return result4.Read;
+                case TypeTag.Short:
+                    var result5 = new NullableRcfReader<short>(baseReader);
+                    rcfReaders.Add(result5);
+                    return result5.Read;
+                case TypeTag.Int:
+                    var result6 = new NullableRcfReader<int>(baseReader);
+                    rcfReaders.Add(result6);
+                    return result6.Read;
+                case TypeTag.Long:
+                    var result7 = new NullableRcfReader<long>(baseReader);
+                    rcfReaders.Add(result7);
+                    return result7.Read;
+                case TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney:
+                    var result8 = new NullableRcfReader<decimal>(baseReader);
+                    rcfReaders.Add(result8);
+                    return result8.Read;
+                case TypeTag.Single:
+                    var result9 = new NullableRcfReader<int>(baseReader);
+                    rcfReaders.Add(result9);
+                    return result9.Read;
+                case TypeTag.Float or TypeTag.Double:
+                    var result10 = new NullableRcfReader<double>(baseReader);
+                    rcfReaders.Add(result10);
+                    return result10.Read;
+                case TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime:
+                    var result11 = new NullableRcfReader<DateTime>(baseReader);
+                    rcfReaders.Add(result11);
+                    return result11.Read;
+                case TypeTag.DateTimeTZ:
+                    var result12 = new NullableRcfReader<DateTimeOffset>(baseReader);
+                    rcfReaders.Add(result12);
+                    return result12.Read;
+                case TypeTag.Guid:
+                    var result13 = new NullableRcfReader<Guid>(baseReader);
+                    rcfReaders.Add(result13);
+                    return result13.Read;
+                case TypeTag.Time or TypeTag.Interval:
+                    var result14 = new NullableRcfReader<TimeSpan>(baseReader);
+                    rcfReaders.Add(result14);
+                    return result14.Read;
+                default: throw new NotImplementedException();
+            }
         }
 
         private static Func<BinaryReader, object> GetReader(int i, FieldType type, long domainReduction, DataDictionary dict)

@@ -5,12 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Microsoft.Data.SqlClient;
-
+using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Incremental;
 using Pansynchro.SQL;
 
-namespace Pansynchro.Connectors.MSSQL
+namespace Pansynchro.Connectors.MSSQL.Incremental
 {
     class MssqlCdcReader : IIncrementalStreamReader
     {
@@ -18,11 +18,13 @@ namespace Pansynchro.Connectors.MSSQL
         private readonly int _bookmarkLength;
         private byte[]? _startingPoint;
         private readonly byte[] _endingPoint;
+        private readonly SqlTransaction _tran;
 
-        public MssqlCdcReader(SqlConnection conn, int bookmarkLength)
+        public MssqlCdcReader(SqlConnection conn, int bookmarkLength, SqlTransaction tran)
         {
             _conn = conn;
             _bookmarkLength = bookmarkLength;
+            _tran = tran;
             _endingPoint = SqlHelper.ReadValues(_conn,
                     "select sys.fn_cdc_map_time_to_lsn('largest less than or equal', GETDATE())",
                     ReadBytes)
@@ -32,8 +34,6 @@ namespace Pansynchro.Connectors.MSSQL
         private static byte[] ReadBytes(IDataReader r) => (byte[])r.GetValue(0);
 
         public IncrementalStrategy Strategy => IncrementalStrategy.Cdc;
-
-        public string CurrentBookmark => throw new NotImplementedException();
 
         private const string CDC_FIELD_MAPPING =
 @"SELECT column_name, column_ordinal - 1
@@ -45,13 +45,12 @@ namespace Pansynchro.Connectors.MSSQL
         async Task<IDataReader> IIncrementalStreamReader.ReadStreamAsync(StreamDefinition stream)
         {
             var name = stream.Name;
-            var tableName = SqlHelper.ReadValues(_conn, 
+            var tableName = SqlHelper.ReadValues(_conn,
                     $"EXECUTE sys.sp_cdc_help_change_data_capture @source_schema = N'{name.Namespace}', @source_name = N'{name.Name}';",
                     r => r.GetString(2))
                 .First();
             var fnName = "cdc.fn_cdc_get_net_changes_" + tableName;
-            if (_startingPoint == null)
-            {
+            if (_startingPoint == null) {
                 _startingPoint = SqlHelper.ReadValues(_conn,
                         $"select sys.fn_cdc_get_min_lsn('{tableName}')",
                         ReadBytes)
@@ -66,7 +65,7 @@ namespace Pansynchro.Connectors.MSSQL
             var fieldMap = BuildFieldMap(fieldMappings);
             var names = string.Join(", ", stream.NameList.OrderBy(n => n).Select(s => '[' + s + ']'));
             var query = $"select __$start_lsn, __$operation, __$update_mask, {names} from {fnName}(@start, @end, 'all with mask')";
-            using var cmd = new SqlCommand(query, _conn);
+            using var cmd = new SqlCommand(query, _conn, _tran);
             await cmd.PrepareAsync();
             cmd.Parameters.AddWithValue("start", _startingPoint);
             cmd.Parameters.AddWithValue("end", _endingPoint);
@@ -96,7 +95,8 @@ namespace Pansynchro.Connectors.MSSQL
 
         public void StartFrom(string? bookmark)
         {
-            if (bookmark != null) { 
+            if (bookmark != null)
+            {
                 var bytes = HexToBytes(bookmark);
                 _startingPoint = SqlHelper.ReadValues(_conn,
                         "select sys.fn_cdc_increment_lsn(@bytes)",
@@ -104,6 +104,21 @@ namespace Pansynchro.Connectors.MSSQL
                         new KeyValuePair<string, object>("bytes", bytes))
                     .Single();
             }
+        }
+
+        public string CurrentPoint(StreamDescription name)
+        {
+            if (_startingPoint == null) {
+                ReadStartingPoint();
+            }
+            return BitConverter.ToString(_startingPoint!).Replace("-", "");
+        }
+
+        private void ReadStartingPoint()
+        {
+            using var cmd = new SqlCommand("SELECT sys.fn_cdc_get_max_lsn();", _conn, _tran);
+            var result = cmd.ExecuteReader();
+            _startingPoint = ReadBytes(result);
         }
     }
 }

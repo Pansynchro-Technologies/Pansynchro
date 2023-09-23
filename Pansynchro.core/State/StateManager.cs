@@ -32,5 +32,7 @@ namespace Pansynchro.State
             }
             return Factory(name);
         }
+
+        public abstract void MergeIncrementalData(Dictionary<StreamDescription, string> data);
     }
 }

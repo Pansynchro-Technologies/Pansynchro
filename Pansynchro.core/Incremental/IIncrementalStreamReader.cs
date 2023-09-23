@@ -10,6 +10,6 @@ namespace Pansynchro.Core.Incremental
         Task<IDataReader> ReadStreamAsync(StreamDefinition stream);
         IncrementalStrategy Strategy { get; }
         void StartFrom(string? bookmark);
-        string CurrentBookmark { get; }
+        string CurrentPoint(StreamDescription name);
     }
 }

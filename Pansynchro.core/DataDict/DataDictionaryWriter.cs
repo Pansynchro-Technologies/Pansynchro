@@ -99,6 +99,9 @@ namespace Pansynchro.Core.DataDict
             if (field.Type.Nullable) {
                 flArgs.Add(NULL_EXPR);
             }
+            if (field.Type.Incompressible) {
+                flArgs.Add(INCOMPRESSIBLE_EXPR);
+            }
             if (field.CustomRead != null) {
                 flArgs.Add(new StringNode(field.CustomRead));
             }
@@ -228,6 +231,7 @@ namespace Pansynchro.Core.DataDict
         }
 
         private static readonly Expression NULL_EXPR = WriteName("NULL");
+        private static readonly Expression INCOMPRESSIBLE_EXPR = WriteName("INCOMPRESSIBLE");
 
         private static FieldDefinition ParseField(Command ast, string typeName)
         {
@@ -237,10 +241,11 @@ namespace Pansynchro.Core.DataDict
             var fieldArgs = (NamedListNode)ast.Arguments[0];
             var name = fieldArgs.Name.ToString();
             var nullable = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments[1].Matches(NULL_EXPR);
-            var hasCustom = (nullable && fieldArgs.Arguments.Length > 2)
-                || (fieldArgs.Arguments.Length == 2 && !nullable);
+            var incompressible = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments.Any(a => a.Matches(INCOMPRESSIBLE_EXPR));
+            var hasCustom = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments[^1] is StringNode;
             var custom = hasCustom ? fieldArgs.Arguments[^1].ToString() : null;
             var fieldType = ParseType(fieldArgs.Arguments[0], nullable);
+            fieldType.Incompressible = incompressible;
             return new FieldDefinition(name, fieldType, custom);
         }
 

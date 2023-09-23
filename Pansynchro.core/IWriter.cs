@@ -14,6 +14,8 @@ namespace Pansynchro.Core
     public interface IIncrementalWriter : IWriter
     {
         void SetSourceName(string name);
+        void MergeIncrementalData(Dictionary<StreamDescription, string>? data);
+
         Dictionary<StreamDescription, string> IncrementalData { get; }
     }
 }

@@ -93,6 +93,10 @@ namespace Pansynchro.Core.DataDict
 
     public record FieldType(TypeTag Type, bool Nullable, CollectionType CollectionType, string? Info)
     {
+        // for data with a high degree of entropy, such as random numbers, non-sequential GUIDs,
+        // or compressed binary data.  Attempting to compress this is a waste of time.
+        public bool Incompressible { get; set; }
+
         public bool CanAssignNotNullToNull(in FieldType dest) => (!Nullable) && dest.Nullable
                 && Type == dest.Type
                 && Info == dest.Info

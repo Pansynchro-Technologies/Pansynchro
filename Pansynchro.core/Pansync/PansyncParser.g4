@@ -4,7 +4,7 @@ options {
 	tokenVocab = PansyncLexer;
 }
 
-file : statement+;
+file : statement+ EOF;
 
 statement : (command | data_list) EOL?;
 

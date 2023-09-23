@@ -7,8 +7,8 @@ namespace Pansynchro.Core.Incremental
     public abstract class IncrementalDataReader : IDataReader
     {
         protected readonly IDataReader _reader;
-        protected long _rows;
-        private readonly Dictionary<long, string?> _bookmarks = new();
+        protected internal long _rows;
+        internal readonly Dictionary<long, string?> _bookmarks = new();
 
         protected IncrementalDataReader(IDataReader reader, int bookmarkLength)
         {
@@ -154,11 +154,18 @@ namespace Pansynchro.Core.Incremental
 
         public int GetValues(object[] values)
         {
-            for (int i = 0; i < values.Length; ++i)
-            {
+            for (int i = 0; i < values.Length; ++i) {
                 values[i] = GetValue(i);
             }
             return values.Length;
+        }
+
+        internal int GetValuesOffset(object[] values, int offset)
+        {
+            for (int i = 0; i < FieldCount; ++i) {
+                values[i + offset] = GetValue(i);
+            }
+            return FieldCount;
         }
 
         public bool IsDBNull(int i)

@@ -4,9 +4,9 @@
     <TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.9</AssemblyVersion>
-	<FileVersion>0.5.9</FileVersion>
-	<Version>0.5.9</Version>
+	<AssemblyVersion>0.6.0</AssemblyVersion>
+	<FileVersion>0.6.0</FileVersion>
+	<Version>0.6.0</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Network Protocol</Product>
 	<Description>Implements the Pansynchro protocol, the fastest way to transmit bulk structured data over a network.</Description>
@@ -14,9 +14,9 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;networking</PackageTags>
 	<PackageReleaseNotes>
-		Improvements and bugfixes from external UAT.
-		Adding support for Custom typed data to BinaryEncoder and BinaryDecoder.
-		Significantly improving the speed of BinaryEncoder by splitting the read/encode and compress/write stages to run concurrently through a Channel rather than serially.
+		Updating to Pansync Binary protocol v6
+		Revamping RCF handling to use table lookup rather than RLE, which removes the need for an expensive sorting operation, 
+		  makes RCF accessible to non-SQL sources, and improves binary size slightly
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
@@ -26,8 +26,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Crc32.NET" Version="1.2.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.IO.Hashing" Version="8.0.0-rc.1.23419.4" />
+    <PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,26 +24,30 @@ namespace Pansynchro.Protocol
 {
     public class BinaryEncoder : IWriter
     {
+        private const int VERSION = 6;
+
         private readonly Stream _output;
         private DataDictionary _dataDict = null!;
         private readonly TcpListener? _server;
         private readonly TcpClient? _client;
-        private const int VERSION = 5;
         private readonly MemoryStream _bufferStream = new(BUFFER_SIZE);
         private readonly BinaryWriter _outputWriter;
+        //private readonly BinaryWriter _incompressibleWriter;
+        private readonly BrotliStream _compressor;
 #if DEBUG
-        private readonly MeteredStream _meter;
+		private readonly MeteredStream _meter;
 #endif
 
         public BinaryEncoder(Stream output, int compressionLevel = 4)
         {
-            var cl = GetCompressionLevel(compressionLevel);
-            _output = new BrotliStream(output, cl, false);
+            _compressor = new(output, CompressionLevel.Optimal);
+            _output = _compressor;
 #if DEBUG
             _meter = new MeteredStream(_output);
             _output = _meter;
 #endif
             _outputWriter = new BinaryWriter(_output, Encoding.UTF8);
+            //_incompressibleWriter = new BinaryWriter(output, Encoding.UTF8);
         }
 
         public BinaryEncoder(TcpListener server, DataDictionary dict, int compressionLevel = 4)
@@ -52,27 +56,16 @@ namespace Pansynchro.Protocol
             _server.Start();
             _client = _server.AcceptTcpClient();
             var buffer = new BufferedStream(_client.GetStream());
-            var cl = GetCompressionLevel(compressionLevel);
-            _output = new BrotliStream(buffer, cl, false);
+            _compressor = new(buffer, CompressionLevel.Optimal);
+            _output = _compressor;
 #if DEBUG
             _meter = new MeteredStream(_output);
             _output = _meter;
 #endif
             _outputWriter = new BinaryWriter(_output, Encoding.UTF8);
+            //_incompressibleWriter = new BinaryWriter(buffer, Encoding.UTF8);
             _dataDict = dict;
         }
-
-        // NOTE: This will no longer be valid in .NET 7, which introduces a breaking change (and a better
-        // way of dealing with compression levels).  Fix it during the upgrade once .NET 7 is RTM.
-        // https://github.com/dotnet/runtime/issues/42820
-        private static CompressionLevel GetCompressionLevel(int level)
-            => level switch {
-                0 => CompressionLevel.NoCompression,
-                1 or 2 or 3 => CompressionLevel.Fastest,
-                4 or 5 or 6 or 7 or 8 or 9 or 10 => (CompressionLevel) level,
-                11 => CompressionLevel.SmallestSize,
-                _ => throw new ArgumentException("Valid Brotli compression levels are 0 - 11")
-            };
 
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
@@ -125,16 +118,15 @@ namespace Pansynchro.Protocol
             IDataReader reader, BinaryWriter writer, StreamDefinition schema, bool useRcf)
         {
             _outputWriter.Write((byte)StreamMode.InsertOnly);
-            Action<object, BinaryWriter>[] columnWriters = BuildColumnWriters(reader, schema, _dataDict);
+            var incompressibles = new List<int>();
+            var rcfWriters = new List<IRcfWriter>();
+            Action<object, BinaryWriter>[] columnWriters = BuildColumnWriters(reader, schema, _dataDict, incompressibles, rcfWriters);
             var ch = Channel.CreateBounded<WriteJob>(CHANNEL_OPTIONS);
             var writeTask = Task.Run(() => WriteBlocks(ch.Reader));
             try
             {
                 //loop until it returns false
-                while (await ProcessBlock(reader,
-                    columnWriters,
-                    useRcf ? schema.RareChangeFields.Length : 0,
-                    schema.SeqIdIndex, ch.Writer))
+                while (await ProcessBlock(reader, columnWriters, schema.SeqIdIndex, ch.Writer, incompressibles, rcfWriters))
                 { }
                 ch.Writer.Complete();
             } catch (Exception e) {
@@ -147,17 +139,17 @@ namespace Pansynchro.Protocol
 
         private const int BUFFER_SIZE = 1024 * 1024;
 
-        private void FlushBuffer()
+        private void FlushBuffer(BinaryWriter writer)
         {
-            _outputWriter.Write7BitEncodedInt((int)_bufferStream.Length + sizeof(int));
-            _bufferStream.WriteTo(_output);
-            _outputWriter.Write(Crc32(_bufferStream.GetBuffer(), _bufferStream.Length));
+            writer.Write7BitEncodedInt((int)_bufferStream.Length + sizeof(int));
+            _bufferStream.WriteTo(writer.BaseStream);
+            writer.Write(Crc32(_bufferStream.GetBuffer(), (int)_bufferStream.Length));
             _bufferStream.SetLength(0);
         }
 
         private async ValueTask<bool> ProcessBlock(
-            IDataReader reader, Action<object, BinaryWriter>[] rowWriters, int rcfCount,
-            int? sequentialID, ChannelWriter<WriteJob> writer)
+            IDataReader reader, Action<object, BinaryWriter>[] rowWriters,
+            int? sequentialID, ChannelWriter<WriteJob> writer, List<int> incompressibles, List<IRcfWriter> rcfWriters)
         {
             var rowSize = reader.FieldCount;
             int i = 0;
@@ -171,17 +163,17 @@ namespace Pansynchro.Protocol
                 reader.GetValues(arr);
                 ++i;
             }
-            await WriteBlock(i, rowSize, rowWriters, rcfCount, sequentialID, writer);
+            await WriteBlock(i, rowSize, rowWriters, sequentialID, writer, !incompressibles.Contains(i), rcfWriters);
             return result;
         }
 
         private record WriteJob(object[][] Buffer, int Count, int RowSize,
-            Action<object, BinaryWriter>[] RowWriters, int RcfCount, int? SequentialID);
+            Action<object, BinaryWriter>[] RowWriters, int? SequentialID, BinaryWriter Writer, List<IRcfWriter> RcfWriters);
 
         private async ValueTask WriteBlock(int count, int rowSize, Action<object, BinaryWriter>[] rowWriters,
-            int rcfCount, int? sequentialID, ChannelWriter<WriteJob> writer)
+            int? sequentialID, ChannelWriter<WriteJob> writer, bool useCompression, List<IRcfWriter> rcfWriters)
         {
-            var job = new WriteJob(_buffer, count, rowSize, rowWriters, rcfCount, sequentialID);
+            var job = new WriteJob(_buffer, count, rowSize, rowWriters, sequentialID, _outputWriter, rcfWriters);
             await writer.WriteAsync(job);
             _buffer = new object[BUFFER_LENGTH][];
             //DoWriteBlock(_buffer, count, rowSize, rowWriters, rcfCount, sequentialID);
@@ -189,30 +181,50 @@ namespace Pansynchro.Protocol
 
         private async Task WriteBlocks(ChannelReader<WriteJob> reader)
         {
-            await foreach (var job in reader.ReadAllAsync())
-            {
-                DoWriteBlock(job.Buffer, job.Count, job.RowSize, job.RowWriters, job.RcfCount, job.SequentialID);
+            await foreach (var job in reader.ReadAllAsync()) {
+                DoWriteBlock(job.Buffer, job.Count, job.RowSize, job.RowWriters, job.SequentialID, job.Writer, job.RcfWriters);
             }
         }
 
         private void DoWriteBlock(object[][] buffer, int count, int rowSize,
-            Action<object, BinaryWriter>[] rowWriters, int rcfCount, int? sequentialID)
+            Action<object, BinaryWriter>[] rowWriters, int? sequentialID, BinaryWriter outputWriter, List<IRcfWriter> rcfWriters)
         {
             using var writer = new BinaryWriter(_bufferStream, Encoding.UTF8, true);
             writer.Write7BitEncodedInt(count);
-            var normalColumnCount = rowSize - rcfCount;
-            for (int i = 0; i < normalColumnCount; ++i) {
+            for (int i = 0; i < rowSize; ++i) {
                 if (i == sequentialID) {
                     WriteSequentialIDColumn(buffer, i, count, writer);
                 } else WriteColumn(buffer, i, rowWriters[i], count, writer);
             }
-            for (int i = normalColumnCount; i < rowSize; ++i) {
-                WriteRcfColumn(buffer, i, rowWriters[i], count, writer);
+            FlushBuffer(outputWriter);
+            if (rcfWriters.Count > 0) {
+			    UpdateRcfData(rcfWriters, outputWriter);
             }
-            FlushBuffer();
         }
 
-        private static void WriteColumn(object[][] buffer, int column,
+		private static void UpdateRcfData(List<IRcfWriter> rcfWriters, BinaryWriter outputWriter)
+		{
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
+            var written = 0;
+            for (int i = 0; i < rcfWriters.Count; ++i) {
+                var writer = rcfWriters[i];
+                if (writer.NewData > 0) {
+                    ++written;
+                    bw.Write7BitEncodedInt(i);
+                    bw.Write7BitEncodedInt(writer.NewData);
+                    writer.FinishBlock(bw);
+                }
+            }
+            if (written > 0) {
+                outputWriter.Write7BitEncodedInt(written);
+                ms.WriteTo(outputWriter.BaseStream);
+            } else {
+                outputWriter.Write((byte)0);
+            }
+		}
+
+		private static void WriteColumn(object[][] buffer, int column,
             Action<object, BinaryWriter> action, int count, BinaryWriter writer)
         {
             for (int i = 0; i < count; ++i) {
@@ -421,7 +433,7 @@ namespace Pansynchro.Protocol
         */
 
         private static Action<object, BinaryWriter>[] BuildColumnWriters(
-            IDataReader reader, StreamDefinition schema, DataDictionary dict)
+            IDataReader reader, StreamDefinition schema, DataDictionary dict, List<int> incompressibles, List<IRcfWriter> rcfFinalizers)
         {
             Debug.Assert(reader.FieldCount == schema.Fields.Length);
             var len = schema.Fields.Length;
@@ -431,17 +443,160 @@ namespace Pansynchro.Protocol
                 var field = schema.Fields[i];
                 var type = field.Type;
                 drs.TryGetValue(field.Name, out var dr);
-                Action<object, BinaryWriter> writer = GetWriter(i, type, dr, dict);
+                var isRcf = schema.RareChangeFields.Contains(field.Name);
+                Action<object, BinaryWriter> writer = isRcf ? GetRcfWriter(i, type, dr, dict, rcfFinalizers) : GetWriter(i, type, dr, dict);
                 result[i] = writer;
+                if (type.Incompressible) {
+                    incompressibles.Add(i);
+                }
             }
             return result;
+        }
+
+		private static Action<object, BinaryWriter> GetRcfWriter(int i, FieldType type, long dr, DataDictionary dict, List<IRcfWriter> rcfFinalizers)
+		{
+            var baseWriter = GetWriter(i, type, dr, dict);
+            return type.Nullable ? GetNullableRcfWriter(baseWriter!, type, rcfFinalizers) : GetPlainRcfWriter(baseWriter, type, rcfFinalizers);
+		}
+
+		private static Action<object, BinaryWriter> GetPlainRcfWriter(Action<object, BinaryWriter> baseWriter, FieldType type, List<IRcfWriter> rcfFinalizers)
+        {
+            switch (type.Type) {
+                case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
+                    var result = new RcfWriter<string>(baseWriter);
+                    rcfFinalizers.Add(result);
+                    return result.Write;
+                case TypeTag.Json:
+                    result = new RcfWriter<string>(baseWriter);
+                    rcfFinalizers.Add(result);
+                    return (o, b) => result.Write(o.ToString()!, b);
+                case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
+                    var result2 = new RcfWriter<byte[]>(baseWriter);
+                    rcfFinalizers.Add(result2);
+                    return result2.Write;
+                case TypeTag.Boolean:
+                    var result3 = new RcfWriter<bool>(baseWriter);
+                    rcfFinalizers.Add(result3);
+                    return result3.Write;
+                case TypeTag.Byte:
+                    var result4 = new RcfWriter<byte>(baseWriter);
+                    rcfFinalizers.Add(result4);
+                    return result4.Write;
+                case TypeTag.Short:
+                    var result5 = new RcfWriter<short>(baseWriter);
+                    rcfFinalizers.Add(result5);
+                    return result5.Write;
+                case TypeTag.Int:
+                    var result6 = new RcfWriter<int>(baseWriter);
+                    rcfFinalizers.Add(result6);
+                    return result6.Write;
+                case TypeTag.Long:
+                    var result7 = new RcfWriter<long>(baseWriter);
+                    rcfFinalizers.Add(result7);
+                    return result7.Write;
+                case TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney:
+                    var result8 = new RcfWriter<decimal>(baseWriter);
+                    rcfFinalizers.Add(result8);
+                    return result8.Write;
+                case TypeTag.Single:
+                    var result9 = new RcfWriter<int>(baseWriter);
+                    rcfFinalizers.Add(result9);
+                    return result9.Write;
+                case TypeTag.Float or TypeTag.Double:
+                    var result10 = new RcfWriter<double>(baseWriter);
+                    rcfFinalizers.Add(result10);
+                    return result10.Write;
+                case TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime:
+                    var result11 = new RcfWriter<DateTime>(baseWriter);
+                    rcfFinalizers.Add(result11);
+                    return result11.Write;
+                case TypeTag.DateTimeTZ:
+                    var result12 = new RcfWriter<DateTimeOffset>(baseWriter);
+                    rcfFinalizers.Add(result12);
+                    return result12.Write;
+                case TypeTag.Guid:
+                    var result13 = new RcfWriter<Guid>(baseWriter);
+                    rcfFinalizers.Add(result13);
+                    return result13.Write;
+                case TypeTag.Time or TypeTag.Interval:
+                    var result14 = new RcfWriter<TimeSpan>(baseWriter);
+                    rcfFinalizers.Add(result14);
+                    return result14.Write;
+                default: throw new NotImplementedException();
+            }
+        }
+
+        private static Action<object, BinaryWriter> GetNullableRcfWriter(Action<object?, BinaryWriter> baseWriter, FieldType type, List<IRcfWriter> rcfFinalizers)
+		{
+            switch (type.Type) {
+                case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
+                    var result = new NullableRcfWriter<string>(baseWriter);
+                    rcfFinalizers.Add(result);
+                    return result.Write;
+                case TypeTag.Json:
+                    result = new NullableRcfWriter<string>(baseWriter);
+                    rcfFinalizers.Add(result);
+                    return (o, b) => result.Write(o.ToString()!, b);
+                case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
+                    var result2 = new NullableRcfWriter<byte[]>(baseWriter);
+                    rcfFinalizers.Add(result2);
+                    return result2.Write;
+                case TypeTag.Boolean:
+                    var result3 = new NullableRcfWriter<bool>(baseWriter);
+                    rcfFinalizers.Add(result3);
+                    return result3.Write;
+                case TypeTag.Byte:
+                    var result4 = new NullableRcfWriter<byte>(baseWriter);
+                    rcfFinalizers.Add(result4);
+                    return result4.Write;
+                case TypeTag.Short:
+                    var result5 = new NullableRcfWriter<short>(baseWriter);
+                    rcfFinalizers.Add(result5);
+                    return result5.Write;
+                case TypeTag.Int:
+                    var result6 = new NullableRcfWriter<int>(baseWriter);
+                    rcfFinalizers.Add(result6);
+                    return result6.Write;
+                case TypeTag.Long:
+                    var result7 = new NullableRcfWriter<long>(baseWriter);
+                    rcfFinalizers.Add(result7);
+                    return result7.Write;
+                case TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney:
+                    var result8 = new NullableRcfWriter<decimal>(baseWriter);
+                    rcfFinalizers.Add(result8);
+                    return result8.Write;
+                case TypeTag.Single:
+                    var result9 = new NullableRcfWriter<int>(baseWriter);
+                    rcfFinalizers.Add(result9);
+                    return result9.Write;
+                case TypeTag.Float or TypeTag.Double:
+                    var result10 = new NullableRcfWriter<double>(baseWriter);
+                    rcfFinalizers.Add(result10);
+                    return result10.Write;
+                case TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime:
+                    var result11 = new NullableRcfWriter<DateTime>(baseWriter);
+                    rcfFinalizers.Add(result11);
+                    return result11.Write;
+                case TypeTag.DateTimeTZ:
+                    var result12 = new NullableRcfWriter<DateTimeOffset>(baseWriter);
+                    rcfFinalizers.Add(result12);
+                    return result12.Write;
+                case TypeTag.Guid:
+                    var result13 = new NullableRcfWriter<Guid>(baseWriter);
+                    rcfFinalizers.Add(result13);
+                    return result13.Write;
+                case TypeTag.Time or TypeTag.Interval:
+                    var result14 = new NullableRcfWriter<TimeSpan>(baseWriter);
+                    rcfFinalizers.Add(result14);
+                    return result14.Write;
+                default: throw new NotImplementedException();
+            }
         }
 
         private static Action<object, BinaryWriter> GetWriter(
             int i, FieldType type, long domainReduction, DataDictionary dict)
         {
-            Action<object, BinaryWriter> writer = type.Type switch
-            {
+            Action<object, BinaryWriter> writer = type.Type switch {
                 TypeTag.Unstructured => Unimplemented(type, i),
                 TypeTag.Custom => GetCustomTypeWriter(i, type, domainReduction, dict),
                 TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml
@@ -502,10 +657,8 @@ namespace Pansynchro.Protocol
         private static Action<object, BinaryWriter> MakeDateTimeWriter(long domainReduction) => (o, s) => s.Write7BitEncodedInt64(((DateTime)o).Ticks - domainReduction);
 
         private static Action<object, BinaryWriter> MakeNullable(Action<object, BinaryWriter> writer)
-            => (o, s) =>
-        {
-            if (o is null || o == System.DBNull.Value)
-            {
+            => (o, s) => {
+            if (o is null || o == System.DBNull.Value) {
                 s.Write(false);
             } else {
                 s.Write(true);
@@ -529,7 +682,7 @@ namespace Pansynchro.Protocol
             return customType.ProtocolWriter;
         }
 
-        private static uint Crc32(byte[] row, long length) => Force.Crc32.Crc32CAlgorithm.Compute(row, 0, (int)length);
+        private static uint Crc32(byte[] row, int length) => System.IO.Hashing.Crc32.HashToUInt32(row.AsSpan(0, length));
 
         public void Dispose()
         {

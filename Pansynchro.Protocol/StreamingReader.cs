@@ -19,7 +19,7 @@ namespace Pansynchro.Protocol
         private readonly BinaryReader _reader;
         private readonly BinaryReader _blockReader;
         private readonly Func<BinaryReader, object>[] _decoders;
-        private readonly int _rcfFieldCount;
+        private readonly IRcfReader[] _rcfReaders;
         private readonly int? _seqIdField;
         private readonly bool _seqIdIsLong;
         private readonly Action _onComplete;
@@ -28,13 +28,12 @@ namespace Pansynchro.Protocol
         public StreamingReader(BinaryReader reader, StreamDefinition schema, DataDictionary dict, StreamMode mode, Action onComplete)
         {
             this._reader = reader;
-            this._decoders = BinaryDecoder.BuildBufferDecoders(schema, dict);
+            (_decoders, _rcfReaders) = BinaryDecoder.BuildBufferDecoders(schema, dict);
             this._onComplete = onComplete;
             if (mode != StreamMode.InsertOnly) {
                 throw new InvalidDataException("Invalid stream mode.");
             }
             _buffer = new object[schema.Fields.Length];
-            _rcfFieldCount = schema.RareChangeFields.Length;
             for (int i = 0; i < schema.NameList.Length; ++i) {
                 _nameMap.Add(schema.NameList[i], i);
             }
@@ -99,8 +98,21 @@ namespace Pansynchro.Protocol
             _bufferStream.SetLength(0);
             _bufferStream.Write(block, 0, size - sizeof(int));
             _bufferStream.Position = 0;
+            if (_rcfReaders.Length > 0) {
+                ReadRcfUpdates();
+            }
             FillReadBuffer();
             return true;
+        }
+
+		private void ReadRcfUpdates()
+		{
+            var count = _reader.Read7BitEncodedInt();
+            for (int i = 0; i < count; ++i) {
+                var idx = _reader.Read7BitEncodedInt();
+                var reader = _rcfReaders[idx];
+                reader.AddData(_reader);
+            }
         }
 
         private void FillReadBuffer()
@@ -109,11 +121,8 @@ namespace Pansynchro.Protocol
             for (int i = 0; i < _rowCount; i++) {
                 CheckBufferRow(i);
             }
-            var rcfThreshold = _buffer.Length - _rcfFieldCount;
             for (int i = 0; i < _buffer.Length; i++) {
-                if (i >= rcfThreshold) {
-                    ReadRcfColumn(i);
-                } else if (i == _seqIdField) {
+                if (i == _seqIdField) {
                     ReadSeqIdColumn(i);
                 } else {
                     ReadRegularColumn(i);
@@ -126,20 +135,6 @@ namespace Pansynchro.Protocol
             var decoder = _decoders[column];
             for (int i = 0; i < _rowCount; ++i) {
                 _readBuffer[i][column] = decoder(_blockReader);
-            }
-        }
-
-        private void ReadRcfColumn(int column)
-        {
-            var decoder = _decoders[column];
-            int i = 0;
-            while (i < _rowCount) {
-                var value = decoder(_blockReader);
-                var runLength = _blockReader.Read7BitEncodedInt();
-                for (int j = i; j < i + runLength; ++j) {
-                    _readBuffer[j][column] = value;
-                }
-                i += runLength;
             }
         }
 
@@ -188,7 +183,9 @@ namespace Pansynchro.Protocol
 
         private static void ValidateBlockCrc(byte[] row)
         {
-            if (!Force.Crc32.Crc32CAlgorithm.IsValidWithCrcAtEnd(row)) {
+            var crc = System.IO.Hashing.Crc32.HashToUInt32(row.AsSpan(0, row.Length - 4));
+            var check = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(row.AsSpan(row.Length - 4))[0];
+            if (crc != check) {
                 throw new InvalidDataException("Data block CRC check failed.");
             }
         }

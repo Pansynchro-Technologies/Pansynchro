@@ -16,6 +16,7 @@ namespace Pansynchro.SQL
     {
         protected readonly DbConnection _conn;
         public DbConnection Conn => _conn;
+        protected DbTransaction? _tran;
 
         protected IIncrementalStreamReader? _incrementalReader;
         protected Func<StreamDefinition, Task<IDataReader>> _getReader;
@@ -40,6 +41,8 @@ namespace Pansynchro.SQL
             }
         }
 
+        public Dictionary<StreamDescription, string>? IncrementalPlan => _incrementalPlan;
+
         protected abstract ISqlFormatter SqlFormatter { get; }
 
         protected Task<IDataReader> FullSyncReader(StreamDefinition stream)
@@ -58,16 +61,16 @@ namespace Pansynchro.SQL
             var sql = stream.CustomQuery != null
                 ? $"select {columns} from ({stream.CustomQuery}) cq"
                 : $"select {columns} from {formatter.QuoteName(stream.Name)}";
-            if (rcf?.Length > 0) {
-                var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
-                sql = $"{sql} order by {string.Join(", ", order.Select(formatter.QuoteName))}";
+            if (stream.Identity?.Length > 0) {
+                sql = $"{sql} order by {string.Join(", ", stream.Identity.Select(formatter.QuoteName))}";
             }
             if (maxRows >= 0) {
                 sql = formatter.LimitRows(sql, maxRows);
             }
-            var query = _conn.CreateCommand();
+            using var query = _conn.CreateCommand();
             query.CommandText = sql;
             query.CommandTimeout = 0;
+            query.Transaction = _tran;
             return await query.ExecuteReaderAsync();
         }
 
@@ -93,9 +96,10 @@ namespace Pansynchro.SQL
                 var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
                 sql = $"{sql} order by {string.Join(", ", order.Select(formatter.QuoteName))}";
             }
-            var query = _conn.CreateCommand();
+            using var query = _conn.CreateCommand();
             query.CommandText = sql;
             query.CommandTimeout = 0;
+            query.Transaction = _tran;
             return new SqlAuditReader(await query.ExecuteReaderAsync(), stream.Fields[stream.AuditFieldIndex!.Value].Name);
         }
 
@@ -127,17 +131,26 @@ namespace Pansynchro.SQL
         public async IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source)
         {
             await _conn.OpenAsync();
+            _tran = _conn.BeginTransaction(IsolationLevel.Snapshot);
             try {
                 var streams = source.Streams.ToDictionary(s => s.Name);
                 foreach (var name in source.DependencyOrder.SelectMany(s => s)) {
                     var stream = streams[name];
                     Console.WriteLine($"{DateTime.Now}: Reading table '{stream.Name}'");
-                    var recordSize = PayloadSizeAnalyzer.AverageSize(_conn, stream, SqlFormatter);
+                    var recordSize = PayloadSizeAnalyzer.AverageSize(_conn, stream, SqlFormatter, _tran);
                     Console.WriteLine($"{DateTime.Now}: Average data size: {recordSize}");
+                    _getReader = FullSyncReader;
+                    var fullIncremental = false;
                     if (_incrementalPlan != null) {
                         _getReader = GetIncrementalStrategy(stream);
-                        _incrementalPlan.TryGetValue(name, out var bookmark);
-                        _incrementalReader?.StartFrom(bookmark);
+                        if (_getReader != FullSyncReader) {
+                            if (_incrementalPlan.TryGetValue(name, out var bookmark)) {
+                                _incrementalReader?.StartFrom(bookmark);
+                            } else {
+                                _getReader = FullSyncReader;
+                                fullIncremental = true;
+                            }
+                        }
                     }
                     var settings = StreamSettings.None;
                     if (_getReader == FullSyncReader) {
@@ -146,8 +159,13 @@ namespace Pansynchro.SQL
                         }
                     }
                     yield return new DataStream(stream.Name, settings, await _getReader(stream));
+                    if (fullIncremental && _incrementalReader != null) {
+                        _incrementalPlan![name] = _incrementalReader.CurrentPoint(stream.Name);
+                    }
                 }
             } finally {
+                _tran.Dispose();
+				_tran = null;
                 await _conn.CloseAsync();
             }
         }

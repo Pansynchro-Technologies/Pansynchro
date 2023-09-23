@@ -4,9 +4,9 @@
 	<TargetFrameworks>net6.0;net7.0</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.5.15</AssemblyVersion>
-	<FileVersion>0.5.15</FileVersion>
-	<Version>0.5.15</Version>
+	<AssemblyVersion>0.6.0</AssemblyVersion>
+	<FileVersion>0.6.0</FileVersion>
+	<Version>0.6.0</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,7 +14,9 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Ensuring that a TransformingReader will use destination field names rather than source field names.
+		Updating to Pansync Binary protocol v6
+		Adding general support for incremental sync to SQL connectors
+		WIP on support for incompressible data
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
@@ -34,7 +36,7 @@
 	</PackageReference>
 	<PackageReference Include="Antlr4.Runtime" Version="4.6.6" />
 	<PackageReference Include="DotNet.Glob" Version="3.1.3" />
-	<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	<PackageReference Include="System.Linq" Version="4.3.0" />
 	<PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>

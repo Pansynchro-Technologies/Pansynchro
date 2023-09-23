@@ -15,20 +15,16 @@ using Pansynchro.State;
 
 namespace Pansynchro.Connectors.MSSQL
 {
-    public class MSSQLWriter : IIncrementalWriter
+    public class MSSQLWriter : SqlDbWriter
     {
-        private readonly SqlConnection _conn;
         private readonly SqlConnection? _perfConn;
         private readonly string _connectionString;
 
-        private DataDictionary? _order;
-        private StateManager _stateManager = null!;
 
         public bool NoStaging { get; set; }
 
-        public MSSQLWriter(string connectionString, string? perfConnectionString)
+        public MSSQLWriter(string connectionString, string? perfConnectionString) : base(new SqlConnection(connectionString))
         {
-            _conn = new SqlConnection(connectionString);
             _conn.Open();
             if (perfConnectionString != null) {
                 _perfConn = new SqlConnection(perfConnectionString);
@@ -36,17 +32,17 @@ namespace Pansynchro.Connectors.MSSQL
             _connectionString = connectionString;
         }
 
-        private void Setup(DataDictionary dest)
+        protected override void Setup(DataDictionary dest)
         {
             if (!NoStaging) {
-                MetadataHelper.EnsureScratchTables(_conn, dest);
+                MetadataHelper.EnsureScratchTables((SqlConnection)_conn, dest);
             }
-            _order = dest;
+            base.Setup(dest);
         }
 
         private readonly List<Task> _cleanup = new();
 
-        private async Task Finish()
+        protected override async Task Finish()
         {
             await Task.WhenAll(_cleanup);
         }
@@ -63,138 +59,25 @@ namespace Pansynchro.Connectors.MSSQL
 
         const SqlBulkCopyOptions COPY_OPTIONS = SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.KeepNulls | SqlBulkCopyOptions.TableLock | SqlBulkCopyOptions.UseInternalTransaction;
 
-        public void Dispose()
+        protected override void BeginIncrementalSync(StreamDescription name)
         {
-            _conn.Close();
-            _conn.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-        public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
-        {
-            Setup(dest);
-            var order = new List<StreamDescription>();
-            await foreach (var (name, settings, reader) in streams) {
-                order.Add(name);
-                if (reader is IncrementalDataReader inc) {
-                    var bookmark = IncrementalSync(name, inc);
-                    if (bookmark != null) {
-                        _stateManager.SaveIncrementalData(name, bookmark);
-                    }
-                } else {
-                    FullStreamSync(name, settings, reader);
-                }
-                reader.Dispose();
-            }
-            await Finish();
-        }
-
-        private string? IncrementalSync(StreamDescription name, IncrementalDataReader inc)
-        {
-            var writers = BuildIncrementalWriters(name, inc);
             _conn.Execute($"set IDENTITY_INSERT {name} ON");
-            var tran = _conn.BeginTransaction(IsolationLevel.Serializable);
-            long count = 0;
-            string? latestBookmark = null;
-            try {
-                while (inc.Read()) {
-                    WriteIncrementalRow(name, inc, tran, writers);
-                    if (++count % inc.BookmarkLength == 0) {
-                        tran.Commit();
-                        tran = _conn.BeginTransaction(IsolationLevel.Serializable);
-                        latestBookmark = inc.Bookmark(count);
-                    }
-                }
-            } catch {
-                tran.Rollback();
-            }
-            tran.Commit();
+        }
+
+        protected override void FinishIncrementalSync(StreamDescription name)
+        {
             _conn.Execute($"set IDENTITY_INSERT {name} OFF");
-            latestBookmark = inc.Bookmark(count);
-            return latestBookmark;
         }
 
-        private void WriteIncrementalRow(StreamDescription name, IncrementalDataReader inc, SqlTransaction tran, Action<List<string>, SqlParameterCollection>[] writers)
-        {
-            List<string> names; SqlCommand cmd;
-            switch (inc.UpdateType) {
-                case UpdateRowType.Insert:
-                    var template = $"insert into [{name.Namespace}].[{name.Name}] ({{0}}) values ({{1}})";
-                    (names, cmd) = RunIncrementalWritersForInsert(inc, tran, writers);
-                    cmd.CommandText = string.Format(template, string.Join(", ", names), string.Join(", ", names.Select(n => '@' + n)));
-                    break;
-                case UpdateRowType.Update:
-                    template = $"update [{name.Namespace}].[{name.Name}] set {{0}} where {{1}}";
-                    (names, cmd) = RunIncrementalWritersForUpdate(inc, tran, writers);
-                    cmd.CommandText = string.Format(template, string.Join(", ", names.Select(n => $"{n} = @{n}")), BuildWhereClause(name, inc, cmd.Parameters));
-                    break;
-                case UpdateRowType.Delete:
-                    template = $"delete from [{name.Namespace}].[{name.Name}] where {{0}}";
-                    cmd = new SqlCommand(null, _conn, tran);
-                    cmd.CommandText = string.Format(template, BuildWhereClause(name, inc, cmd.Parameters));
-                    break;
-                default:
-                    throw new Exception($"Invalid update type: {inc.UpdateType}.");
-            }
-            cmd.ExecuteNonQuery();
-        }
-
-        private object BuildWhereClause(StreamDescription name, IncrementalDataReader inc, SqlParameterCollection parameters)
-        {
-            var schema = _order!.GetStream(name.ToString());
-            var id = schema.Identity;
-            foreach (var field in id) {
-                parameters.AddWithValue($"__{field}_where", inc[field]);
-            }
-            var result = string.Join(" and ", id.Select(f => $"[{f}] = @__{f}_where"));
-            return result;
-        }
-
-        private (List<string> names, SqlCommand cmd) RunIncrementalWritersForInsert(IncrementalDataReader inc, SqlTransaction tran, Action<List<string>, SqlParameterCollection>[] writers)
-        {
-            var names = new List<string>();
-            var cmd = new SqlCommand(null, _conn, tran);
-            for (int i = 0; i < writers.Length; ++i) {
-                writers[i](names, cmd.Parameters);
-            }
-            return (names, cmd);
-        }
-
-        private (List<string> names, SqlCommand cmd) RunIncrementalWritersForUpdate(IncrementalDataReader inc, SqlTransaction tran, Action<List<string>, SqlParameterCollection>[] writers)
-        {
-            var names = new List<string>();
-            var cmd = new SqlCommand(null, _conn, tran);
-            foreach (var column in inc.AffectedColumns) {
-                writers[column](names, cmd.Parameters);
-            }
-            return (names, cmd);
-        }
-
-        private static Action<List<string>, SqlParameterCollection>[] BuildIncrementalWriters(StreamDescription name, IncrementalDataReader inc)
-        {
-            var result = new Action<List<string>, SqlParameterCollection>[inc.FieldCount];
-            for (int i = 0; i < inc.FieldCount; ++i) {
-                result[i] = BuildWriter(i, inc);
-            }
-            return result;
-        }
-
-        private static Action<List<string>, SqlParameterCollection> BuildWriter(int i, IncrementalDataReader inc) =>
-            (l, p) => {
-                var name = inc.GetName(i);
-                l.Add(name);
-                p.AddWithValue(name, inc[i]);
-            };
-
-        private void FullStreamSync(StreamDescription name, StreamSettings settings, IDataReader reader)
+        protected override void FullStreamSync(StreamDescription name, StreamSettings settings, IDataReader reader)
         {
             Console.WriteLine($"{ DateTime.Now}: Writing to {name}");
             ulong progress = 0;
             if (!NoStaging) {
-                MetadataHelper.TruncateTable(_conn, name);
+                MetadataHelper.TruncateTable((SqlConnection)_conn, name);
             }
             var destName = NoStaging ? name.ToString() : $"Pansynchro.[{name.Name}]";
-            using var copy = new SqlBulkCopy(_conn, COPY_OPTIONS, null) {
+            using var copy = new SqlBulkCopy((SqlConnection)_conn, COPY_OPTIONS, null) {
                 BatchSize = BATCH_SIZE,
                 DestinationTableName = destName,
                 EnableStreaming = true,
@@ -212,6 +95,8 @@ namespace Pansynchro.Connectors.MSSQL
             //LogThroughput(name, progress, averageSize, stopwatch);
         }
 
+        protected override ISqlFormatter Formatter => MssqlFormatter.Instance;
+
         private static void BuildColumnMapping(IDataReader reader, SqlBulkCopyColumnMappingCollection map)
         {
             for (int i = 0; i < reader.FieldCount; ++i) {
@@ -222,23 +107,5 @@ namespace Pansynchro.Connectors.MSSQL
         }
 
         const int BATCH_SIZE = 100_000;
-        const int STRATEGY_VERSION = 6;
-
-        Dictionary<StreamDescription, string> IIncrementalWriter.IncrementalData => _stateManager.IncrementalDataFor();
-
-        void IIncrementalWriter.SetSourceName(string name)
-        {
-            _stateManager = StateManager.Create(name);
-        }
-
-        private void LogThroughput(StreamDescription stream, ulong progress, int recordSize, Stopwatch timer)
-        {
-            var throughput = progress / timer.Elapsed.TotalSeconds;
-            Console.WriteLine($"{DateTime.Now}: Stream '{stream}' complete.  Throughput: {(int)throughput} elements per second, {(int)(throughput * recordSize)} bytes per second.");
-            using var cmd = new SqlCommand(
-                $"insert into perf (STREAM_NAME, DATA_SIZE, BATCH_SIZE, RUN_SIZE, COMPLETION_TIME_MS, VERSION) values ('{stream}', {recordSize}, {BATCH_SIZE}, {progress}, {Math.Max(1, timer.ElapsedMilliseconds)}, {STRATEGY_VERSION})",
-                _perfConn);
-            cmd.ExecuteNonQuery();
-        }
     }
 }

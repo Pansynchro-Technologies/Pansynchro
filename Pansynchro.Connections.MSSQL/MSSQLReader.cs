@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Data.SqlClient;
 
+using Pansynchro.Connectors.MSSQL.Incremental;
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Incremental;
@@ -18,6 +19,7 @@ namespace Pansynchro.Connectors.MSSQL
     {
         private readonly SqlConnection? _perfConn;
         private readonly List<StreamDescription> _cdcStreams;
+        private readonly List<StreamDescription> _ctStreams;
 
         private const int BATCH_SIZE = 10_000;
 
@@ -31,6 +33,11 @@ namespace Pansynchro.Connectors.MSSQL
             } catch {
                 _cdcStreams = new();
             }
+            try {
+                _ctStreams = LoadCtTables();
+            } catch {
+                _ctStreams = new();
+            }
         }
 
         protected override DbConnection CreateConnection(string connectionString)
@@ -42,8 +49,13 @@ namespace Pansynchro.Connectors.MSSQL
 
         public override Func<StreamDefinition, Task<IDataReader>> GetIncrementalStrategy(StreamDefinition stream)
         {
-            if (_cdcStreams.Contains(stream.Name)) {
-                _incrementalReader = new MssqlCdcReader((SqlConnection)Conn, BATCH_SIZE);
+            var sn = stream.Name with { Name = stream.Name.Name.ToUpperInvariant(), Namespace = stream.Name.Namespace?.ToUpperInvariant() };
+            if (_cdcStreams.Contains(sn)) {
+                _incrementalReader = new MssqlCdcReader((SqlConnection)Conn, BATCH_SIZE, (SqlTransaction)_tran);
+                return _incrementalReader.ReadStreamAsync;
+            }
+            if (_ctStreams.Contains(sn)) {
+                _incrementalReader = new MssqlCtReader((SqlConnection)Conn, BATCH_SIZE, (SqlTransaction)_tran);
                 return _incrementalReader.ReadStreamAsync;
             }
             return base.GetIncrementalStrategy(stream);
@@ -54,10 +66,27 @@ namespace Pansynchro.Connectors.MSSQL
         protected List<StreamDescription> LoadCdcTables()
         {
             _conn.Open();
-            try
-            {
+            try {
                 return SqlHelper.ReadValues(
-                        _conn, CDC_QUERY, r => new StreamDescription(r.GetString(0), r.GetString(1)))
+                        _conn, CDC_QUERY, r => new StreamDescription(r.GetString(0).ToUpperInvariant(), r.GetString(1).ToUpperInvariant()))
+                    .ToList();
+            } finally {
+                _conn.Close();
+            }
+        }
+
+        private const string CT_QUERY = @"
+SELECT s.name as SCHEMA_NAME, t.name as TABLE_NAME 
+FROM sys.change_tracking_tables ctt
+JOIN sys.tables t on t.object_id = ctt.object_id
+JOIN sys.schemas s on s.schema_id = t.schema_id";
+
+        protected List<StreamDescription> LoadCtTables()
+        {
+            _conn.Open();
+            try {
+                return SqlHelper.ReadValues(
+                        _conn, CT_QUERY, r => new StreamDescription(r.GetString(0).ToUpperInvariant(), r.GetString(1).ToUpperInvariant()))
                     .ToList();
             } finally {
                 _conn.Close();
