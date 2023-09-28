@@ -49,8 +49,7 @@ namespace Pansynchro.Core.DataDict
         private static StreamDefinition PruneStream(StreamDefinition source, StreamDefinition comparison)
         {
             var valid = source.NameList.Intersect(comparison.NameList, StringComparer.InvariantCultureIgnoreCase).ToArray();
-            if (valid.Length == source.Fields.Length && valid.Length == comparison.Fields.Length)
-            {
+            if (valid.Length == source.Fields.Length && valid.Length == comparison.Fields.Length) {
                 return source with { Fields = source.Fields.OrderBy(f => f.Name).ToArray() };
             }
             var validFields = source.Fields.Where(f => valid.Contains(f.Name)).OrderBy(f => f.Name).ToArray();
@@ -69,13 +68,10 @@ namespace Pansynchro.Core.DataDict
 
         private static void LowerCustomTypes(DataDictionary dict)
         {
-            foreach (var stream in dict.Streams)
-            {
-                for (int i = 0; i < stream.Fields.Length; ++i)
-                {
+            foreach (var stream in dict.Streams) {
+                for (int i = 0; i < stream.Fields.Length; ++i) {
                     var field = stream.Fields[i];
-                    if (field.Type.Type == TypeTag.Custom)
-                    {
+                    if (field.Type.Type == TypeTag.Custom) {
                         stream.Fields[i] = field with { Type = dict.CustomTypes[field.Type.Info!] with { Nullable = field.Type.Nullable } };
                     }
                 }
@@ -84,11 +80,11 @@ namespace Pansynchro.Core.DataDict
 
         private static IEnumerable<ComparisonResult> TypeCheck(Dictionary<string, StreamDefinition> source, Dictionary<string, StreamDefinition> dest)
         {
-            foreach (var pair in source)
-            {
+            foreach (var pair in source) {
                 var destStream = dest[pair.Key];
-                foreach (var result in TypeCheckStream(pair.Value, destStream))
+                foreach (var result in TypeCheckStream(pair.Value, destStream)) {
                     yield return result;
+                }
             }
         }
 
@@ -97,8 +93,7 @@ namespace Pansynchro.Core.DataDict
             var fields = stream.Fields.ToDictionary(f => f.Name, f => f.Type);
             var destFields = destStream.Fields.ToDictionary(f => f.Name, f => f.Type, StringComparer.OrdinalIgnoreCase);
             Debug.Assert(fields.Count == destFields.Count);
-            foreach (var pair in fields)
-            {
+            foreach (var pair in fields) {
                 var destField = destFields[pair.Key];
                 var result = TypeCheckField(pair.Value, destField, pair.Key);
                 if (result != null)
@@ -106,31 +101,25 @@ namespace Pansynchro.Core.DataDict
             }
         }
 
-        private static ComparisonResult? TypeCheckField(FieldType srcField, FieldType destField, string fieldName)
+        public static ComparisonResult? TypeCheckField(FieldType srcField, FieldType destField, string fieldName)
         {
-            if (srcField == destField || srcField.CanAssignNotNullToNull(destField) || srcField.CanAssignSpecificToGeneral(destField))
-            {
+            if (srcField == destField || srcField.CanAssignNotNullToNull(destField) || srcField.CanAssignSpecificToGeneral(destField)) {
                 return null;
             }
-            if (srcField.Nullable && !destField.Nullable)
-            {
+            if (srcField.Nullable && !destField.Nullable) {
                 return new ComparisonError($"{fieldName}: Can't sync nullable source ({srcField}) to NOT NULL destination ({destField}).");
             }
-            if (srcField.CollectionType != destField.CollectionType)
-            {
+            if (srcField.CollectionType != destField.CollectionType) {
                 return new ComparisonError($"{fieldName}: Can't sync collection type {srcField.CollectionType} to destination collection type {destField.CollectionType}.");
             }
             var result = CheckTypeConvertible(srcField, destField, fieldName);
-            if (result != null)
-            {
+            if (result != null) {
                 return result;
             }
-            if (_implicits.TryGetValue(srcField.Type, out var candidates) && candidates.Contains(destField.Type))
-            {
+            if (_implicits.TryGetValue(srcField.Type, out var candidates) && candidates.Contains(destField.Type)) {
                 return null;
             }
-            if (srcField.Type != destField.Type && (srcField.Info == destField.Info || destField.Info == null || _stringTypes.Contains(destField.Type)))
-            {
+            if (srcField.Type != destField.Type && (srcField.Info == destField.Info || destField.Info == null || _stringTypes.Contains(destField.Type))) {
                 return CheckTypePromotable(srcField.Type, destField.Type, fieldName);
             }
             return new ComparisonError($"{fieldName}: '{srcField}' is different from '{destField}'.");
@@ -140,27 +129,23 @@ namespace Pansynchro.Core.DataDict
         {
             if (source.Type == TypeTag.Guid
                 && dest.Type is TypeTag.Binary or TypeTag.Varbinary
-                && (dest.Info == null || int.Parse(dest.Info, CultureInfo.InvariantCulture) >= 16))
-            {
+                && (dest.Info == null || int.Parse(dest.Info, CultureInfo.InvariantCulture) >= 16)) {
                 return new NamedConversionLine(name, "GuidToBinary");
             }
             if (source.Type == TypeTag.Boolean
                 && dest.Type == TypeTag.Bits
-                && dest.Info == "1")
-            {
+                && dest.Info == "1") {
                 return new PromotionLine(name, TypeTag.Byte);
             }
             if (source.Type == TypeTag.HierarchyID
                 && dest.Type is TypeTag.Varchar or TypeTag.Nvarchar
-                && dest.Info is not null && int.Parse(dest.Info) >= 16)
-            {
+                && dest.Info is not null && int.Parse(dest.Info) >= 16) {
                 return new PromotionLine(name, dest.Type);
             }
             return null;
         }
 
-        private static readonly Dictionary<TypeTag, TypeTag[]> _implicits = new()
-        {
+        private static readonly Dictionary<TypeTag, TypeTag[]> _implicits = new() {
             { TypeTag.Varchar, new[] { TypeTag.Nvarchar, TypeTag.Text, TypeTag.Ntext } },
             { TypeTag.Nvarchar, new[] { TypeTag.Ntext } },
             { TypeTag.Varbinary, new[] { TypeTag.Blob } },
@@ -168,8 +153,7 @@ namespace Pansynchro.Core.DataDict
             { TypeTag.Time, new[] { TypeTag.Time } }, //workaround for differing precision limits on different databases
         };
 
-        private static readonly Dictionary<TypeTag, TypeTag[]> _promotables = new()
-        {
+        private static readonly Dictionary<TypeTag, TypeTag[]> _promotables = new() {
             { TypeTag.Boolean, new[] { TypeTag.Bits } },
             { TypeTag.Byte, new[] { TypeTag.Short, TypeTag.Int, TypeTag.Long } },
             { TypeTag.Short, new[] { TypeTag.Int, TypeTag.Long } },
@@ -183,12 +167,10 @@ namespace Pansynchro.Core.DataDict
 
         private static ComparisonResult CheckTypePromotable(TypeTag source, TypeTag dest, string name)
         {
-            if (_promotables.TryGetValue(source, out var candidates) && candidates.Contains(dest))
-            {
+            if (_promotables.TryGetValue(source, out var candidates) && candidates.Contains(dest)) {
                 return new PromotionLine(name, dest);
             }
-            if (_stringTypes.Contains(dest))
-            {
+            if (_stringTypes.Contains(dest)) {
                 return new PromotionLine(name, dest);
             }
             return new ComparisonError($"{name}: Can't promote '{source}' type to '{dest}'.");
@@ -249,15 +231,13 @@ namespace Pansynchro.Core.DataDict
             private static Action<object[]> NamedConversion(NamedConversionLine line, StreamDefinition schema)
             {
                 var idx = Array.IndexOf(schema.NameList, line.Field);
-                return line.ConversionName switch
-                {
+                return line.ConversionName switch {
                     "GuidToBinary" => a => a[idx] = ((Guid)a[idx]).ToByteArray(),
                     _ => throw new ArgumentException($"Unknown conversion '{line.ConversionName}.'")
                 };
             }
 
-            private static Dictionary<(TypeTag, TypeTag), Func<object, object>> _promotions = new()
-            {
+            private static Dictionary<(TypeTag, TypeTag), Func<object, object>> _promotions = new() {
                 { (TypeTag.Byte, TypeTag.Short), o => (short)(byte)o },
                 { (TypeTag.Byte, TypeTag.Int), o => (int)(byte)o },
                 { (TypeTag.Byte, TypeTag.Long), o => (long)(byte)o },
