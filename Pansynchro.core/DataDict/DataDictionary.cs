@@ -54,15 +54,12 @@ namespace Pansynchro.Core.DataDict
 
         public void SaveToFile(string filename) => File.WriteAllText(filename, DataDictionaryWriter.Write(this));
 
-        public override string ToString()
-        {
-            return DataDictionaryWriter.Write(this);
-        }
+		public override string ToString() => DataDictionaryWriter.Write(this);
 
-        // HACK: Exclude _streamDict from the WITH operator's cloning process.
-        // Will need to be manually updated if new fields are added to DataDictionary.
-        // 
-        protected DataDictionary(DataDictionary original)
+		// HACK: Exclude _streamDict from the WITH operator's cloning process.
+		// Will need to be manually updated if new fields are added to DataDictionary.
+		// 
+		protected DataDictionary(DataDictionary original)
         {
             this.Name = original.Name;
             this.Streams = original.Streams;
