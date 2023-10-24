@@ -30,7 +30,9 @@ namespace Pansynchro.Connectors.Sqlite
             }
         }
 
-        public SqliteSchemaAnalyzer(string connectionString) : base(new SqliteConnection(connectionString))
+		protected override ISqlFormatter Formatter => SqliteFormatter.Instance;
+
+		public SqliteSchemaAnalyzer(string connectionString) : base(new SqliteConnection(connectionString))
         { }
 
         protected override string ColumnsQuery =>
@@ -71,7 +73,7 @@ FROM all_tables at INNER JOIN pragma_table_info(at.name) pti
 WHERE pk <> 0
 ORDER BY table_name, pk;";
 
-        protected override (StreamDescription table, string column) BuildPkDefintion(IDataReader reader)
+		protected override (StreamDescription table, string column) BuildPkDefintion(IDataReader reader)
             => (new StreamDescription(null, reader.GetString(0)), reader.GetString(1));
 
         private const string TABLE_QUERY = "SELECT name FROM sqlite_master WHERE type = 'table'";

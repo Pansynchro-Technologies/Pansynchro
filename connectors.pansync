@@ -1,14 +1,14 @@
 Connectors:
 	Connector MSSQL:
-		supports Analyzer, Reader, Writer, Configurator
+		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.MSSQL
 
 	Connector MySql:
-		supports Analyzer, Reader, Writer, Configurator
+		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.MySql
 
 	Connector Postgres:
-		supports Analyzer, Reader, Writer, Configurator
+		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Postgres
 
 	Connector Network:
@@ -16,11 +16,11 @@ Connectors:
 		assembly Pansynchro.Protocol
 
 	Connector Firebird:
-		supports Analyzer, Reader, Writer, Configurator
+		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Firebird
 
 	Connector Sqlite:
-		supports Analyzer, Reader, Writer, Configurator
+		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Sqlite
 
 	Connector CSV:
@@ -54,7 +54,7 @@ Connectors:
 		assembly Pansynchro.Connectors.Avro
 
 	Connector Snowflake:
-		supports Analyzer, Reader, Writer, Configurator
+		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Snowflake
 
 DataSources:

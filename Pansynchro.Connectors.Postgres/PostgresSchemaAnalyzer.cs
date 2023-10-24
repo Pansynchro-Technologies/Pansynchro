@@ -17,6 +17,8 @@ namespace Pansynchro.Connectors.Postgres
 		public PostgresSchemaAnalyzer(string connectionString) : base(new NpgsqlConnection(connectionString))
 		{ }
 
+		protected override ISqlFormatter Formatter => PostgresFormatter.Instance;
+
 		protected override string ColumnsQuery =>
 @"SELECT
 	n.nspname as schema_name,

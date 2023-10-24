@@ -18,7 +18,9 @@ namespace Pansynchro.Connectors.Snowflake
             : base(new SnowflakeDbConnection { ConnectionString = connectionString })
         { }
 
-        protected override string ColumnsQuery =>
+		protected override ISqlFormatter Formatter => SnowflakeSqlFormatter.Instance;
+
+		protected override string ColumnsQuery =>
 @$"select 
    c.TABLE_SCHEMA as Schema,
    c.TABLE_NAME as TableName,

@@ -19,7 +19,9 @@ namespace Pansynchro.Connectors.MSSQL
         public MssqlSchemaAnalyzer(string connectionString) : base(new SqlConnection(connectionString))
         { }
 
-        protected override string ColumnsQuery =>
+		protected override ISqlFormatter Formatter => MssqlFormatter.Instance;
+
+		protected override string ColumnsQuery =>
 @"select SCHEMA_NAME(t.schema_id) as SchemaName, t.Name as TableName, c.name, tp.name as typeName, c.max_length, c.scale, c.precision, c.is_nullable,
 	CASE WHEN c.system_type_id != c.user_type_id
 		THEN SCHEMA_NAME(tp.schema_id) + '.' + tp.name
@@ -42,7 +44,7 @@ FROM sys.indexes i
     inner join sys.columns c ON ic.object_id = c.object_id AND c.column_id = ic.column_id
 WHERE i.is_primary_key = 1";
 
-        const string CUSTOM_TYPE_QUERY =
+		const string CUSTOM_TYPE_QUERY =
 @"select SCHEMA_NAME(t.schema_id) SchemaName, t.name, null, bt.name, t.max_length, t.scale, t.precision, t.is_nullable,
 	CASE WHEN bt.system_type_id != bt.user_type_id
 		THEN SCHEMA_NAME(bt.schema_id) + '.' + bt.name

@@ -4,9 +4,9 @@
 	<TargetFrameworks>net6.0;net7.0</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.4</AssemblyVersion>
-	<FileVersion>0.6.4</FileVersion>
-	<Version>0.6.4</Version>
+	<AssemblyVersion>0.6.5</AssemblyVersion>
+	<FileVersion>0.6.5</FileVersion>
+	<Version>0.6.5</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,9 +14,12 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Adding extension points to StreamTransformerBase
+		Adding IQueryableSchemaAnalyzer
+		IQueryableSchemaAnalyzer has the ability to selectively analyze a connection to only include certain streams,
+		exclude certain streams, or add certain streams defined by a custom query.
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+	<NoWarn>$(NoWarn);NU1605</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

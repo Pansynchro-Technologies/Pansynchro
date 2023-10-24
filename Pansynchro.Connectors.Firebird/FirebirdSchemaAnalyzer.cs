@@ -20,7 +20,9 @@ namespace Pansynchro.Connectors.Firebird
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
 
-        protected override string ColumnsQuery =>
+		protected override ISqlFormatter Formatter => FirebirdFormatter.Instance;
+
+		protected override string ColumnsQuery =>
 @"select
     f.RDB$RELATION_NAME as TableName, f.RDB$FIELD_NAME name,
     fd.RDB$FIELD_TYPE type, fd.RDB$FIELD_SCALE scale, fd.RDB$FIELD_SUB_TYPE, fd.RDB$DIMENSIONS,

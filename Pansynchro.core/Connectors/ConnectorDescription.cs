@@ -27,8 +27,9 @@ namespace Pansynchro.Core.Connectors
         Analyzer = 1 << 2,
         Configurator = 1 << 3,
         RandomAccessReader = 1 << 4,
+        Queryable = 1 << 5,
 
-        ALL = Reader | Writer | Analyzer | Configurator | RandomAccessReader
+        ALL = Reader | Writer | Analyzer | Configurator | RandomAccessReader | Queryable
     }
 
     public abstract class ConnectorCore

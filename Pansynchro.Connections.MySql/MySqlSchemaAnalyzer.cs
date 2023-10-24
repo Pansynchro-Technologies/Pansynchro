@@ -17,7 +17,9 @@ namespace Pansynchro.Connectors.MySQL
         public MySqlSchemaAnalyzer(string connectionString) : base(new MySqlConnection(connectionString))
         { }
 
-        protected override string ColumnsQuery =>
+		protected override ISqlFormatter Formatter => MySqlFormatter.Instance;
+
+		protected override string ColumnsQuery =>
 $@"select TABLE_NAME, COLUMN_NAME,
     IS_NULLABLE, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH,
     NUMERIC_PRECISION, NUMERIC_SCALE, DATETIME_PRECISION
