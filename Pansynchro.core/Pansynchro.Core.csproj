@@ -4,9 +4,9 @@
 	<TargetFrameworks>net6.0;net7.0</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.6</AssemblyVersion>
-	<FileVersion>0.6.6</FileVersion>
-	<Version>0.6.6</Version>
+	<AssemblyVersion>0.6.7</AssemblyVersion>
+	<FileVersion>0.6.7</FileVersion>
+	<Version>0.6.7</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Updating ConnectorRegistry to properly report data source and sink types
+		Updating ConnectorLoader to support Source and Sink capabilities on data sources
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>

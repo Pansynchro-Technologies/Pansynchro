@@ -60,15 +60,23 @@ Connectors:
 DataSources:
 	Source Http:
 		Assembly Pansynchro.Sources.Http
+		Supports Source
 
 	Source Rest:
 		Assembly Pansynchro.Sources.Http
+		Supports Source
 
 	Source Files:
 		Assembly Pansynchro.Sources.Files
+		Supports Source, Sink
 
 	Source S3:
 		Assembly Pansynchro.Sources.S3
+		Supports Source, Sink
+
+	Source GCP:
+		Assembly Pansynchro.Sources.GoogleCloudStorage
+		Supports Source, Sink
 
 DataProcessors:
 	Source Brotli:

@@ -87,6 +87,11 @@ namespace Pansynchro.Core.Connectors
                 throw new InvalidDataException($"Invalid Assembly declaration for {name}");
             }
             var expr = asm.Arguments[0];
+            var supports = source.Body!.OfType<Command>().SingleOrDefault(m => m.Name == "Supports");
+            if (supports == null) {
+                throw new InvalidDataException($"Missing 'supports' statement for {name}");
+            }
+            var support = ParseSourceSupports(supports);
             return new SourceDescription(name, expr.ToString(), SourceCapabilities.Source);
         }
 
@@ -102,5 +107,18 @@ namespace Pansynchro.Core.Connectors
             }
             return result;
         }
-    }
+
+		private static SourceCapabilities ParseSourceSupports(Command stmt)
+		{
+			var args = stmt.Arguments;
+			if (!args.All(e => e is NameNode)) {
+				throw new InvalidDataException($"Unknown supports statement: {stmt}");
+			}
+			var result = SourceCapabilities.None;
+			foreach (var item in args.Cast<NameNode>()) {
+				result |= Enum.Parse<SourceCapabilities>(item.Name);
+			}
+			return result;
+		}
+	}
 }
