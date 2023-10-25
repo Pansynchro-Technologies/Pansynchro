@@ -32,7 +32,7 @@ namespace Pansynchro.Core.Connectors
             var procDescs = ast.OfType<Command>().First(ms => ms.Name == "DataProcessors")
                 .Body!
                 .OfType<Command>()
-                .Select(ParseDataSource).ToArray();
+                .Select(ParseDataProcessor).ToArray();
             ConnectorRegistry.LoadDataProcessors(procDescs);
         }
 
@@ -92,7 +92,24 @@ namespace Pansynchro.Core.Connectors
                 throw new InvalidDataException($"Missing 'supports' statement for {name}");
             }
             var support = ParseSourceSupports(supports);
-            return new SourceDescription(name, expr.ToString(), SourceCapabilities.Source);
+            return new SourceDescription(name, expr.ToString(), support);
+        }
+
+        private static SourceDescription ParseDataProcessor(Command proc)
+        {
+            if (proc.Name != "Source" || proc.Arguments.Length != 1 || !(proc.Arguments[0] is NameNode)) {
+                throw new InvalidDataException($"Unknown data source statement: {proc.Name} {string.Join<Expression>(", ", proc.Arguments)}");
+            }
+            var name = proc.Arguments[0].ToString();
+            var asm = proc.Body?.OfType<Command>().SingleOrDefault(m => m.Name == "Assembly");
+            if (asm == null) {
+                throw new InvalidDataException($"Missing Assembly declaration for {name}");
+            }
+            if (asm.Arguments?.Length != 1 || !(asm.Arguments[0] is NameNode)) {
+                throw new InvalidDataException($"Invalid Assembly declaration for {name}");
+            }
+            var expr = asm.Arguments[0];
+            return new SourceDescription(name, expr.ToString(), SourceCapabilities.Source | SourceCapabilities.Sink);
         }
 
         private static Capabilities ParseSupports(Command stmt)
