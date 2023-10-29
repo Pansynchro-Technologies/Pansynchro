@@ -107,8 +107,15 @@ namespace Pansynchro.Core.Connectors
 
 		public static string GetLocation(string name)
 		{
-			_connectors.TryGetValue(name, out var conn);
-			return conn?.Assembly ?? throw new ArgumentException($"No connector named '{name}' is registered."); ;
+			string asm;
+			if (_connectors.TryGetValue(name, out var conn)) 			{
+				asm = conn.Assembly;
+			} else if (_sourceLoaders.TryGetValue(name, out var src)) {
+				asm = src.Assembly;
+			} else if (_procLoaders.TryGetValue(name, out var proc)) {
+				asm = proc.Assembly;
+			} else throw new ArgumentException($"No connector named '{name}' is registered.");
+			return asm;
 		}
 
 		public static IReader GetReader(string name, string connectionString)
@@ -174,6 +181,9 @@ namespace Pansynchro.Core.Connectors
 
 		public static IDataSource GetSource(string name, string connectionString)
 			=> GetSourceFactory(name).GetSource(connectionString);
+
+		public static IDataSink GetSink(string name, string connectionString)
+			=> GetSourceFactory(name).GetSink(connectionString);
 
 		public static DataProcessorFactoryCore GetProcessorFactory(string name)
 		{
