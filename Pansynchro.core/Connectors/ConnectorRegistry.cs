@@ -41,32 +41,45 @@ namespace Pansynchro.Core.Connectors
 
 		public static IEnumerable<string> ConfigurableTypes => _connectors.Where(kv => kv.Value.HasConfig).Select(kv => kv.Key);
 
-		public static IEnumerable<string> DataSourceTypes => _sourceLoaders.Where(kv => kv.Value.HasSource).Select(kv => kv.Key);
-
-		public static IEnumerable<string> DataSinkTypes => _sourceLoaders.Where(kv => kv.Value.HasSink).Select(kv => kv.Key);
+		public static IEnumerable<string> DataSourceTypes => _sourceLoaders.Keys;
 
 		public static void LoadConnectors(IEnumerable<ConnectorDescription> connectors)
 		{
-			foreach (var conn in connectors)
-			{
+			foreach (var conn in connectors) {
 				_connectors.Add(conn.Name, conn);
 			}
 		}
 
 		public static void LoadDataSources(IEnumerable<SourceDescription> sources)
 		{
-			foreach (var src in sources)
-			{
+			foreach (var src in sources) {
 				_sourceLoaders.Add(src.Name, src);
 			}
 		}
 
 		public static void LoadDataProcessors(IEnumerable<SourceDescription> sources)
 		{
-			foreach (var src in sources)
-			{
+			foreach (var src in sources) {
 				_procLoaders.Add(src.Name, src);
 			}
+		}
+
+		public static ConnectorDescription? GetConnectorDescription(string name)
+		{
+			_connectors.TryGetValue(name, out var result);
+			return result;
+		}
+
+		public static SourceDescription? GetDataSourceDescription(string name)
+		{
+			_sourceLoaders.TryGetValue(name, out var result);
+			return result;
+		}
+
+		public static SourceDescription? GetDataProcessorDescription(string name)
+		{
+			_procLoaders.TryGetValue(name, out var result);
+			return result;
 		}
 
 		public static void RegisterSource(DataSourceFactoryCore factory)
@@ -80,10 +93,8 @@ namespace Pansynchro.Core.Connectors
 
 		private static ConnectorCore GetFactory(string name)
 		{
-			if (!_factories.TryGetValue(name, out var factory))
-			{
-				if (_connectors.TryGetValue(name, out var conn))
-				{
+			if (!_factories.TryGetValue(name, out var factory)) {
+				if (_connectors.TryGetValue(name, out var conn)) {
 					var laResult = LoadAssembly(conn.Assembly);
 					HandleResult(name, laResult);
 					_factories.TryGetValue(name, out factory);
@@ -94,28 +105,14 @@ namespace Pansynchro.Core.Connectors
 
 		public static string GetLocation(string name)
 		{
-			string asm;
-			if (_connectors.TryGetValue(name, out var conn))
-			{
-				asm = conn.Assembly;
-			}
-			else if (_sourceLoaders.TryGetValue(name, out var src))
-			{
-				asm = src.Assembly;
-			}
-			else if (_procLoaders.TryGetValue(name, out var proc))
-			{
-				asm = proc.Assembly;
-			}
-			else throw new ArgumentException($"No connector named '{name}' is registered.");
-			return asm;
+			_connectors.TryGetValue(name, out var conn);
+			return conn?.Assembly ?? throw new ArgumentException($"No connector named '{name}' is registered."); ;
 		}
 
 		public static IReader GetReader(string name, string connectionString)
 		{
 			var factory = GetFactory(name);
-			if (factory.HasReader)
-			{
+			if (factory.HasReader) {
 				return factory.GetReader(Process(connectionString, factory));
 			}
 			throw new ArgumentException($"Connector '{name}' does not define a reader");
@@ -124,8 +121,7 @@ namespace Pansynchro.Core.Connectors
 		public static IWriter GetWriter(string name, string connectionString)
 		{
 			var factory = GetFactory(name);
-			if (factory.HasWriter)
-			{
+			if (factory.HasWriter) {
 				return factory.GetWriter(Process(connectionString, factory));
 			}
 			throw new ArgumentException($"Connector '{name}' does not define a writer");
@@ -134,8 +130,7 @@ namespace Pansynchro.Core.Connectors
 		public static ISchemaAnalyzer GetAnalyzer(string name, string connectionString)
 		{
 			var factory = GetFactory(name);
-			if (factory.HasAnalyzer)
-			{
+			if (factory.HasAnalyzer) {
 				return factory.GetAnalyzer(Process(connectionString, factory));
 			}
 			throw new ArgumentException($"Connector '{name}' does not define an analyzer");
@@ -144,8 +139,7 @@ namespace Pansynchro.Core.Connectors
 		public static DbConnectionStringBuilder GetConfigurator(string name)
 		{
 			var factory = GetFactory(name);
-			if (factory.HasConfig)
-			{
+			if (factory.HasConfig) {
 				return factory.GetConfig();
 			}
 			throw new ArgumentException($"Connector '{name}' does not define a configurator");
@@ -159,20 +153,16 @@ namespace Pansynchro.Core.Connectors
 
 		public static DataSourceFactoryCore GetSourceFactory(string name)
 		{
-			if (_sources.TryGetValue(name, out var factory))
-			{
+			if (_sources.TryGetValue(name, out var factory)) {
 				return factory;
 			}
-			if (_sourceLoaders.TryGetValue(name, out var desc))
-			{
-				if (desc.Assembly == null)
-				{
+			if (_sourceLoaders.TryGetValue(name, out var desc)) {
+				if (desc.Assembly == null) {
 					throw new ArgumentException($"No assembly is defined for '{name}'.");
 				}
 				var laResult = LoadAssembly(desc.Assembly);
 				HandleResult(name, laResult);
-				if (_sources.TryGetValue(name, out factory))
-				{
+				if (_sources.TryGetValue(name, out factory)) {
 					return factory;
 				}
 			}
@@ -183,25 +173,18 @@ namespace Pansynchro.Core.Connectors
 		public static IDataSource GetSource(string name, string connectionString)
 			=> GetSourceFactory(name).GetSource(connectionString);
 
-		public static IDataSink GetSink(string name, string connectionString)
-			=> GetSourceFactory(name).GetSink(connectionString);
-
 		public static DataProcessorFactoryCore GetProcessorFactory(string name)
 		{
-			if (_procesors.TryGetValue(name, out var factory))
-			{
+			if (_procesors.TryGetValue(name, out var factory)) {
 				return factory;
 			}
-			if (_procLoaders.TryGetValue(name, out var desc))
-			{
-				if (desc.Assembly == null)
-				{
+			if (_procLoaders.TryGetValue(name, out var desc)) {
+				if (desc.Assembly == null) {
 					throw new ArgumentException($"No assembly is defined for '{name}'.");
 				}
 				var laResult = LoadAssembly(desc.Assembly);
 				HandleResult(name, laResult);
-				if (_procesors.TryGetValue(name, out factory))
-				{
+				if (_procesors.TryGetValue(name, out factory)) {
 					return factory;
 				}
 			}
@@ -223,8 +206,7 @@ namespace Pansynchro.Core.Connectors
 
 		private static void HandleResult(string name, LoadAssemblyResult laResult)
 		{
-			switch (laResult)
-			{
+			switch (laResult) {
 				case LoadAssemblyResult.Success:
 					return;
 				case LoadAssemblyResult.Fail:
@@ -238,43 +220,35 @@ namespace Pansynchro.Core.Connectors
 
 		private static LoadAssemblyResult LoadAssembly(string name)
 		{
-			if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == name))
-			{
+			if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == name)) {
 				return LoadAssemblyResult.Dupe;
 			}
-			try
-			{
+			try {
 				var asm = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(Environment.CurrentDirectory, name + ".dll"));
-				foreach (var module in asm.Modules)
-				{
+				foreach (var module in asm.Modules) {
 					RuntimeHelpers.RunModuleConstructor(module.ModuleHandle);
 				}
 				return LoadAssemblyResult.Success;
 			}
-			catch (FileNotFoundException)
-			{
+			catch (FileNotFoundException) {
 				return LoadAssemblyResult.Fail;
 			}
 		}
 
 		private static string Process(string connectionString, ConnectorCore factory)
 		{
-			if (!factory.HasConfig || !connectionString.Contains("=(", StringComparison.Ordinal))
-			{
+			if (!factory.HasConfig || !connectionString.Contains("=(", StringComparison.Ordinal)) {
 				return connectionString;
 			}
 			var config = factory.GetConfig();
 			config.ConnectionString = connectionString;
 			var keys = config.Keys.Cast<string>().ToArray();
-			foreach (var key in keys)
-			{
+			foreach (var key in keys) {
 				var value = config[key] as string;
-				if (value == null)
-				{
+				if (value == null) {
 					continue;
 				}
-				if (ProcessStringValue(ref value))
-				{
+				if (ProcessStringValue(ref value)) {
 					config[key] = value;
 				}
 			}
@@ -283,8 +257,7 @@ namespace Pansynchro.Core.Connectors
 
 		private static bool ProcessStringValue(ref string value)
 		{
-			if (!(value.StartsWith("=(") && value.EndsWith(')') && value.Contains(':')))
-			{
+			if (!(value.StartsWith("=(") && value.EndsWith(')') && value.Contains(':'))) { 
 				return false;
 			}
 

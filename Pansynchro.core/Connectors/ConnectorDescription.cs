@@ -1,6 +1,7 @@
-﻿using Pansynchro.Core.DataDict;
-using System;
+﻿using System;
 using System.Data.Common;
+
+using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Core.Connectors
 {

@@ -8,7 +8,7 @@ namespace Pansynchro.Core.Pansync
     {
         protected int _skipWhitespaceRegion = 0;
 
-        private int _begin => _tokenStartCharIndex;
+        private int _begin => TokenStartCharIndex;
 
         private StringBuilder text = new StringBuilder();
 

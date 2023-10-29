@@ -4,11 +4,11 @@ tokens {
 	INDENT,
 	DEDENT,
 	EOL,
-	EOS,
+	EOS
 }
 
 options {
-    superClass=Python3LexerBase;
+    superClass=Pansynchro.Core.Pansync.Python3LexerBase;
 }
 
 AS :	'as';
@@ -26,7 +26,7 @@ INTEGER : SUBTRACT? DIGIT+ 'L'?;
 fragment
 ID_LETTER
 	:	[_a-zA-Z]
-	|	[\u0080-\uFFFE] {char.IsLetter((char)_input.La(-1))}?
+	|	[\u0080-\uFFFE] {char.IsLetter((char)InputStream.LA(-1))}?
 	;
 
 fragment

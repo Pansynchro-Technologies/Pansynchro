@@ -22,10 +22,9 @@ namespace Pansynchro.Core.Pansync
 		// The most recently produced token.
 		private IToken? LastToken = null;
 
-		public Python3LexerBase(ICharStream input)
-			: base(input)
-		{
-		}
+		public Python3LexerBase(ICharStream input, TextWriter output, TextWriter errorOutput)
+			: base(input, output, errorOutput)
+		{ }
 
 		public override void Emit(IToken token)
 		{
@@ -50,7 +49,7 @@ namespace Pansynchro.Core.Pansync
 		public override IToken NextToken()
 		{
 			// Check if the end-of-file is ahead and there are still some DEDENTS expected.
-			if (InputStream.La(1) == Eof && Indents.Count != 0)
+			if (InputStream.LA(1) == Eof && Indents.Count != 0)
 			{
 				// Remove any trailing EOF tokens from our buffer.
 				for (var node = Tokens.First; node != null;)
@@ -136,8 +135,8 @@ namespace Pansynchro.Core.Pansync
 
 			// Strip newlines inside open clauses except if we are near EOF. We keep NEWLINEs near EOF to
 			// satisfy the final newline needed by the single_put rule used by the REPL.
-			int next = InputStream.La(1);
-			int nextnext = InputStream.La(2);
+			int next = InputStream.LA(1);
+			int nextnext = InputStream.LA(2);
 			if (Opened > 0 || (nextnext != -1 && (next == '\r' || next == '\n' || next == '#')))
 			{
 				// If we're inside a list or on a blank line, ignore all indents, 
