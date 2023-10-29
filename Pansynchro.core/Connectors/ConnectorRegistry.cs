@@ -41,8 +41,10 @@ namespace Pansynchro.Core.Connectors
 
 		public static IEnumerable<string> ConfigurableTypes => _connectors.Where(kv => kv.Value.HasConfig).Select(kv => kv.Key);
 
-		public static IEnumerable<string> DataSourceTypes => _sourceLoaders.Keys;
+		public static IEnumerable<string> DataSourceTypes => _sourceLoaders.Where(kv => kv.Value.HasSource).Select(kv => kv.Key);
 
+		public static IEnumerable<string> DataSinkTypes => _sourceLoaders.Where(kv => kv.Value.HasSink).Select(kv => kv.Key);
+	
 		public static void LoadConnectors(IEnumerable<ConnectorDescription> connectors)
 		{
 			foreach (var conn in connectors) {
