@@ -275,7 +275,7 @@ namespace Pansynchro.SQL
 			return SqlHelper.ReadValue<long>(_conn, GetTableRowCount(stream.Name)) >= LARGE_TABLE_THRESHOLD;
 		}
 
-		protected virtual string GetTableRowCount(StreamDescription name) => $"select count(*) from {name}";
+		protected virtual string GetTableRowCount(StreamDescription name) => $"select count(*) from {Formatter.QuoteName(name)}";
 
 		public void Dispose()
 		{

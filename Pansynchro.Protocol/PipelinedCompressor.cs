@@ -32,7 +32,10 @@ namespace Pansynchro.Protocol
         {
             _encoder = new BrotliEncoder(compressionLevel, 22); //default window size
             _writeStream = _pipe.Writer.AsStream();
-            _copyTask = Task.Run(() => _pipe.Reader.CopyToAsync(output));
+            _copyTask = Task.Run(async () => {
+                await _pipe.Reader.CopyToAsync(output);
+                await output.FlushAsync();
+            });
         }
 
         public override bool CanRead => false;

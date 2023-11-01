@@ -32,10 +32,10 @@ namespace Pansynchro.Connectors.Postgres
         {
             Console.WriteLine($"{DateTime.Now}: Writing stream '{name}'.");
             var schema = ExtractSchema(name);
-            var fields = string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(i => '"' + reader.GetName(i).ToLower(CultureInfo.InvariantCulture) + '"'));
-            var lName = name.Name.ToLower(CultureInfo.InvariantCulture);
+            var fields = string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(i => Formatter.QuoteName(reader.GetName(i))));
+            var lName = Formatter.QuoteName(name.Name);
             using var importer = ((NpgsqlConnection)_conn).BeginBinaryImport(
-                $"COPY Pansynchro.\"{lName}\" ({fields}) FROM STDIN (FORMAT BINARY)");
+                $"COPY Pansynchro.{lName} ({fields}) FROM STDIN (FORMAT BINARY)");
             var loader = BuildLoader(reader, schema);
             var buffer = new object[reader.FieldCount];
             while (reader.Read()) {

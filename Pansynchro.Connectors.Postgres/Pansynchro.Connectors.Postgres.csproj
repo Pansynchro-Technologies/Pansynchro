@@ -2,11 +2,11 @@
 
   <PropertyGroup>
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
-    <Nullable>enable</Nullable>
+	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.5</AssemblyVersion>
-	<FileVersion>0.6.5</FileVersion>
-	<Version>0.6.5</Version>
+	<AssemblyVersion>0.6.13</AssemblyVersion>
+	<FileVersion>0.6.13</FileVersion>
+	<Version>0.6.13</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Postgres Connector</Product>
 	<Description>Pansynchro connector to read from or write to Postgres databases.</Description>
@@ -14,21 +14,22 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;postgres</PackageTags>
 	<PackageReleaseNotes>
-		Internal tweaks to support IQueryableSchemaAnalyzer
+		Adding support for array types
+		Fixing several correctness issues involving case sensitivity
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>..\bin\</OutputPath>
+	<OutputPath>..\bin\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Npgsql" Version="7.0.6" />
+	<PackageReference Include="Npgsql" Version="7.0.6" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Pansynchro.SQL\Pansynchro.SQL.csproj" />
+	<ProjectReference Include="..\Pansynchro.SQL\Pansynchro.SQL.csproj" />
   </ItemGroup>
 
 </Project>

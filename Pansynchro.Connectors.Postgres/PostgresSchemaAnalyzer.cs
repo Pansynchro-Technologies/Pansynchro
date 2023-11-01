@@ -107,6 +107,10 @@ AND    pg_catalog.pg_type_is_visible(t.oid)";
 					return result;
 				}
 			}
+			var isArr = typeName.EndsWith("[]");
+			if (isArr) {
+				typeName = typeName[..^2];
+			}
 			string? info = null;
 			if (typeName.EndsWith(')')) {
 				var startPos = typeName.LastIndexOf('(');
@@ -115,7 +119,7 @@ AND    pg_catalog.pg_type_is_visible(t.oid)";
 			}
 			var type = GetTagType(typeName);
 			var nullable = !reader.GetBoolean(4);
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new FieldType(type, nullable, isArr ? CollectionType.Array : CollectionType.None, info);
 		}
 
 		private static readonly Dictionary<string, TypeTag> TYPE_MAP = new()
@@ -223,6 +227,10 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
 		private static FieldType BuildFieldType(DataRow row)
 		{
 			var typeName = (string)row["DataTypeName"];
+			var isArr = typeName.EndsWith("[]");
+			if (isArr) {
+				typeName = typeName[..^2];
+			}
 			string? info = null;
 			if (typeName.EndsWith(')')) {
 				var startPos = typeName.LastIndexOf('(');
@@ -232,7 +240,7 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
 			var type = GetTagType(typeName);
 			// BUG: https://github.com/npgsql/npgsql/issues/4639
 			var nullable = row["AllowDBNull"] is bool b ? b : true;
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new FieldType(type, nullable, isArr ? CollectionType.Array : CollectionType.None, info);
 		}
 	}
 }

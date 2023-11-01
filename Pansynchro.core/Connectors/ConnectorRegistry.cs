@@ -108,7 +108,7 @@ namespace Pansynchro.Core.Connectors
 		public static string GetLocation(string name)
 		{
 			string asm;
-			if (_connectors.TryGetValue(name, out var conn)) 			{
+			if (_connectors.TryGetValue(name, out var conn)) {
 				asm = conn.Assembly;
 			} else if (_sourceLoaders.TryGetValue(name, out var src)) {
 				asm = src.Assembly;

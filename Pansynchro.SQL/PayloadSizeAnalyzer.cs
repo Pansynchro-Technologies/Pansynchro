@@ -14,7 +14,7 @@ namespace Pansynchro.SQL
             query.Transaction = tran;
             var tableName = table.Name;
             var columnList = string.Join(", ", table.NameList.Select(formatter.QuoteName));
-            query.CommandText = ($"select top 100 {columnList} from {formatter.QuoteName(tableName)}");
+            query.CommandText = formatter.LimitRows($"select {columnList} from {formatter.QuoteName(tableName)}", 100);
             using var reader = query.ExecuteReader();
             int results = 0;
             int payload = 0;
@@ -30,6 +30,10 @@ namespace Pansynchro.SQL
         private static int GetSize(object value)
         {
             var type = value.GetType();
+            if (type.IsArray) {
+                var arr = (Array)value;
+                return arr.Cast<object>().Select(GetSize).Sum();
+            }
             if (type == typeof(DBNull)) {
                 return 4;
             }

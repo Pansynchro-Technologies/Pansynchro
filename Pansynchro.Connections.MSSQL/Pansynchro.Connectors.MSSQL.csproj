@@ -2,19 +2,19 @@
 
   <PropertyGroup>
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
-    <Nullable>enable</Nullable>
+	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.10</AssemblyVersion>
-	<FileVersion>0.6.10</FileVersion>
-	<Version>0.6.10</Version>
+	<AssemblyVersion>0.6.13</AssemblyVersion>
+	<FileVersion>0.6.13</FileVersion>
+	<Version>0.6.13</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro MS SQL Server Connector</Product>
 	<Description>Pansynchro connector to read from or write to SQL Server databases.</Description>
-	<Copyright>Copyright 2022-2013, Pansynchro Technologies</Copyright>
+	<Copyright>Copyright 2022-2023, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;mssql;sql-server</PackageTags>
 	<PackageReleaseNotes>
-		Updating SQL Server client libraries
+		Updating a vulnerable dependency
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>
@@ -25,6 +25,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.10.3" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.2" />
     <PackageReference Include="Microsoft.SqlServer.Types" Version="160.1000.6" />
   </ItemGroup>

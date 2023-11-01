@@ -26,21 +26,26 @@ namespace Pansynchro.SQL
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
             Setup(dest);
-            await foreach (var (name, settings, reader) in streams) {
-                try { 
-                    if (reader is IncrementalDataReader inc) {
-                        var bookmark = IncrementalSync(name, inc);
-                        if (bookmark != null) {
-                            _stateManager.SaveIncrementalData(name, bookmark);
+            await _conn.OpenAsync();
+            try {
+                await foreach (var (name, settings, reader) in streams) {
+                    try { 
+                        if (reader is IncrementalDataReader inc) {
+                            var bookmark = IncrementalSync(name, inc);
+                            if (bookmark != null) {
+                                _stateManager.SaveIncrementalData(name, bookmark);
+                            }
+                        } else {
+                            FullStreamSync(name, settings, reader);
                         }
-                    } else {
-                        FullStreamSync(name, settings, reader);
+                    } finally {
+                        reader.Dispose();
                     }
-                } finally {
-                    reader.Dispose();
                 }
+                await Finish();
+            } finally {
+                await _conn.CloseAsync();
             }
-            await Finish();
         }
 
         private string? IncrementalSync(StreamDescription name, IncrementalDataReader inc)

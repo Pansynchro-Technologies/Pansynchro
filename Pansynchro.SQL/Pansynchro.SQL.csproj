@@ -2,11 +2,11 @@
 
   <PropertyGroup>
 	<TargetFrameworks>net6.0;net7.0</TargetFrameworks>
-    <Nullable>enable</Nullable>
+	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.5</AssemblyVersion>
-	<FileVersion>0.6.5</FileVersion>
-	<Version>0.6.5</Version>
+	<AssemblyVersion>0.6.13</AssemblyVersion>
+	<FileVersion>0.6.13</FileVersion>
+	<Version>0.6.13</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro SQL Core</Product>
 	<Description>Library providing core functionality for SQL database connectors</Description>
@@ -14,7 +14,8 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;sql</PackageTags>
 	<PackageReleaseNotes>
-		Updating SqlSchemaAnalyzer to support IQueryableSchemaAnalyzer
+		Adding support for analyzing array types
+		Fixing a few SQL generation issues
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
