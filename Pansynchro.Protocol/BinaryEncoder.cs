@@ -34,6 +34,7 @@ namespace Pansynchro.Protocol
 		private readonly BinaryWriter _outputWriter;
 		//private readonly BinaryWriter _incompressibleWriter;
 		private readonly BrotliStream _compressor;
+#if DEBUG  
 		private readonly MeteredStream _meter;
 #endif
 
