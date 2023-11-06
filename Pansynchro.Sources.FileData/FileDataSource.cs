@@ -49,7 +49,7 @@ namespace Pansynchro.Sources.Files
         public async IAsyncEnumerable<(string name, Stream data)> GetDataAsync()
         {
             foreach (var (name, filename) in GetFilenames()) {
-                yield return (name.Replace("*", filename), File.OpenRead(filename));
+                yield return (name.Replace("*", Path.GetFileNameWithoutExtension(filename)), File.OpenRead(filename));
             }
             await Task.CompletedTask; //just here to shut the compiler up
         }
@@ -67,7 +67,7 @@ namespace Pansynchro.Sources.Files
         public async IAsyncEnumerable<(string name, TextReader data)> GetTextAsync()
         {
             foreach (var (name, filename) in GetFilenames()) {
-                yield return (name.Replace("*", filename), File.OpenText(filename));
+                yield return (name.Replace("*", Path.GetFileNameWithoutExtension(filename)), File.OpenText(filename));
             }
             await Task.CompletedTask; //just here to shut the compiler up
         }

@@ -26,7 +26,9 @@ namespace Pansynchro.SQL
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
             Setup(dest);
-            await _conn.OpenAsync();
+            if (_conn.State == ConnectionState.Closed) {
+                await _conn.OpenAsync();
+            }
             try {
                 await foreach (var (name, settings, reader) in streams) {
                     try { 

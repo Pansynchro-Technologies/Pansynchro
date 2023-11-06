@@ -3,8 +3,6 @@ using System.Data;
 using System.IO;
 using System.Threading.Tasks;
 
-using ChoETL;
-
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Helpers;
@@ -13,12 +11,12 @@ namespace Pansynchro.Connectors.TextFile.CSV
 {
     public class CsvAnalyzer : ISchemaAnalyzer, ISourcedConnector
     {
-        private readonly string _config;
+        private readonly CsvConfigurator _config;
         private IDataSource? _source;
 
         public CsvAnalyzer(string config)
         {
-            _config = config;
+            _config = new(config);
         }
 
         public async ValueTask<DataDictionary> AnalyzeAsync(string name)
@@ -41,14 +39,10 @@ namespace Pansynchro.Connectors.TextFile.CSV
             return new DataDictionary(name, defs.ToArray());
         }
 
-        private static StreamDefinition AnalyzeFile(string name, TextReader stream)
+        private StreamDefinition AnalyzeFile(string name, TextReader stream)
         {
-            using var csvReader = new ChoCSVReader(stream)
-                .WithMaxScanRows(10).WithFirstLineHeader(false).AutoDetectDelimiter(true)
-                .QuoteAllFields(true);
-            csvReader.Configuration.FileHeaderConfiguration.IgnoreColumnsWithEmptyHeader = true;
-            var reader = csvReader.AsDataReader();
-            return AnalyzerHelper.Analyze(name, reader);
+            using var csvReader = new CsvArrayProducer(stream, _config);
+            return AnalyzerHelper.Analyze(name, csvReader);
         }
 
         public void SetDataSource(IDataSource source)

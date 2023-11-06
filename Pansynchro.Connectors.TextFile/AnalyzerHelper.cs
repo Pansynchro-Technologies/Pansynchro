@@ -8,20 +8,18 @@ namespace Pansynchro.Connectors.TextFile
 {
     internal static class AnalyzerHelper
     {
-        internal static StreamDefinition Analyze(string streamName, IDataReader reader)
+        internal static StreamDefinition Analyze(string streamName, CSV.CsvArrayProducer reader)
         {
             var fields = new List<FieldDefinition>();
-            for (int i = 0; i < reader.FieldCount; ++i)
-            {
-                var typ = reader.GetDataTypeName(i);
-                var name = reader.GetName(i);
-                fields.Add(MakeField(typ, name));
+            for (int i = 0; i < reader.FieldTypes.Length; ++i) {
+                var typ = reader.FieldTypes[i];
+                var name = reader.Names[i];
+                fields.Add(MakeField(typ.type.Name, typ.nullable, name));
             }
             return new StreamDefinition(new(null, streamName), fields.ToArray(), Array.Empty<string>());
         }
 
-        private static readonly Dictionary<string, TypeTag> _matches = new()
-        {
+        private static readonly Dictionary<string, TypeTag> _matches = new() {
             { "Int32", TypeTag.Int },
             { "Int64", TypeTag.Long },
             { "String", TypeTag.Nvarchar },
@@ -32,10 +30,10 @@ namespace Pansynchro.Connectors.TextFile
             { "Char", TypeTag.Char },
         };
 
-        private static FieldDefinition MakeField(string typ, string name)
+        private static FieldDefinition MakeField(string typ, bool nullable, string name)
         {
             var tag = _matches[typ];
-            return new FieldDefinition(name, new FieldType(tag, true, CollectionType.None, null));
+            return new FieldDefinition(name, new FieldType(tag, nullable, CollectionType.None, null));
         }
     }
 }

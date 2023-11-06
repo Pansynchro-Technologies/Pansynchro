@@ -22,10 +22,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
         public override IReader GetReader(string config) => new CsvReader(config);
 
-        public override IWriter GetWriter(string config)
-        {
-            throw new NotImplementedException();
-        }
+        public override IWriter GetWriter(string config) => new CsvWriter(config);
 
         [ModuleInitializer]
         public static void Run()

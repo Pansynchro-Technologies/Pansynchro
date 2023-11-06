@@ -50,7 +50,25 @@ namespace Pansynchro.Connectors.TextFile.CSV
             set => this[nameof(UsesQuotes)] = value;
         }
 
-        [Category("CSV")]
+		[Category("CSV")]
+		[Description("If true, quoted data can contain embedded EOLs")]
+		[DefaultValue(false)]
+		public bool EolInData
+		{
+			get => GetBool(nameof(EolInData));
+			set => this[nameof(EolInData)] = value;
+		}
+
+		[Category("CSV")]
+		[Description("If true, leading and trailing whitespace will be trimmed from CSV values")]
+		[DefaultValue(false)]
+		public bool Trim
+		{
+			get => GetBool(nameof(Trim));
+			set => this[nameof(Trim)] = value;
+		}
+
+		[Category("CSV")]
         [DisplayName("Quote character")]
         [Description("The character used to quote an entire field")]
         [DefaultValue('"')]

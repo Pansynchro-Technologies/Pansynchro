@@ -4,16 +4,19 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.10</AssemblyVersion>
-	<FileVersion>0.6.10</FileVersion>
-	<Version>0.6.10</Version>
+	<AssemblyVersion>0.6.14</AssemblyVersion>
+	<FileVersion>0.6.14</FileVersion>
+	<Version>0.6.14</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Textfile Connector</Product>
 	<Description>Pansynchro connectors to read from JSON, CSV, and plain text data sources.</Description>
 	<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;json;csv</PackageTags>
-	<PackageReleaseNotes>Updating dependency versions.</PackageReleaseNotes>
+	<PackageReleaseNotes>
+		Removing a heavy dependency on ChoETL
+		Copied and adapted relevant pieces of ChoETL code; cut out the rest, including 30+ transitive pacakge dependencies
+	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
@@ -22,7 +25,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ChoETL" Version="1.2.1.64" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 

@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
-
-using ChoETL;
 using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Connectors.TextFile.CSV
@@ -35,7 +33,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
                 await foreach (var (name, reader) in _source.GetTextAsync()) {
                     var csvReader = CreateReader(reader);
                     try {
-                        yield return new DataStream(new(null, name), StreamSettings.None, csvReader.AsDataReader());
+                        yield return new DataStream(StreamDescription.Parse(name), StreamSettings.None, csvReader);
                     } finally {
                         csvReader.Dispose();
                     }
@@ -48,24 +46,14 @@ namespace Pansynchro.Connectors.TextFile.CSV
             if (_source == null) {
                 throw new DataException("Must call SetDataSource before calling ReadStream");
             }
-            var readers = _source.GetTextAsync(name).Select(r => CreateReader(r).AsDataReader()).ToEnumerable();
+            var readers = _source.GetTextAsync(name).Select(r => CreateReader(r)).ToEnumerable();
             return Task.FromResult<IDataReader>(new GroupingReader(readers));
         }
 
-        private ChoCSVReader<dynamic> CreateReader(TextReader reader)
+        private CsvDataReader CreateReader(TextReader reader)
         {
-            var result = new ChoCSVReader(reader).WithMaxScanRows(10);
             var configurator = new CsvConfigurator(_conf);
-            if (configurator.UsesHeader) {
-                result = result.WithFirstLineHeader(true);
-            }
-            if (configurator.AutoDetectDelimiter) {
-                result = result.AutoDetectDelimiter(true);
-            }
-            if (configurator.UsesQuotes) { 
-                result = result.QuoteAllFields(true);
-            }
-            return result;
+            return new CsvDataReader(new CsvArrayProducer(reader, configurator));
         }
 
         public void SetDataSource(IDataSource source)
