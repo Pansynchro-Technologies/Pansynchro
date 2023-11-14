@@ -282,5 +282,8 @@ namespace Pansynchro.Core.Connectors
 			Fail,
 			Dupe
 		}
+
+		public static string WriteConnectors(string[] connNames, string[]? sourceNames = null, string[]? procNames = null)
+			=> ConnectorLoader.WriteConnectors(connNames, sourceNames, procNames);
 	}
 }
