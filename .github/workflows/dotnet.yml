@@ -15,7 +15,7 @@ jobs:
   build:
     strategy:
       matrix:
-        dotnet: [ '7.0.x' ]
+        dotnet: [ '8.0.x' ]
     env:
       BUILD_CONFIG: 'Release'
       SOLUTION: 'pansynchro.sln'
