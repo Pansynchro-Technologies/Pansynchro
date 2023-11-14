@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,10 +8,10 @@ using System.Threading.Tasks;
 using DotNet.Globbing;
 using Google.Cloud.Storage.V1;
 using GObject = Google.Apis.Storage.v1.Data.Object;
+using Newtonsoft.Json;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Helpers;
-using Newtonsoft.Json;
 
 namespace Pansynchro.Sources.GoogleCloudStorage
 {

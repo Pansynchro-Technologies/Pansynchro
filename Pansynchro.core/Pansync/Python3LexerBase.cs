@@ -49,14 +49,11 @@ namespace Pansynchro.Core.Pansync
 		public override IToken NextToken()
 		{
 			// Check if the end-of-file is ahead and there are still some DEDENTS expected.
-			if (InputStream.LA(1) == Eof && Indents.Count != 0)
-			{
+			if (InputStream.LA(1) == Eof && Indents.Count != 0) {
 				// Remove any trailing EOF tokens from our buffer.
-				for (var node = Tokens.First; node != null;)
-				{
+				for (var node = Tokens.First; node != null;) {
 					var temp = node.Next;
-					if (node.Value.Type == Eof)
-					{
+					if (node.Value.Type == Eof) {
 						Tokens.Remove(node);
 					}
 					node = temp;
@@ -66,8 +63,7 @@ namespace Pansynchro.Core.Pansync
 				this.Emit(CommonToken(PansyncLexer.NEWLINE, "\n"));
 
 				// Now emit as much DEDENT tokens as needed.
-				while (Indents.Count != 0)
-				{
+				while (Indents.Count != 0) {
 					Emit(CreateDedent());
 					Indents.Pop();
 				}
@@ -77,18 +73,14 @@ namespace Pansynchro.Core.Pansync
 			}
 
 			var next = base.NextToken();
-			if (next.Channel == DefaultTokenChannel)
-			{
+			if (next.Channel == DefaultTokenChannel) {
 				// Keep track of the last token on the default channel.
 				LastToken = next;
 			}
 
-			if (Tokens.Count == 0)
-			{
+			if (Tokens.Count == 0) {
 				return next;
-			}
-			else
-			{
+			} else {
 				var x = Tokens.First!.Value;
 				Tokens.RemoveFirst();
 				return x;

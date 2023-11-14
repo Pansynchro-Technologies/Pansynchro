@@ -20,9 +20,6 @@ namespace Pansynchro.Connectors.MSSQL
         private readonly SqlConnection? _perfConn;
         private readonly string _connectionString;
 
-
-        public bool NoStaging { get; set; }
-
         public MSSQLWriter(string connectionString, string? perfConnectionString) : base(new SqlConnection(connectionString))
         {
             _conn.Open();
@@ -34,9 +31,6 @@ namespace Pansynchro.Connectors.MSSQL
 
         protected override void Setup(DataDictionary dest)
         {
-            if (!NoStaging) {
-                MetadataHelper.EnsureScratchTables((SqlConnection)_conn, dest);
-            }
             base.Setup(dest);
         }
 
@@ -73,10 +67,11 @@ namespace Pansynchro.Connectors.MSSQL
         {
             Console.WriteLine($"{ DateTime.Now}: Writing to {name}");
             ulong progress = 0;
-            if (!NoStaging) {
-                MetadataHelper.TruncateTable((SqlConnection)_conn, name);
+            var noStaging = MetadataHelper.TableIsEmpty((SqlConnection)_conn, name);
+			if (!noStaging) {
+                MetadataHelper.EnsureScratchTable((SqlConnection)_conn, name);
             }
-            var destName = NoStaging ? name.ToString() : $"Pansynchro.[{name.Name}]";
+            var destName = noStaging ? name.ToString() : $"Pansynchro.[{name.Name}]";
             using var copy = new SqlBulkCopy((SqlConnection)_conn, COPY_OPTIONS, null) {
                 BatchSize = BATCH_SIZE,
                 DestinationTableName = destName,
@@ -85,14 +80,10 @@ namespace Pansynchro.Connectors.MSSQL
             };
             BuildColumnMapping(reader, copy.ColumnMappings);
             copy.SqlRowsCopied += (s, e) => progress = (ulong)e.RowsCopied;
-            //var stopwatch = new Stopwatch();
-            //stopwatch.Start();
             copy.WriteToServer(reader);
-            //stopwatch.Stop();
-            if (!NoStaging) {
+            if (!noStaging) {
                 _cleanup.Add(Task.Run(() => Finish(name)));
             }
-            //LogThroughput(name, progress, averageSize, stopwatch);
         }
 
         protected override ISqlFormatter Formatter => MssqlFormatter.Instance;

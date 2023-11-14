@@ -22,7 +22,7 @@ SELECT
 	  @object_name = '[Pansynchro].[' + OBJECT_NAME([object_id]) + ']'  
 	, @object_id = [object_id]  
 FROM (SELECT [object_id] = OBJECT_ID(@tableName, 'U')) o  
-  
+
 SELECT @SQL = 'CREATE TABLE ' + @object_name + CHAR(13) + '(' + CHAR(13) + STUFF((  
 	SELECT CHAR(13) + '    , [' + c.name + '] ' +   
 		CASE WHEN c.system_type_id != c.user_type_id   
@@ -70,10 +70,10 @@ BEGIN
 END";
 
 		const string FIND_TABLES =
-@"SELECT TABLE_NAME
+@"select count(*) from (SELECT TABLE_NAME
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'Pansynchro'
-AND TABLE_NAME in ({0})";
+AND TABLE_NAME = @name) a";
 
 		const string EXTRACT_PK =
 @"SELECT COL_NAME(ic.[object_id], ic.column_id) as Name
@@ -90,25 +90,16 @@ JOIN sys.types t ON c.user_type_id = t.user_type_id
 WHERE c.[object_id] = object_id(@tableName, 'U')
 	and c.is_computed <> 1";
 
-		public static void EnsureScratchTables(SqlConnection conn, DataDictionary dict)
+		public static void EnsureScratchTable(SqlConnection conn, StreamDescription name)
 		{
 			EnsureScratchSchema(conn);
-			var existing = ListScratchTables(conn, dict).ToArray();
-			var lookup = dict.Streams.Select(s => s.Name).ToDictionary(s => s with { Namespace = "Pansynchro" });
-			var missing = lookup.Keys.Except(existing).ToArray();
-			if (missing.Length > 0)
-			{
+			if (ScratchTableExists(conn, name)) {
+				TruncateTable(conn, name);
+			} else {
 				using var cmd = new SqlCommand(CREATE_STMT_BUILDER, conn);
-				foreach (var table in missing)
-				{
-					cmd.Parameters.Clear();
-					cmd.Parameters.AddWithValue("@tableName", lookup[table].ToString());
-					cmd.ExecuteNonQuery();
-				}
-			}
-			foreach (var table in existing)
-			{
-				TruncateTable(conn, table);
+				cmd.Parameters.Clear();
+				cmd.Parameters.AddWithValue("@tableName", name.ToString());
+				cmd.ExecuteNonQuery();
 			}
 		}
 
@@ -123,21 +114,13 @@ WHERE c.[object_id] = object_id(@tableName, 'U')
 			cmd.ExecuteNonQuery();
 		}
 
-		private static IEnumerable<StreamDescription> ListScratchTables(SqlConnection conn, DataDictionary dict)
+		private static bool ScratchTableExists(SqlConnection conn, StreamDescription name)
 		{
-			var streams = dict.Streams;
-			var paramList = string.Join(", ", Enumerable.Range(0, dict.Streams.Length).Select(i => $"@n{i}"));
-			var sql = string.Format(FIND_TABLES, paramList);
+			var sql = FIND_TABLES;
 			using var cmd = new SqlCommand(sql, conn);
-			for (int i = 0; i < streams.Length; ++i)
-			{
-				cmd.Parameters.AddWithValue($"@n{i}", streams[i].Name.Name);
-			}
-			using var reader = cmd.ExecuteReader();
-			while (reader.Read())
-			{
-				yield return new StreamDescription("Pansynchro", reader.GetString(0));
-			}
+			cmd.Parameters.AddWithValue("@name", name.Name);
+			var result = (int)cmd.ExecuteScalar();
+			return result == 1;
 		}
 
 		public static void MergeTable(SqlConnection conn, StreamDescription name)
@@ -170,7 +153,7 @@ WHERE c.[object_id] = object_id(@tableName, 'U')
             }
         }
 
-        private static bool TableIsEmpty(SqlConnection conn, StreamDescription name)
+        internal static bool TableIsEmpty(SqlConnection conn, StreamDescription name)
 		{
 			var query = @$"select case 
 when exists (select top 1 * from {((ISqlFormatter)MssqlFormatter.Instance).QuoteName(name)}) then 1

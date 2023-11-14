@@ -18,6 +18,7 @@ namespace Pansynchro.Core.Pansync
             var stream = new AntlrInputStream(reader);
             var lexer = new PansyncLexer(stream);
             var parser = new PansyncParser(new CommonTokenStream(lexer));
+            parser.RemoveErrorListeners();
             var file = parser.file();
             var result = (PansyncFile)file.Accept(new PansyncVisitor());
             return result;

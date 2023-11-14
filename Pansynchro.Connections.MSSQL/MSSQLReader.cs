@@ -51,11 +51,11 @@ namespace Pansynchro.Connectors.MSSQL
         {
             var sn = stream.Name with { Name = stream.Name.Name.ToUpperInvariant(), Namespace = stream.Name.Namespace?.ToUpperInvariant() };
             if (_cdcStreams.Contains(sn)) {
-                _incrementalReader = new MssqlCdcReader((SqlConnection)Conn, BATCH_SIZE, (SqlTransaction)_tran);
+                _incrementalReader = new MssqlCdcReader((SqlConnection)Conn, BATCH_SIZE, (SqlTransaction)_tran!);
                 return _incrementalReader.ReadStreamAsync;
             }
             if (_ctStreams.Contains(sn)) {
-                _incrementalReader = new MssqlCtReader((SqlConnection)Conn, BATCH_SIZE, (SqlTransaction)_tran);
+                _incrementalReader = new MssqlCtReader((SqlConnection)Conn, BATCH_SIZE, (SqlTransaction)_tran!);
                 return _incrementalReader.ReadStreamAsync;
             }
             return base.GetIncrementalStrategy(stream);

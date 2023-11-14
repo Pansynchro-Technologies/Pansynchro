@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading.Tasks;
 
 using Pansynchro.Core.DataDict;
 
@@ -25,11 +26,13 @@ namespace Pansynchro.Core
 
 		public virtual async IAsyncEnumerable<DataStream> StreamFirst()
 		{
+			await Task.CompletedTask; //just to shut the compiler up
 			yield break;
 		}
 
 		public virtual async IAsyncEnumerable<DataStream> StreamLast()
 		{
+			await Task.CompletedTask; //just to shut the compiler up
 			yield break;
 		}
 

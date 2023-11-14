@@ -56,7 +56,7 @@ namespace Pansynchro.Core.Readers
 
         public double GetDouble(int i) => (double)_buffer[i];
 
-        public virtual Type? GetFieldType(int i) => _buffer[i]?.GetType();
+        public virtual Type GetFieldType(int i) => _buffer[i]?.GetType() ?? typeof(DBNull);
 
         public float GetFloat(int i) => (float)_buffer[i];
 

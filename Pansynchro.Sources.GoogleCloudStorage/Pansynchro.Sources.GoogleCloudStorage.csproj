@@ -1,26 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
-	<ImplicitUsings>enable</ImplicitUsings>
+	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows;net8.0;net8.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.0</AssemblyVersion>
-	<FileVersion>0.6.0</FileVersion>
-	<Version>0.6.0</Version>
+	<AssemblyVersion>0.6.15</AssemblyVersion>
+	<FileVersion>0.6.15</FileVersion>
+	<Version>0.6.15</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Google Cloud Storage Data Source</Product>
 	<Description>Pansynchro data source to read from and write to GCS.</Description>
-	<Copyright>Copyright 2022, 2023 Pansynchro Technologies</Copyright>
+	<Copyright>Copyright 2022-2023 Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;gcs</PackageTags>
-	<PackageReleaseNotes>Updating dependencies.</PackageReleaseNotes>
+	<PackageReleaseNotes>
+		Adding support for .NET 8
+		Updating dependencies
+	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="Google.Cloud.Storage.V1" Version="4.6.0" />
-	<PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
+	<PackageReference Include="Google.Cloud.Storage.V1" Version="4.7.0" />
+	<PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
