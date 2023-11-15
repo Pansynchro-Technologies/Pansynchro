@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<AssemblyVersion>0.1.2</AssemblyVersion>
+		<FileVersion>0.1.2</FileVersion>
+		<Version>0.1.2</Version>
+		<Authors>Pansynchro Technologies</Authors>
+		<Product>PanSQL core runtime</Product>
+		<Description>Supports data pipelines built with PanSQL</Description>
+		<Copyright>Copyright 2023, Pansynchro Technologies</Copyright>
+		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
+		<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
+		<PackageReleaseNotes>
+			  First public build!
+		</PackageReleaseNotes>
+		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+		<NoWarn>$(NoWarn);NU1605</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Pansynchro.Core" Version="0.6.16" />
+		<PackageReference Include="System.IO.Compression" Version="4.3.0" />
+	</ItemGroup>
+
+</Project>

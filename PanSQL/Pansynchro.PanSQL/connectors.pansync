@@ -1,0 +1,86 @@
+Connectors:
+	Connector MSSQL:
+		supports Analyzer, Reader, Writer, Configurator, Queryable
+		assembly Pansynchro.Connectors.MSSQL
+
+	Connector MySql:
+		supports Analyzer, Reader, Writer, Configurator, Queryable
+		assembly Pansynchro.Connectors.MySql
+
+	Connector Postgres:
+		supports Analyzer, Reader, Writer, Configurator, Queryable
+		assembly Pansynchro.Connectors.Postgres
+
+	Connector Network:
+		supports Reader, Writer
+		assembly Pansynchro.Protocol
+
+	Connector Firebird:
+		supports Analyzer, Reader, Writer, Configurator, Queryable
+		assembly Pansynchro.Connectors.Firebird
+
+	Connector Sqlite:
+		supports Analyzer, Reader, Writer, Configurator, Queryable
+		assembly Pansynchro.Connectors.Sqlite
+
+	Connector CSV:
+		supports Analyzer, Reader, Writer, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.TextFile
+
+	Connector "Text File (whole)":
+		supports Analyzer, Reader, Writer, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.TextFile
+
+	Connector "Text File (lines)":
+		supports Analyzer, Reader, Writer, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.TextFile
+
+	Connector JSON:
+		supports Analyzer, Reader, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.TextFile
+
+	Connector Parquet:
+		supports Analyzer, Reader, Writer, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.Parquet
+
+	Connector Avro:
+		supports Analyzer, Reader, Writer, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.Avro
+
+	Connector Snowflake:
+		supports Analyzer, Reader, Writer, Configurator, Queryable
+		assembly Pansynchro.Connectors.Snowflake
+
+DataSources:
+	Source Http:
+		Assembly Pansynchro.Sources.Http
+		Supports Source
+
+	Source Rest:
+		Assembly Pansynchro.Sources.Http
+		Supports Source
+
+	Source Files:
+		Assembly Pansynchro.Sources.Files
+		Supports Source, Sink
+
+	Source S3:
+		Assembly Pansynchro.Sources.S3
+		Supports Source, Sink
+
+	Source GCP:
+		Assembly Pansynchro.Sources.GoogleCloudStorage
+		Supports Source, Sink
+
+DataProcessors:
+	Source Brotli:
+		Assembly Pansynchro.Sources.Compression
+
+	Source Gzip:
+		Assembly Pansynchro.Sources.Compression

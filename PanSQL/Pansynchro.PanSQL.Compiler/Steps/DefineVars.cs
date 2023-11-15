@@ -1,0 +1,235 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+using Microsoft.SqlServer.Management.SqlParser.SqlCodeDom;
+
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Compiler.Ast;
+
+namespace Pansynchro.PanSQL.Compiler.Steps
+{
+	internal class DefineVars : VisitorCompileStep
+	{
+		public override void OnLoadStatement(LoadStatement node)
+		{
+			var filename = Path.GetFullPath(node.Filename, Path.GetDirectoryName(_file.Filename) ?? BasePath);
+			if (!File.Exists(filename)) {
+				throw new CompilerError($"Data dictionary file '{filename}' was not found", node);
+			}
+			try {
+				node.Dict = DataDictionary.LoadFromFile(filename);
+				_file.AddVar(new(node.Name, "Data", node), node);
+			} catch (Exception e) {
+				throw new CompilerError($"Unable to load data dictionary from '{filename}'", e, node);
+			}
+		}
+
+		public override void OnSaveStatement(SaveStatement node)
+		{
+			VerifyDictionaryName(node.Name, node);
+		}
+
+		public override void OnVarDeclaration(VarDeclaration node)
+		{
+			var id = node.Identifier;
+			var dict = VerifyDictionaryName(id.Parent, id);
+			try {
+				node.Stream = ((LoadStatement)dict.Declaration).Dict.GetStream(id.Name);
+			} catch (KeyNotFoundException) {
+				throw new CompilerError($"'{id.Parent}' does not contain a stream named {id.Name}", node);
+			}
+			var newvar = new Variable(node.Name, node.Type.ToString(), node);
+			_file.AddVar(newvar, node);
+		}
+
+		public override void OnOpenStatement(OpenStatement node)
+		{
+			switch (node.Type) {
+				case OpenType.Read:
+				case OpenType.Write:
+					if (node.Dictionary == null) {
+						throw new CompilerError("Cannot open a read or write connection without an existing dictionary", node);
+					}
+					var dictName = node.Dictionary.Name;
+					VerifyDictionaryName(dictName, node);
+					if (node.Source != null && !_file.Vars.ContainsKey(node.Source.Name)) {
+						throw new CompilerError($"No variable named '{node.Source}' has been declared.", node);
+					}
+					var newvar = new Variable(node.Name, node.Type == OpenType.Read ? "Reader" : "Writer", node);
+					_file.AddVar(newvar, node);
+					break;
+				case OpenType.Analyze:
+					if (node.Dictionary != null) {
+						throw new CompilerError("Cannot open an analyze connection with an existing dictionary", node);
+					}
+					newvar = new Variable(node.Name, "Analyzer", node);
+					_file.AddVar(newvar, node);
+					break;
+				case OpenType.Source:
+				case OpenType.Sink:
+					newvar = new Variable(node.Name, node.Type == OpenType.Source ? "Source" : "Sink", node);
+					_file.AddVar(newvar, node);
+					break;
+			}
+		}
+
+		private Variable VerifyDictionaryName(string dictName, Node node)
+		{
+			if (!_file.Vars.TryGetValue(dictName, out var dict)) {
+				throw new CompilerError($"No variable named '{dictName}' has been defined", node);
+			}
+			if (dict.Type != "Data") {
+				throw new CompilerError($"The variable '{dictName}' is not a data dictionary", node);
+			}
+			return dict;
+		}
+
+		public override void OnSqlStatement(SqlTransformStatement node)
+		{
+			var stmt = node.SqlNode;
+			var grouped = false;
+			switch (stmt) {
+				case SqlSelectStatement sel:
+					node.Tables.AddRange(VerifySelect(sel, node));
+					node.Output = VerifyTableName(node.Dest.Name, false, node);
+					grouped = ((SqlQuerySpecification)sel.SelectSpecification.QueryExpression).GroupByClause != null;
+					break;
+				default:
+					throw new CompilerError("Only SELECT statements are supported at this time", node);
+			}
+
+			var tt = node.Tables.All(v => v.Type == "Table") ? TransactionType.PureMemory : TransactionType.Streamed;
+			if (node.Tables.Count > 1) {
+				tt |= TransactionType.Joined;
+			}
+			if (node.Output.Type == "Stream") {
+				tt |= TransactionType.ToStream;
+			}
+			if (grouped) {
+				tt |= TransactionType.Grouped;
+			}
+			node.TransactionType = tt;
+		}
+
+		private static bool CheckForInnerJoin(SqlJoinTableExpression j)
+		{
+			if (j.JoinOperator == SqlJoinOperatorType.InnerJoin) {
+				return true;
+			}
+			if (j.Left is SqlJoinTableExpression j2 && CheckForInnerJoin(j2)) {
+				return true;
+			}
+			if (j.Right is SqlJoinTableExpression j3 && CheckForInnerJoin(j3)) {
+				return true;
+			}
+			return false;
+		}
+
+		private IEnumerable<Variable> VerifySelect(SqlSelectStatement sel, Ast.SqlTransformStatement node)
+		{
+			var from = ((SqlQuerySpecification)sel.SelectSpecification.QueryExpression).FromClause;
+			var tableRequired = false;
+			foreach (var table in from.TableExpressions) {
+				foreach (var result in VerifyTable(table, tableRequired, node)) {
+					yield return result;
+				}
+				tableRequired = true;
+			}
+		}
+
+		private IEnumerable<Variable> VerifyTable(SqlTableExpression table, bool tableRequired, Ast.SqlTransformStatement node)
+		{
+			switch (table) {
+				case SqlTableRefExpression tRef:
+					var name = tRef.ObjectIdentifier.ObjectName.Value;
+					yield return VerifyTableName(name, tableRequired, node);
+					break;
+				case SqlJoinTableExpression join:
+					foreach (var result in VerifyTable(join.Left, tableRequired, node).Concat(VerifyTable(join.Right, true, node))) {
+						yield return result;
+					}
+					break;
+				default: throw new NotImplementedException();
+			}
+		}
+
+		private Variable VerifyTableName(string name, bool tableRequired, Ast.SqlTransformStatement node)
+		{
+			if (!_file.Vars.TryGetValue(name, out var tVar)) {
+				throw new CompilerError($"Table names in a SQL FROM or JOIN clause must be declared. '{name}' has not been defined.", node);
+			}
+			if (!(tVar.Type is "Table" or "Stream")) {
+				throw new CompilerError($"Table names in a SQL FROM or JOIN clause must be declared. '{name}' is not a table or stream variable.", node);
+			}
+			if (tableRequired && tVar.Type == "Stream") {
+				throw new CompilerError($"The target of a SQL JOIN clause must be declared as a table. '{name}' is a stream variable.", node);
+			}
+			if (tVar.Used && tVar.Type == "Stream") {
+				throw new CompilerError($"The stream '{name}' has already been processed in an earlier command.  If it needs to be used multiple times, it should be declared as 'table'.", node);
+			}
+			tVar.Used = true;
+			return tVar;
+		}
+
+		public override void OnAnalyzeStatement(AnalyzeStatement node)
+		{
+			var connection = node.Conn.Name;
+			if (!_file.Vars.TryGetValue(connection, out var conn)) {
+				throw new CompilerError($"No variable named '{connection}' has been defined.", node);
+			}
+			if (conn.Type != "Analyzer") {
+				throw new CompilerError($"The variable '{conn}' is not an analyzer.", node);
+			}
+			var opts = node.Options;
+			if (opts != null) {
+				var groups = opts.ToLookup(o => o.Type).ToDictionary(g => g.Key, g => g.Count());
+				var surplus = groups.Where(p => p.Value > 1).FirstOrDefault();
+				if (surplus.Value != 0) {
+					throw new CompilerError($"The analyzer option '{surplus.Key.ToString().ToLowerInvariant()}' is specified multiple times.", node);
+				}
+				if (groups.ContainsKey(AnalyzeOptionType.Include) && groups.ContainsKey(AnalyzeOptionType.Exclude)) {
+					throw new CompilerError("The options 'include' and 'exclude' cannot be specified on the same analyzer.", node);
+				}
+			}
+			if (_file.Vars.ContainsKey(node.Dict.Name)) {
+				throw new CompilerError($"A variable named '{node.Dict}' has already been declared.", node);
+			}
+			_file.AddVar(new(node.Dict.Name, "Data", node), node);
+		}
+
+		public override void OnMapStatement(MapStatement node)
+		{
+			var s = CheckStreamVar(node.Source);
+			var d = CheckStreamVar(node.Dest);
+			node.Streams = (s, d);
+		}
+
+		private StreamDefinition CheckStreamVar(CompoundIdentifier id)
+		{
+			var dict = VerifyDictionaryName(id.Parent, id);
+			try {
+				return ((LoadStatement)dict.Declaration).Dict.GetStream(id.Name);
+			} catch (KeyNotFoundException) {
+				throw new CompilerError($"No stream named {id.Name} is defined in {id.Parent}", id);
+			}
+		}
+
+		public override void OnSyncStatement(SyncStatement node)
+		{
+			VerifyConnName(node.Input.Name, "Reader", node);
+			VerifyConnName(node.Output.Name, "Writer", node);
+		}
+
+		private void VerifyConnName(string name, string type, Node node)
+		{
+			if (!_file.Vars.TryGetValue(name, out var conn)) {
+				throw new CompilerError($"Connectors must be opened before use. '{name}' has not been defined.", node);
+			}
+			if (conn.Type != type) {
+				throw new CompilerError($"Invalid connector type. '{name}' is not a {type.ToLower()}.", node);
+			}
+		}
+	}
+}

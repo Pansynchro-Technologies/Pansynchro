@@ -1,0 +1,37 @@
+DataDictionary StackOverflow2013:
+	Stream Users:
+		Field Id(Int)
+		Field Name(Nvarchar(40))
+		Field Address(Nvarchar(200), NULL)
+		Field Type(Nvarchar(50))
+		Field AccountId(Int, NULL)
+		Field EmailHash(Nvarchar(40), NULL)
+		Identity Id
+		RarelyChangedFields EmailHash
+		SequentialIndexId 0
+	Stream OrderData:
+		Field Id(Int)
+		Identity Id
+	Stream Products:
+		Field Id(Int)
+		Field name(Nvarchar(20))
+		Field VendorId(Int)
+		Field Price(Decimal)
+		Identity Id
+	Stream ProductMax:
+		Field VendorId(Int)
+		Field Price(Decimal)
+		Identity VendorId
+	Stream ProductCount:
+		Field VendorId(Int)
+		Field Quantity(Int)
+		Identity VendorId
+	Stream ProductMaxAndCount:
+		Field VendorId(Int)
+		Field Quantity(Int)
+		Field Price(Decimal)
+		Identity VendorId
+	DependencyOrder :
+		[UserTypes, Users, OrderData, Products]
+	CustomTypes 
+	Incremental {}

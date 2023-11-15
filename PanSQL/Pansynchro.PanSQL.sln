@@ -1,0 +1,45 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.PanSQL", "Pansynchro.PanSQL\Pansynchro.PanSQL.csproj", "{B9CD09CB-F642-49E4-8E09-EFDBD39C4728}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.PanSQL.Compiler", "Pansynchro.PanSQL.Compiler\Pansynchro.PanSQL.Compiler.csproj", "{CC1DA44B-F0AE-467C-B842-B54B9C679772}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.PanSQL.Compiler.Test", "Pansynchro.PanSQL.Compiler.Test\Pansynchro.PanSQL.Compiler.Test.csproj", "{01B99845-0F0F-4157-B3DD-75CFDCED651E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.PanSQL.Core", "Pansynchro.PanSQL.Core\Pansynchro.PanSQL.Core.csproj", "{95B19CEC-B80E-4887-A29C-DA04516B0BD4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{B5D1FC3C-AE78-49DA-A199-CE9480C130E8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B9CD09CB-F642-49E4-8E09-EFDBD39C4728}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9CD09CB-F642-49E4-8E09-EFDBD39C4728}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9CD09CB-F642-49E4-8E09-EFDBD39C4728}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9CD09CB-F642-49E4-8E09-EFDBD39C4728}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC1DA44B-F0AE-467C-B842-B54B9C679772}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC1DA44B-F0AE-467C-B842-B54B9C679772}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC1DA44B-F0AE-467C-B842-B54B9C679772}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC1DA44B-F0AE-467C-B842-B54B9C679772}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01B99845-0F0F-4157-B3DD-75CFDCED651E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01B99845-0F0F-4157-B3DD-75CFDCED651E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01B99845-0F0F-4157-B3DD-75CFDCED651E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01B99845-0F0F-4157-B3DD-75CFDCED651E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95B19CEC-B80E-4887-A29C-DA04516B0BD4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95B19CEC-B80E-4887-A29C-DA04516B0BD4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95B19CEC-B80E-4887-A29C-DA04516B0BD4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95B19CEC-B80E-4887-A29C-DA04516B0BD4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{01B99845-0F0F-4157-B3DD-75CFDCED651E} = {B5D1FC3C-AE78-49DA-A199-CE9480C130E8}
+	EndGlobalSection
+EndGlobal
