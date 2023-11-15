@@ -32,7 +32,7 @@ namespace Pansynchro.Core.Connectors
 			if (sourceDescs != null) {
 				ConnectorRegistry.LoadDataSources(sourceDescs);
 			}
-			var procDescs = ast.OfType<Command>().First(ms => ms.Name == "DataProcessors")
+			var procDescs = ast.OfType<Command>().FirstOrDefault(ms => ms.Name == "DataProcessors")
 				?.Body!
 				.OfType<Command>()
 				.Select(ParseDataProcessor).ToArray();
