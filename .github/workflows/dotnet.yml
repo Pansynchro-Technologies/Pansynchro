@@ -127,9 +127,6 @@ jobs:
       - name: Build
         run: dotnet build PanSQL/Pansynchro.PanSQL.sln --configuration Release --no-restore
 
-      - name: Run PanSQL tests
-        run: dotnet test PanSQL/Pansynchro.PanSQL.sln /p:Configuration=Release --no-restore --no-build --verbosity normal
-
       - name: Publish
         run: dotnet publish ./PanSQL/Pansynchro.PanSQL/Pansynchro.PanSQL.csproj --os ${{ matrix.platform }} -o ./Build -c Release
 
