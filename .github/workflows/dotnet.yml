@@ -32,7 +32,7 @@ jobs:
       run: env
     
     - name: Setup .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v3
       with:
         dotnet-version:  ${{ matrix.dotnet }}
 
@@ -63,6 +63,9 @@ jobs:
 
     - name: Run tests
       run: dotnet test /p:Configuration=$env:BUILD_CONFIG --no-restore --no-build --verbosity normal
+      
+    - name: Run PanSQL tests
+      run: dotnet test $env:PANSQL /p:Configuration=$env:BUILD_CONFIG --no-restore --no-build --verbosity normal
       
     - name: Publish
       if: startsWith(github.ref, 'refs/heads/release')
