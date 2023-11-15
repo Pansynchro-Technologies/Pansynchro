@@ -96,6 +96,22 @@ namespace Pansynchro.Protocol
 			}
 			_outputWriter.Write((byte)Markers.End);
 			_outputWriter.Flush();
+			await WaitForDisconnect();
+		}
+
+		private async Task WaitForDisconnect()
+		{
+			if (_client != null) {
+				try {
+					var ns = _client.GetStream();
+					while (true) {
+						ns.Write(Array.Empty<byte>(), 0, 0);
+						await Task.Delay(500);
+					}
+				} catch (IOException) {
+					//sadly this appears to be the only way to detect when the client has disconnected!
+				}
+			}
 		}
 
 		private static bool RcfChanged(object l, object r)
