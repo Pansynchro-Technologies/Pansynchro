@@ -354,8 +354,8 @@ static class Program {
 			try {
 				File.WriteAllText(t1, NET_SERVER);
 				File.WriteAllText(t2, NET_CLIENT);
-				File.Copy(".\\myDataDict.pansync", Path.Combine(Path.GetDirectoryName(t1)!, "myDataDict.pansync"), true);
-				File.Copy(".\\outDataDict.pansync", Path.Combine(Path.GetDirectoryName(t1)!, "outDataDict.pansync"), true);
+				File.Copy("myDataDict.pansync", Path.Combine(Path.GetDirectoryName(t1)!, "myDataDict.pansync"), true);
+				File.Copy("outDataDict.pansync", Path.Combine(Path.GetDirectoryName(t1)!, "outDataDict.pansync"), true);
 				result = new Compiler().CompileFiles(Environment.CurrentDirectory, t1, t2);
 			} finally {
 				File.Delete(t1);

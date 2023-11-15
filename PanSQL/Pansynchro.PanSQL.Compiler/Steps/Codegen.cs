@@ -216,14 +216,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSaveStatement(SaveStatement node)
 		{
-			var filename = node.Filename;
-			if (filename.Contains('\\') && '\\' != Path.DirectorySeparatorChar) {
-				filename = filename.Replace('\\', '/');
-			}
-			if (filename.Contains('/') && '/' != Path.DirectorySeparatorChar) {
-				filename = filename.Replace('/', '\\');
-			}
-			_mainBody.Add(new CSharpStringExpression($"{node.Name}.SaveToFile({filename.ToLiteral()})"));
+			_mainBody.Add(new CSharpStringExpression($"{node.Name}.SaveToFile(FilenameHelper.Normalize({node.Filename.ToLiteral()}))"));
 		}
 
 		public override void OnVarDeclaration(VarDeclaration node)

@@ -43,7 +43,7 @@ static class Program {
 		var myInput = ConnectorRegistry.GetAnalyzer(""MSSQL"", ""connection string here"");
 		var myDataDict = await myInput.AnalyzeAsync(""myDataDict"");
 		myDataDict = await myInput.Optimize(myDataDict, _ => { });
-		myDataDict.SaveToFile("".\\myDataDict.pansync"");
+		myDataDict.SaveToFile(FilenameHelper.Normalize("".\\myDataDict.pansync""));
 	}
 }
 ";
@@ -79,7 +79,7 @@ static class Program {
 		var myInput = ConnectorRegistry.GetAnalyzer(""MSSQL"", ""connection string here"");
 		var myDataDict = await ((IQueryableSchemaAnalyzer)myInput).AnalyzeAsync(""myDataDict"", [""Users"", ""UserTypes""]);
 		myDataDict = await myInput.Optimize(myDataDict, _ => { });
-		myDataDict.SaveToFile("".\\myDataDict.pansync"");
+		myDataDict.SaveToFile(FilenameHelper.Normalize("".\\myDataDict.pansync""));
 	}
 }
 ";
@@ -115,7 +115,7 @@ static class Program {
 		var myInput = ConnectorRegistry.GetAnalyzer(""MSSQL"", ""connection string here"");
 		var myDataDict = await ((IQueryableSchemaAnalyzer)myInput).AnalyzeExcludingAsync(""myDataDict"", [""Users"", ""UserTypes""]);
 		myDataDict = await myInput.Optimize(myDataDict, _ => { });
-		myDataDict.SaveToFile("".\\myDataDict.pansync"");
+		myDataDict.SaveToFile(FilenameHelper.Normalize("".\\myDataDict.pansync""));
 	}
 }
 ";
