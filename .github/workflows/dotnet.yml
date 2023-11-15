@@ -128,12 +128,12 @@ jobs:
         run: dotnet build PanSQL/Pansynchro.PanSQL.sln --configuration Release --no-restore
 
       - name: Publish
-        run: dotnet publish ./PanSQL/Pansynchro.PanSQL/Pansynchro.PanSQL.csproj --os ${{ matrix.platform }} -o ./Build -c Release
+        run: dotnet publish ./PanSQL/Pansynchro.PanSQL/Pansynchro.PanSQL.csproj --os ${{ matrix.platform }} -o ./BuildResult -c Release
 
       - name: Zip
         uses: vimtor/action-zip@v1.1
         with:
-          files: ./Build/
+          files: ./BuildResult/
           dest: PanSQL_${{github.ref}}.${{ matrix.platform }}.zip
           
       - name: Release
