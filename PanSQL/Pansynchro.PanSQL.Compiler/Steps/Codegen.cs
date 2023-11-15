@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 using Pansynchro.Core.Connectors;
@@ -215,7 +216,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSaveStatement(SaveStatement node)
 		{
-			_mainBody.Add(new CSharpStringExpression($"{node.Name}.SaveToFile({node.Filename.ToLiteral()})"));
+			var filename = node.Filename;
+			if (filename.Contains('\\') && '\\' != Path.DirectorySeparatorChar) {
+				filename = filename.Replace('\\', '/');
+			}
+			if (filename.Contains('/') && '/' != Path.DirectorySeparatorChar) {
+				filename = filename.Replace('/', '\\');
+			}
+			_mainBody.Add(new CSharpStringExpression($"{node.Name}.SaveToFile({filename.ToLiteral()})"));
 		}
 
 		public override void OnVarDeclaration(VarDeclaration node)

@@ -14,7 +14,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 	{
 		public override void OnLoadStatement(LoadStatement node)
 		{
-			var filename = Path.GetFullPath(node.Filename, Path.GetDirectoryName(_file.Filename) ?? BasePath);
+			var filename = node.Filename;
+			if (filename.Contains('\\') && '\\' != Path.DirectorySeparatorChar) {
+				filename = filename.Replace('\\', '/');
+			}
+			if (filename.Contains('/') && '/' != Path.DirectorySeparatorChar) {
+				filename = filename.Replace('/', '\\');
+			}
+			filename = Path.GetFullPath(filename, Path.GetDirectoryName(_file.Filename) ?? BasePath);
 			if (!File.Exists(filename)) {
 				throw new CompilerError($"Data dictionary file '{filename}' was not found", node);
 			}

@@ -1,6 +1,4 @@
-﻿using System;
-
-using Pansynchro.PanSQL.Compiler.Ast;
+﻿using Pansynchro.PanSQL.Compiler.Ast;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
