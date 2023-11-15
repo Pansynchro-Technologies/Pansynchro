@@ -15,9 +15,6 @@ on:
     
 jobs:
   build:
-    strategy:
-      matrix:
-        dotnet: [ '8.0.x' ]
     env:
       BUILD_CONFIG: 'Release'
       SOLUTION: 'pansynchro.sln'
@@ -34,7 +31,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version:  ${{ matrix.dotnet }}
+        dotnet-version: '8.0.x'
 
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v1.2.0
@@ -107,6 +104,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+  
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v1.2.0
+        with:
+          nuget-version: 'latest'
+  
       - name: Restore PanSQL dependencies
         uses: nick-fields/retry@v2.8.3
         with:
