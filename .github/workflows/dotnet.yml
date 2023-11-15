@@ -4,6 +4,8 @@ on:
   create:
     branches: 
       - release/**
+    tags:
+      - 'v*'
   push:
     branches:
     - main
@@ -19,11 +21,12 @@ jobs:
     env:
       BUILD_CONFIG: 'Release'
       SOLUTION: 'pansynchro.sln'
+      PANSQL: 'PanSQL/Pansynchro.PanSQL.sln'
 
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Test env
       run: env
@@ -45,8 +48,18 @@ jobs:
         max_attempts: 3
         command: nuget restore $env:SOLUTION
 
+    - name: Restore PanSQL dependencies
+      uses: nick-fields/retry@v2.8.3
+      with:
+        timeout_minutes: 10
+        max_attempts: 3
+        command: nuget restore $env:PANSQL
+
     - name: Build
       run: dotnet build $env:SOLUTION --configuration $env:BUILD_CONFIG --no-restore
+
+    - name: Build2
+      run: dotnet build $env:PANSQL --configuration $env:BUILD_CONFIG --no-restore
 
     - name: Run tests
       run: dotnet test /p:Configuration=$env:BUILD_CONFIG --no-restore --no-build --verbosity normal
