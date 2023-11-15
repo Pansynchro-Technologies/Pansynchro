@@ -124,7 +124,7 @@ jobs:
         run: dotnet publish ./PanSQL/Pansynchro.PanSQL/Pansynchro.PanSQL.csproj --os ${{ matrix.platform }} -o ./Build -c Release
 
       - name: Zip
-      - uses: vimtor/action-zip@v1.1
+        uses: vimtor/action-zip@v1.1
         with:
           files: ./Build/
           dest: ${{github.ref}}.${{ matrix.platform }}.zip
