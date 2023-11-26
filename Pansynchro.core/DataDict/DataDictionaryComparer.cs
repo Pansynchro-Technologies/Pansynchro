@@ -101,7 +101,7 @@ namespace Pansynchro.Core.DataDict
             }
         }
 
-        public static ComparisonResult? TypeCheckField(FieldType srcField, FieldType destField, string fieldName)
+        public static ComparisonResult? TypeCheckField(FieldType srcField, FieldType destField, string fieldName, bool toStringValid = true)
         {
             if (srcField == destField || srcField.CanAssignNotNullToNull(destField) || srcField.CanAssignSpecificToGeneral(destField)) {
                 return null;
@@ -120,7 +120,7 @@ namespace Pansynchro.Core.DataDict
                 return null;
             }
             if (srcField.Type != destField.Type && (srcField.Info == destField.Info || destField.Info == null || _stringTypes.Contains(destField.Type))) {
-                return CheckTypePromotable(srcField.Type, destField.Type, fieldName);
+                return CheckTypePromotable(srcField.Type, destField.Type, fieldName, toStringValid);
             }
             return new ComparisonError($"{fieldName}: '{srcField}' is different from '{destField}'.");
         }
@@ -165,12 +165,12 @@ namespace Pansynchro.Core.DataDict
 
         private static readonly TypeTag[] _stringTypes = new[] { TypeTag.Varchar, TypeTag.Nvarchar, TypeTag.Text, TypeTag.Ntext, TypeTag.Unstructured };
 
-        private static ComparisonResult CheckTypePromotable(TypeTag source, TypeTag dest, string name)
+        private static ComparisonResult CheckTypePromotable(TypeTag source, TypeTag dest, string name, bool toStringValid)
         {
             if (_promotables.TryGetValue(source, out var candidates) && candidates.Contains(dest)) {
                 return new PromotionLine(name, dest);
             }
-            if (_stringTypes.Contains(dest)) {
+            if (_stringTypes.Contains(dest) && toStringValid) {
                 return new PromotionLine(name, dest);
             }
             return new ComparisonError($"{name}: Can't promote '{source}' type to '{dest}'.");
