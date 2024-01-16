@@ -66,6 +66,10 @@ jobs:
     - name: Build
       run: dotnet build $env:SOLUTION --configuration $env:BUILD_CONFIG --no-restore
 
+    - name: copy connectors file
+      shell: pwsh
+      run: Copy-Item ".\connectors.pansync" -Destination ".\PanSQL\Pansynchro.PanSQL" -Force
+
     - name: Build2
       run: dotnet build $env:PANSQL --configuration $env:BUILD_CONFIG --no-restore
 
@@ -149,6 +153,10 @@ jobs:
       - name: Build
         run: dotnet build PanSQL/Pansynchro.PanSQL.sln --configuration Release --no-restore
 
+      - name: copy connectors file
+        shell: pwsh
+        run: Copy-Item ".\connectors.pansync" -Destination ".\PanSQL\Pansynchro.PanSQL" -Force
+          
       - name: Publish
         run: dotnet publish ./PanSQL/Pansynchro.PanSQL/Pansynchro.PanSQL.csproj --os ${{ matrix.platform }} -o ./BuildResult -c Release
 
