@@ -4,18 +4,17 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.13</AssemblyVersion>
-	<FileVersion>0.6.13</FileVersion>
-	<Version>0.6.13</Version>
+	<AssemblyVersion>0.6.22</AssemblyVersion>
+	<FileVersion>0.6.22</FileVersion>
+	<Version>0.6.22</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Postgres Connector</Product>
 	<Description>Pansynchro connector to read from or write to Postgres databases.</Description>
-	<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
+	<Copyright>Copyright 2022-2024, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;postgres</PackageTags>
 	<PackageReleaseNotes>
-		Adding support for array types
-		Fixing several correctness issues involving case sensitivity
+		Updating dependencies
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
@@ -25,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="Npgsql" Version="7.0.6" />
+	<PackageReference Include="Npgsql" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

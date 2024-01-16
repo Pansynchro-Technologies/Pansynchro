@@ -1,0 +1,8 @@
+DataDictionary BillionRowChallenge:
+	Stream Result:
+		Field Value(Ntext)
+		Identity Value
+	DependencyOrder :
+		[Result]
+	CustomTypes 
+	Incremental {}

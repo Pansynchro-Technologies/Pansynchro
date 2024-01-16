@@ -57,7 +57,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Sources.Compress
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Sources.GoogleCloudStorage", "Pansynchro.Sources.GoogleCloudStorage\Pansynchro.Sources.GoogleCloudStorage.csproj", "{F3590162-9FFD-493D-B261-1F8B3D6A2978}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Connectors.Excel", "Pansynchro.Connectors.Excel\Pansynchro.Connectors.Excel.csproj", "{50CFF81E-2B0E-406A-9205-B984E8E10DFB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Connectors.Excel", "Pansynchro.Connectors.Excel\Pansynchro.Connectors.Excel.csproj", "{50CFF81E-2B0E-406A-9205-B984E8E10DFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Connectors.Debug", "Pansynchro.Connectors.Debug\Pansynchro.Connectors.Debug.csproj", "{B9823822-E2B5-4489-9371-8EFFC3F57555}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -145,6 +147,10 @@ Global
 		{50CFF81E-2B0E-406A-9205-B984E8E10DFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{50CFF81E-2B0E-406A-9205-B984E8E10DFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{50CFF81E-2B0E-406A-9205-B984E8E10DFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9823822-E2B5-4489-9371-8EFFC3F57555}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9823822-E2B5-4489-9371-8EFFC3F57555}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9823822-E2B5-4489-9371-8EFFC3F57555}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9823822-E2B5-4489-9371-8EFFC3F57555}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -170,6 +176,7 @@ Global
 		{AEE561BC-DBC5-4C45-AB77-1F91FEA9EC34} = {ACB226C5-A51B-422D-A3D9-B3BBA3DC530B}
 		{F3590162-9FFD-493D-B261-1F8B3D6A2978} = {ACB226C5-A51B-422D-A3D9-B3BBA3DC530B}
 		{50CFF81E-2B0E-406A-9205-B984E8E10DFB} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
+		{B9823822-E2B5-4489-9371-8EFFC3F57555} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3B92743-4CDC-4144-861D-33F822FA824B}

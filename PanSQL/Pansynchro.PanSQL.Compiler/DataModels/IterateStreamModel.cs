@@ -4,11 +4,11 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 {
 	class IterateStreamModel(DataModel model) : StreamedSqlModel(model)
 	{
-		public override Method GetScript(CodeBuilder cb, IndexData indices, List<ImportModel> imports)
+		public override Method GetScript(CodeBuilder cb, IndexData indices, List<ImportModel> imports, Dictionary<string, string> ctes)
 		{
 			var filters = new List<string>();
 			var methodName = cb.NewNameReference("Transformer");
-			var methodBody = new List<CSharpStatement> { new VarDecl("result", new CSharpStringExpression($"new object[{Model.Outputs.Length}]")) };
+			List<CSharpStatement> methodBody =  [..InvokeCtes(ctes), new VarDecl("result", new CSharpStringExpression($"new object[{Model.Outputs.Length}]")) ];
 			for (int i = 0; i < Model.Outputs.Length; ++i) {
 				if (Model.Outputs[i].IsLiteral) {
 					methodBody.Add(new ExpressionStatement(new CSharpStringExpression($"result[{i}] = {GetInput(Model.Outputs[i])}")));

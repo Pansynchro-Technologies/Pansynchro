@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.Ast;
+using Pansynchro.PanSQL.Compiler.Helpers;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
@@ -32,8 +33,16 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			var srcName = ((VarDeclaration)node.Tables[0].Declaration).Stream.Name.ToString();
-			var dstName = ((VarDeclaration)node.Output.Declaration).Stream.Name.ToString();
+			var srcName = VariableHelper.GetStream(node.Tables[0]).Name.ToString();
+			var dstName = VariableHelper.GetStream(node.Output).Name.ToString();
+			AddMapping(srcName, dstName, node);
+		}
+
+		private void AddMapping(string srcName, string dstName, Statement node)
+		{
+			if (_mappings.TryGetValue(srcName, out var value)) {
+				throw new CompilerError($"The stream '{srcName}' has already been mapped to '{value}' in either a SQL query or a map statement.  It cannot be mapped again.", node);
+			}
 			_mappings.Add(srcName, dstName);
 		}
 
@@ -43,7 +52,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				CheckFieldMappings(node);
 			}
 			if (node.Source.Name != node.Dest.Name) {
-				_mappings.Add(StreamName(node.Source), StreamName(node.Dest));
+				AddMapping(StreamName(node.Source), StreamName(node.Dest), node);
 			}
 		}
 

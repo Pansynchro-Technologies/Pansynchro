@@ -57,6 +57,10 @@ Connectors:
 		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Snowflake
 
+	Connector Console:
+		supports Writer
+		assembly Pansynchro.Connectors.Debug
+
 DataSources:
 	Source Http:
 		Assembly Pansynchro.Sources.Http

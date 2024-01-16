@@ -8,7 +8,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 	internal abstract class CompileStep
 	{
 		protected CodeBuilder CodeBuilder { get; private set; } = null!;
-		protected string BasePath { get; private set; }
+		protected string BasePath { get; private set; } = null!;
 
 		public void Initialize(CodeBuilder cb, string basePath)
 		{

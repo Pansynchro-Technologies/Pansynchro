@@ -2,6 +2,7 @@
 
 ANALYZE : 'analyze';
 AS : 'as';
+DECLARE : 'declare';
 EXCLUDE : 'exclude';
 FOR : 'for';
 FROM : 'from';
@@ -9,6 +10,7 @@ INCLUDE : 'include';
 INTO : 'into';
 LOAD : 'load';
 MAP : 'map';
+MAX : 'max';
 OPEN : 'open';
 OPTIMIZE : 'optimize';
 SAVE : 'save';
@@ -23,15 +25,17 @@ READ : 'read';
 WITH : 'with';
 WRITE : 'write';
 
-COMMA : ',';
-DOT : '.';
+ARRAY  : '[]';
+AT     : '@';
+COMMA  : ',';
+DOT    : '.';
 LPAREN : '(';
 RPAREN : ')';
 LBRACE : '{';
 RBRACE : '}';
 EQUALS : '=';
 
-OPERATOR : '+' | '-' | '*' | '/' | '<>' | '>=' | '<=' | '>' | '<' | EQUALS ;
+OPERATOR : '+' | '-' | '*' | '/' | '<>' | '>=' | '<=' | '>' | '<' | EQUALS | '||' | '|' | '&&' | '&' | '^' ;
 
 IDENTIFIER
 	:	ID_LETTER

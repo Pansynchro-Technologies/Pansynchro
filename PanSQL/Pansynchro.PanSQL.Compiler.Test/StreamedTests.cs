@@ -57,7 +57,8 @@ sync myInput to myOutput
 		[Test]
 		public void ParseErrorSpec()
 		{
-			Assert.Throws<CompilerError>(() => new Compiler().Compile("test", DUPE_SPEC), "The stream 'users' has already been processed in an earlier command.  If it needs to be used multiple times, it should be declared as 'table'.");
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", DUPE_SPEC));
+			Assert.That(err.Message, Is.EqualTo("The stream 'users' has already been processed in an earlier command.  If it needs to be used multiple times, it should be declared as 'table'."));
 		}
 
 		private const string MISSING_FIELD_SPEC = @"
@@ -98,7 +99,8 @@ sync myInput to myOutput
 		[Test]
 		public void ParseMissingFieldSpec()
 		{
-			Assert.Throws<CompilerError>(() => new Compiler().Compile("test", MISSING_FIELD_SPEC), "The following field(s) on users2 are not nullable, but are not assigned a value: Id");
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", MISSING_FIELD_SPEC));
+			Assert.That(err.Message, Is.EqualTo("The following field(s) on users2 are not nullable, but are not assigned a value: Id"));
 		}
 
 		private const string CLEAN_SPEC = @"
@@ -513,6 +515,72 @@ static class Program {
 			Assert.That(result.Code, Is.EqualTo(FixDicts(FILTERED_STR_OUTPUT)));
 		}
 
+		private const string FILTERED_INT_ARR = @"
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream products as myDataDict.Products
+stream products2 as outDataDict.Products
+
+open myInput as MsSql for read with myDataDict, 'connection string here'
+open myOutput as Postgres for write with outDataDict, CredentialsFromEnv('PostgresConnectionString')
+
+select p.id, p.SKU as name, p.Vendor VendorID, p.Price
+from products p
+where p.Vendor in (1, 2)
+into products2
+
+sync myInput to myOutput";
+
+		private const string FILTERED_INT_ARR_OUTPUT = @"using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+		var result = new object[4];
+		while (r.Read()) {
+			if (!(([1, 2].Contains(r.GetInt32(2))))) continue;
+			result[0] = r.GetInt32(0);
+			result[1] = r.GetString(1);
+			result[2] = r.GetInt32(2);
+			result[3] = r.GetDecimal(3);
+			yield return result;
+		}
+	}
+
+	public Sync(DataDictionary destDict) : base(destDict) {
+		_streamDict.Add(""Products"", Transformer__1);
+	}
+}
+
+static class Program {
+	public static async Task Main() {
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
+		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
+		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
+		var reader__2 = myInput.ReadFrom(myDataDict);
+		reader__2 = new Sync(outDataDict).Transform(reader__2);
+		await myOutput.Sync(reader__2, outDataDict);
+	}
+}
+";
+
+		[Test]
+		public void ParseFilteredIntArray()
+		{
+			var result = new Compiler().Compile("test", FILTERED_INT_ARR);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(FILTERED_INT_ARR_OUTPUT)));
+		}
+
 		private const string GROUPED = @"
 load myDataDict from '.\myDataDict.pansync' --loads the file into a variable named myDataDict
 load outDataDict from '.\outDataDict.pansync' --loads the file into a variable named outDataDict
@@ -588,6 +656,96 @@ static class Program {
 			Assert.That(result.Code, Is.EqualTo(FixDicts(GROUPED_OUTPUT)));
 		}
 
+		private const string FULL_AGG = @"
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream orders as myDataDict.Orders
+stream result as outDataDict.OrderData
+
+open myInput as MsSql for read with myDataDict, 'connection string here'
+open myOutput as Postgres for write with outDataDict, CredentialsFromEnv('PostgresConnectionString')
+
+select Max(id)
+from orders
+into result
+
+sync myInput to myOutput";
+
+		private const string FULL_AGG_OUTPUT = @"using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+		var result = new object[2];
+		var aggregator__2 = Aggregates.Max<bool, int>();
+		while (r.Read()) {
+			aggregator__2.Add(true, r.GetInt32(0));
+		}
+		result[1] = DBNull.Value;
+		foreach (var pair in aggregator__2) {
+			result[0] = pair.Value;
+			yield return result;
+		}
+	}
+
+	public Sync(DataDictionary destDict) : base(destDict) {
+		_streamDict.Add(""Orders"", Transformer__1);
+		_nameMap.Add(StreamDescription.Parse(""Orders""), StreamDescription.Parse(""OrderData""));
+	}
+}
+
+static class Program {
+	public static async Task Main() {
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
+		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
+		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
+		var reader__3 = myInput.ReadFrom(myDataDict);
+		reader__3 = new Sync(outDataDict).Transform(reader__3);
+		await myOutput.Sync(reader__3, outDataDict);
+	}
+}
+";
+
+		[Test]
+		public void ParseFullAgg()
+		{
+			var result = new Compiler().Compile("test", FULL_AGG);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(FULL_AGG_OUTPUT)));
+		}
+
+		private const string FULL_AGG_ERROR = @"
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream users as myDataDict.Users
+stream result as outDataDict.Users
+
+open myInput as MsSql for read with myDataDict, 'connection string here'
+open myOutput as Postgres for write with outDataDict, CredentialsFromEnv('PostgresConnectionString')
+
+select Max(id), Name, 'xyz' as Type
+from users
+into result
+
+sync myInput to myOutput";
+
+		[Test]
+		public void FullAggError()
+		{
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", FULL_AGG_ERROR));
+			Assert.That(err.Message, Is.EqualTo("The following field(s) must be contained in either an aggregate expression or the GROUP BY clause: users.Name"));
+		}
+
 		private const string COUNTED = @"
 load myDataDict from '.\myDataDict.pansync' --loads the file into a variable named myDataDict
 load outDataDict from '.\outDataDict.pansync' --loads the file into a variable named outDataDict
@@ -661,6 +819,74 @@ static class Program {
 		{
 			var result = new Compiler().Compile("test", COUNTED);
 			Assert.That(result.Code, Is.EqualTo(FixDicts(COUNTED_OUTPUT)));
+		}
+
+		private const string STRING_AGG = @"
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream users as myDataDict.Users
+stream result as outDataDict.UsersAggregated
+
+open myInput as MsSql for read with myDataDict, 'connection string here'
+open myOutput as Postgres for write with outDataDict, CredentialsFromEnv('PostgresConnectionString')
+
+select string_agg(Name, ', ') as Names, TypeID
+from users
+group by TypeID
+into result
+
+sync myInput to myOutput";
+
+		private const string STRING_AGG_OUTPUT = @"using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+		var result = new object[2];
+		var aggregator__2 = Aggregates.String_agg<int, string>("", "");
+		while (r.Read()) {
+			aggregator__2.Add(r.GetInt32(3), r.GetString(1));
+		}
+		foreach (var pair in aggregator__2) {
+			result[0] = pair.Value;
+			result[1] = pair.Key;
+			yield return result;
+		}
+	}
+
+	public Sync(DataDictionary destDict) : base(destDict) {
+		_streamDict.Add(""Users"", Transformer__1);
+		_nameMap.Add(StreamDescription.Parse(""Users""), StreamDescription.Parse(""UsersAggregated""));
+	}
+}
+
+static class Program {
+	public static async Task Main() {
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
+		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
+		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
+		var reader__3 = myInput.ReadFrom(myDataDict);
+		reader__3 = new Sync(outDataDict).Transform(reader__3);
+		await myOutput.Sync(reader__3, outDataDict);
+	}
+}
+";
+
+		[Test]
+		public void ParseStringAgg()
+		{
+			var result = new Compiler().Compile("test", STRING_AGG);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(STRING_AGG_OUTPUT)));
 		}
 
 		private const string HAVING = @"
@@ -1005,7 +1231,8 @@ sync myInput to myOutput";
 		[Test]
 		public void DisallowOrdering()
 		{
-			Assert.Throws<CompilerError>(() => new Compiler().Compile("test", ORDERED), "ORDER BY is not supported for queries involving a STREAM input.");
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", ORDERED));
+			Assert.That(err.Message, Is.EqualTo("ORDER BY is not supported for queries involving a STREAM input."));
 		}
 	}
 }

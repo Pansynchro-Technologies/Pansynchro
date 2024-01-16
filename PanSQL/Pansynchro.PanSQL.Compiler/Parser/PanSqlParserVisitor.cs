@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Linq;
+using System.Collections.Generic;
 
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 
+using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Helpers;
 using Pansynchro.PanSQL.Compiler.Ast;
 
 namespace Pansynchro.PanSQL.Compiler.Parser
 {
 	using Microsoft.SqlServer.Management.SqlParser.Parser;
-	
+
 	internal class PanSqlParserVisitor : PanSqlParserBaseVisitor<Node>, IPanSqlParserVisitor<Node>
 	{
 		public override Node VisitId([NotNull] PanSqlParser.IdContext context)
@@ -29,19 +32,31 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			return VisitCompoundId(context);
 		}
 
-		Node IPanSqlParserVisitor<Node>.VisitCredentialLocator(PanSqlParser.CredentialLocatorContext context)
+		Node IPanSqlParserVisitor<Node>.VisitFunctionCall(PanSqlParser.FunctionCallContext context)
 		{
 			var type = context.id().GetText();
-			var value = VisitString(context.STRING());
-			return new CredentialExpression(type, value);
+			var values = context.argList().expression()?.Select(VisitExpression).WhereNotNull().ToArray()
+				?? Array.Empty<Expression>();
+			return new FunctionCallExpression(type, values);
 		}
 
-		public override Node VisitCredentials([NotNull] PanSqlParser.CredentialsContext context)
+		public override Expression? VisitExpression(PanSqlParser.ExpressionContext context)
 		{
-			if (context.credentialLocator() == null) {
-				return new CredentialExpression("__direct", VisitString(context.STRING()));
+			if (context == null) {
+				return null;
 			}
-			return Visit(context.credentialLocator());
+			return (Expression)Visit(context.children[0]);
+		}
+
+		public override CredentialExpression VisitCredentials([NotNull] PanSqlParser.CredentialsContext context)
+		{
+			var expr = VisitExpression(context.expression());
+			return expr switch {
+				null => throw new Exception("Value should not be null"),
+				FunctionCallExpression { Method: string name, Args : [StringLiteralExpression sl] } => new CredentialExpression(name, sl),
+				TypedExpression te => new CredentialExpression("__direct", te),
+				_ => throw new Exception($"'{expr}' is not a valid credentials value")
+			};
 		}
 
 		private static string VisitString(ITerminalNode terminalNode)
@@ -126,7 +141,8 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 
 		Node IPanSqlParserVisitor<Node>.VisitSqlStatement(PanSqlParser.SqlStatementContext context)
 		{
-			var sql = "select " + string.Join(' ', context.sqlToken().Select(t => t.GetText())).Replace(" . ", ".").Replace(" , ", ", ");
+			var start = context.WITH() != null ? "with" : "select";
+			var sql = start + ' ' + string.Join(' ', context.sqlToken().Select(t => t.GetText())).Replace(" . ", ".").Replace(" , ", ", ").Replace(" @ ", " @");
 			var id = context.id().GetText();
 			var sqlNode = Parser.Parse(sql);
 			var batches = sqlNode.Script.Batches;
@@ -143,6 +159,14 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var name = context.id().GetText();
 			var source = (CompoundIdentifier)VisitCompoundId(context.compoundId());
 			return new VarDeclaration(type, name, source);
+		}
+
+		public override Expression VisitIdElement(PanSqlParser.IdElementContext context)
+		{
+			if (context.compoundId() != null) {
+				return (Expression)VisitCompoundId(context.compoundId());
+			}
+			return new Identifier(context.id().GetText());
 		}
 
 		Node IPanSqlParserVisitor<Node>.VisitVarType(PanSqlParser.VarTypeContext context)
@@ -182,6 +206,42 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var name = context.id().GetText();
 			var filename = VisitString(context.STRING());
 			return new SaveStatement(name, filename);
+		}
+
+		public override Node VisitScriptVarDeclaration(PanSqlParser.ScriptVarDeclarationContext context)
+		{
+			var name = VisitScriptVarRef(context.scriptVarRef());
+			var type = VisitScriptVarType(context.scriptVarType());
+			var expr = VisitExpression(context.expression());
+			return new ScriptVarDeclarationStatement(name, type, expr);
+		}
+
+		public override ScriptVarExpression VisitScriptVarRef(PanSqlParser.ScriptVarRefContext context)
+			=> new(context.IDENTIFIER().GetText());
+
+		public override TypeReferenceExpression VisitScriptVarType(PanSqlParser.ScriptVarTypeContext context)
+		{
+			var name = context.id().GetText();
+			var magnitudeStr = context.scriptVarSize()?.GetText().ToLower();
+			int? magnitude = magnitudeStr switch {
+				null => null,
+				"max" => null,
+				_ => int.Parse(magnitudeStr),
+			};
+			var isArr = context.ARRAY() != null;
+			return new TypeReferenceExpression(name, magnitude, isArr);
+		}
+
+		public override LiteralExpression VisitLiteral(PanSqlParser.LiteralContext context)
+		{
+			var text = context.GetText();
+			if (text.StartsWith('\'')) {
+				return new StringLiteralExpression(VisitString((ITerminalNode)context.children[0]));
+			}
+			if (int.TryParse(text, out var value)) {
+				return new IntegerLiteralExpression(value);
+			}
+			throw new NotImplementedException();
 		}
 	}
 }

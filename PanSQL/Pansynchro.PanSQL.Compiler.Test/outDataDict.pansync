@@ -9,8 +9,13 @@ DataDictionary StackOverflow2013:
 		Identity Id
 		RarelyChangedFields EmailHash
 		SequentialIndexId 0
+	Stream UsersAggregated:
+		Field Names(Ntext)
+		Field TypeID(Int)
+		Identity TypeID
 	Stream OrderData:
 		Field Id(Int)
+		Field Timestamp(DateTime, NULL)
 		Identity Id
 	Stream Products:
 		Field Id(Int)

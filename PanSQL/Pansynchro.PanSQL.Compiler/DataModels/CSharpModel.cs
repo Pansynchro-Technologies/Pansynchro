@@ -103,12 +103,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		{
 			sb.Append('\t', indent);
 			sb.Append(field.IsProp ? "public " : "private ");
+			if (field.IsReadonly) {
+				sb.Append("readonly ");
+			}
 			sb.Append($"{field.Type} {field.Name}");
 			if (field.IsProp) {
 				sb.Append(" { get; }");
 			}
 			if (field.Initializer != null) {
 				sb.Append($" = {field.Initializer};");
+			} else if (!field.IsProp) {
+				sb.Append(';');
 			}
 			sb.AppendLine();
 		}
@@ -155,6 +160,19 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			}
 			sb.Append('\t', indent);
 			sb.AppendLine("}");
+		}
+	}
+
+	class IfStatement(DbExpression cond, Block body) : CSharpStatement
+	{
+		private readonly DbExpression _cond = cond;
+		private readonly Block _body = body;
+
+		public override void Serialize(StringBuilder sb, int indent)
+		{
+			sb.Append('\t', indent);
+			sb.Append($"if ({_cond})");
+			_body.Serialize(sb, indent);
 		}
 	}
 
@@ -214,6 +232,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		{
 			sb.Append('\t', indent);
 			sb.AppendLine($"yield break;");
+		}
+	}
+
+	class ReturnStatement (DbExpression? value = null) : CSharpStatement
+	{
+		private readonly DbExpression? _value = value;
+
+		public override void Serialize(StringBuilder sb, int indent)
+		{
+			sb.Append('\t', indent);
+			sb.AppendLine(_value != null ? $"return {_value};" : "return;");
 		}
 	}
 

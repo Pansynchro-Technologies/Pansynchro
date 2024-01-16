@@ -8,7 +8,7 @@ file : NEWLINE* line+ EOF;
 
 line : statement ({InputStream.LA(1) == TokenConstants.EOF}? | NEWLINE+);
 
-statement : loadStatement | saveStatement | openStatement | analyzeStatement | varDeclaration | mapStatement | sqlStatement | syncStatement;
+statement : loadStatement | saveStatement | openStatement | analyzeStatement | varDeclaration | scriptVarDeclaration | mapStatement | sqlStatement | syncStatement ;
 
 loadStatement : LOAD id FROM STRING; 
 
@@ -32,9 +32,11 @@ idList : idElement (COMMA idElement)* ;
 
 idElement : compoundId | id ;
 
-credentials : STRING | credentialLocator;
+credentials : expression;
 
-credentialLocator : id LPAREN STRING RPAREN;
+functionCall : id LPAREN argList? RPAREN;
+
+argList : expression (COMMA expression)*;
 
 varDeclaration : varType id AS compoundId;
 
@@ -46,11 +48,23 @@ mappingList : LBRACE mapping (COMMA mapping)* COMMA? RBRACE;
 
 mapping : id EQUALS id;
 
-sqlStatement : SELECT sqlToken+ INTO id;
+sqlStatement : (SELECT | WITH) sqlToken+ INTO id;
 
 sqlToken : ~INTO;
 
 syncStatement : SYNC id TO id;
 
+scriptVarDeclaration : DECLARE scriptVarRef AS? scriptVarType (EQUALS expression)?;
+
+scriptVarType : id scriptVarSize? ARRAY?;
+
+scriptVarSize : LPAREN (NUMBER | MAX) RPAREN;
+
+expression : literal | idElement | functionCall | scriptVarRef;
+
+literal : STRING | NUMBER;
+
+
+scriptVarRef : AT IDENTIFIER;
 id : IDENTIFIER;
 compoundId: IDENTIFIER DOT IDENTIFIER;

@@ -11,7 +11,15 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnVarDeclaration(VarDeclaration node)
 		{
 			if (node.Type == VarDeclarationType.Table) {
-				var table = TypesHelper.BuildDataClass(node.Stream);
+				var table = TypesHelper.BuildDataClass(node.Stream!);
+				_file.Database.Add(table);
+			}
+		}
+
+		public override void OnSqlStatement(SqlTransformStatement node)
+		{
+			foreach (var cte in node.Ctes) {
+				var table = TypesHelper.BuildDataClass(cte.Stream, true);
 				_file.Database.Add(table);
 			}
 		}

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
+using Microsoft.CodeAnalysis.Operations;
 using Pansynchro.Core.Connectors;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
@@ -11,6 +11,9 @@ using Pansynchro.PanSQL.Core;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
+	using static System.Net.WebRequestMethods;
+	using StringLiteralExpression = Ast.StringLiteralExpression;
+
 	internal class Codegen : VisitorCompileStep
 	{
 		public Script Output { get; } = new();
@@ -19,6 +22,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private readonly HashSet<string> _connectorRefs = [];
 		private readonly HashSet<string> _connectors = [];
 		private readonly HashSet<string> _sources = [];
+		private readonly List<ScriptVarDeclarationStatement> _scriptVars = [];
+		private readonly List<DataFieldModel> _initFields = [];
+		private readonly List<ImportModel> _imports = [];
 
 		private static readonly ImportModel[] USING_BLOCK = [
 			"System",
@@ -80,26 +86,52 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnFile(PanSqlFile node)
 		{
-			var imports = new List<ImportModel>(USING_BLOCK);
+			_imports.AddRange(USING_BLOCK);
 			if (node.Database.Count > 0) {
-				imports.AddRange(USING_DB);
+				_imports.AddRange(USING_DB);
 			}
 			_transformer = _file.Mappings.Count != 0;
 			var classes = new List<ClassModel>();
 			if (_transformer) {
-				classes.Add(BuildTransformer(node, imports));
+				classes.Add(BuildTransformer(node, _imports));
 			}
 			_mainBody = [];
 			base.OnFile(node);
-			var main = new Method("public static async", "Main", "Task", null, _mainBody);
+			if (_scriptVars.Count > 0) {
+				WriteScriptVarInit();
+			}
+			var args = _scriptVars.Count > 0 ? "string[] args" : null;
+			var main = new Method("public static async", "Main", "Task", args, _mainBody);
 			classes.Add(new("static", "Program", null, null, [], [main]));
-			var result = new FileModel(SortImports(imports).ToArray(), [.. classes]);
+			var result = new FileModel(SortImports().ToArray(), [.. classes]);
 			Output.SetFile(result);
 		}
 
-		private static IEnumerable<ImportModel?> SortImports(List<ImportModel> imports)
+		private void WriteScriptVarInit()
 		{
-			var groups = imports.DistinctBy(i => i.Name).ToLookup(i => i.Name.Split('.')[0]);
+			for (int i = _scriptVars.Count - 1; i >= 0; --i) {
+				var sVar = _scriptVars[i];
+				var decl = $"{TypesHelper.FieldTypeToCSharpType(sVar.FieldType)} {sVar.ScriptName}";
+				if (sVar.Expr != null) {
+					decl = $"{decl} = {sVar.Expr}";
+				}
+				_mainBody.Insert(0, new ExpressionStatement(new CSharpStringExpression(decl)));
+			}
+			var required = _scriptVars.Any(sv => sv.Expr == null);
+			var initializer = $"new VariableReader(args, {required.ToString().ToLowerInvariant()})";
+			foreach (var sVar in _scriptVars) {
+				var methodName = sVar.Expr != null ? "TryReadVar" : "ReadVar";
+				var passType = sVar.Expr != null ? "ref" : "out";
+				initializer = $"{initializer}.{methodName}({sVar.Name.Name.ToLiteral()}, {passType} {sVar.ScriptName})";
+			}
+			_mainBody.Insert(_scriptVars.Count, new CSharpStringExpression($"var __varResult = {initializer}.Result"));
+			var checkBody = new Block([new CSharpStringExpression("System.Console.WriteLine(__varResult)"), new ReturnStatement()]);
+			_mainBody.Insert(_scriptVars.Count + 1, new IfStatement(new BooleanExpression(BoolExpressionType.NotEquals, new ReferenceExpression("__varResult"), new CSharpStringExpression("null")), checkBody));
+		}
+
+		private IEnumerable<ImportModel?> SortImports()
+		{
+			var groups = _imports.DistinctBy(i => i.Name).ToLookup(i => i.Name.Split('.')[0]);
 			foreach (var group in groups) {
 				foreach (var item in group.OrderBy(i => i.Name)) {
 					yield return item;
@@ -113,17 +145,21 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var fields = new List<DataFieldModel>();
 			var methods = new List<Method>();
 			methods.AddRange(_file.Lines.OfType<VarDeclaration>().Select(GetVarScript).Where(m => m != null)!);
-			methods.AddRange(_file.Lines.OfType<SqlTransformStatement>().Select(t => GetSqlScript(t, imports)));
+			methods.AddRange(_file.Lines.OfType<SqlTransformStatement>().SelectMany(t => GetSqlScript(t, imports)));
+			_initFields.AddRange(_file.Lines.OfType<SqlTransformStatement>().SelectMany(t => GetInitVars(t)));
 			if (_file.Producers.Count > 0) {
 				methods.Add(BuildStreamLast());
 			}
 			var body = new List<CSharpStatement>();
+			foreach (var field in _initFields) {
+				body.Add(new CSharpStringExpression($"{field.Name} = {field.Name[1..]}"));
+			}
 			foreach (var tf in _file.Transformers) {
-				var tableName = ((VarDeclaration)_file.Vars[tf.Key.Name].Declaration).Stream.Name.ToString();
+				var tableName = VariableHelper.GetStream(_file.Vars[tf.Key.Name]).Name.ToString();
 				body.Add(new CSharpStringExpression($"_streamDict.Add({tableName.ToLiteral()}, {tf.Value})"));
 			}
 			foreach (var pr in _file.Producers) {
-				var tableName = ((VarDeclaration)_file.Vars[pr.Key.Name].Declaration).Stream.Name.ToString();
+				var tableName = VariableHelper.GetStream(_file.Vars[pr.Key.Name]).Name.ToString();
 				body.Add(new CSharpStringExpression($"_producers.Add((destDict.GetStream({tableName.ToLiteral()}), {pr.Value}))"));
 			}
 			foreach (var m in _file.Mappings) {
@@ -131,9 +167,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					body.Add(new CSharpStringExpression($"_nameMap.Add(StreamDescription.Parse({m.Key.ToLiteral()}), StreamDescription.Parse({m.Value.ToLiteral()}))"));
 				}
 			}
-			methods.Add(new Method("public", "Sync", "", "DataDictionary destDict", body, true, "destDict"));
+			var args = string.Join(", ", ["DataDictionary destDict", .. _initFields.Select(f => $"{f.Type} {f.Name[1..]}")]);
+			methods.Add(new Method("public", "Sync", "", args, body, true, "destDict"));
 			var subclasses = node.Database.Count > 0 ? new ClassModel[] { GenerateDatabase(node.Database, fields) } : null;
-			return new ClassModel("", "Sync", "StreamTransformerBase", subclasses, [.. fields], [.. methods]);
+			return new ClassModel("", "Sync", "StreamTransformerBase", subclasses, [.. fields.Concat(_initFields)], [.. methods]);
 		}
 
 		private static Method BuildStreamLast()
@@ -202,11 +239,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				var field = model.Fields[i];
 				lines.Add(new CSharpStringExpression($"this.{field.Name} = {string.Format(field.Initializer!, i)}"));
 			}
-			var ctor = new Method("public", model.Name, "", "IDataReader r", lines, true);
+			var ctorArgs = model.FieldConstructor ? BuildFieldConstructorArgs(fields) : "IDataReader r";
+			var ctor = new Method("public", model.Name, "", ctorArgs, lines, true);
 			outerFields.Add(new(model.Name[..^1], $"ITable<{model.Name}>", null, true));
 			outerFields.Add(new($"{model.Name}{TypesHelper.ModelIdentityName(model)}", $"IUniqueIndex<{model.Name}, {TypesHelper.ModelIdentityType(model)}>", null, true));
 			return new ClassModel("public", model.Name, null, null, fields, [ctor]);
 		}
+
+		private static string BuildFieldConstructorArgs(DataFieldModel[] fields) => string.Join(", ", fields.Select(f => $"{f.Type} {f.Name.ToLower()}_"));
 
 		public override void OnLoadStatement(LoadStatement node)
 		{
@@ -252,29 +292,47 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private void ProcessNetworkConnection(OpenStatement node)
 		{
 			if (node.Creds.Method == "__direct") {
-				var dictRef = node.Dictionary.Name;
+				var dictRef = node.Dictionary!.Name;
 				var filename = CodeBuilder.NewNameReference("filename");
 				_mainBody.Add(new VarDecl(filename.Name, new CSharpStringExpression("System.IO.Path.GetTempFileName()")));
 				_mainBody.Add(new CSharpStringExpression($"{dictRef}.SaveToFile({filename})"));
-				node.Creds = new CredentialExpression("__literal", $"\"{node.Creds.Value};\" + {filename}"); 
+				var oldValue = node.Creds.Value is StringLiteralExpression sl ? sl.Value : node.Creds.Value.ToString();
+				node.Creds = new CredentialExpression("__literal", new StringLiteralExpression($"\"{oldValue};\" + {filename}")); 
 			}
 		}
 
-		private Method GetSqlScript(SqlTransformStatement node, List<ImportModel> imports)
+		private IEnumerable<DataFieldModel> GetInitVars(SqlTransformStatement node)
 		{
-			var method = node.DataModel.GetScript(CodeBuilder, node.Indices, imports);
-			if (_file.Transformers.ContainsKey(node.Tables[0]))
-			{
-				_file.Producers.Add(node.Tables[0], method.Name);
-			} else { 
-				_file.Transformers.Add(node.Tables[0], method.Name);
+			var vars = node.DataModel.Model.ScriptVariables;
+			foreach (var sVar in vars) {
+				var decl = ((ScriptVarDeclarationStatement)_file.Vars[sVar[1..]].Declaration);
+				yield return new DataFieldModel('_' + decl.Name.Name, TypesHelper.FieldTypeToCSharpType(decl.FieldType), null, IsReadonly: true);
 			}
-			return method;
+		}
+
+		private IEnumerable<Method> GetSqlScript(SqlTransformStatement node, List<ImportModel> imports)
+		{
+			var ctes = new Dictionary<string, string>();
+			foreach (var cte in node.Ctes) {
+				var script = cte.Model.GetScript(CodeBuilder, node.Indices, imports, ctes);
+				yield return script;
+				ctes[cte.Name] = script.Name;
+			}
+			var method = node.DataModel.GetScript(CodeBuilder, node.Indices, imports, ctes);
+			if (_file.Transformers.ContainsKey(node.Tables[0])) {
+				_file.Producers.Add(node.Tables[0], method.Name);
+			} else {
+				var table = node.Tables[0];
+				if (VariableHelper.GetStream(table) != null) {
+					_file.Transformers.Add(table, method.Name);
+				}
+			}
+			yield return method;
 		}
 
 		private Method? GetVarScript(VarDeclaration decl)
 		{
-			if (decl.Type == VarDeclarationType.Table) {
+			if (decl.Type == VarDeclarationType.Table && decl.Stream != null) {
 				var methodName = CodeBuilder.NewNameReference("Transformer");
 				_file.Transformers.Add(_file.Vars[decl.Name], methodName.Name);
 				var tableName = decl.Stream.Name;
@@ -299,12 +357,24 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var inputDict = ((OpenStatement)input.Declaration).Dictionary;
 			var inputName = CodeBuilder.NewNameReference("reader");
 			var output = _file.Vars[node.Output.Name];
-			var outputDict = ((OpenStatement)output.Declaration).Dictionary;
+			var outputDict = ((OpenStatement)output.Declaration).Dictionary!.Name;
 			_mainBody.Add(new VarDecl(inputName.Name, new CSharpStringExpression($"{input.Name}.ReadFrom({inputDict})")));
 			if (_transformer) {
-				_mainBody.Add(new CSharpStringExpression($"{inputName} = new Sync({outputDict}).Transform({inputName})"));
+				var args = string.Join(", ", [outputDict, .. _initFields.Select(f => ((ScriptVarDeclarationStatement)_file.Vars[f.Name[1..]].Declaration).ScriptName)]);
+				_mainBody.Add(new CSharpStringExpression($"{inputName} = new Sync({args}).Transform({inputName})"));
 			}
 			_mainBody.Add(new CSharpStringExpression($"await {output.Name}.Sync({inputName}, {outputDict})"));
+		}
+
+		public override void OnFunctionCallExpression(FunctionCallExpression node)
+		{
+			base.OnFunctionCallExpression(node);
+			_imports.Add(node.Namespace!);
+		}
+
+		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
+		{
+			_scriptVars.Add(node);
 		}
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies()

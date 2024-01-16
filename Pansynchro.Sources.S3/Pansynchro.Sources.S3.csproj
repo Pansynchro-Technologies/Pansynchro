@@ -21,7 +21,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="AWSSDK.S3" Version="3.7.300.1" />
+		<PackageReference Include="AWSSDK.S3" Version="3.7.305.11" />
 		<PackageReference Include="DotNet.Glob" Version="3.1.3" />
 		<PackageReference Include="Pansynchro.S3StreamUpload" Version="2.2.4" />
 	</ItemGroup>

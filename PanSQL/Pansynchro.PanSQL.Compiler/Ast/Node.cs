@@ -20,11 +20,12 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	{
 		public Statement[] Lines { get; } = lines;
 		public string? Filename { get; internal set; }
-		internal Dictionary<string, Variable> Vars { get; } = [];
+		internal Dictionary<string, Variable> Vars { get; } = new(StringComparer.InvariantCultureIgnoreCase);
 		internal Dictionary<string, string> Mappings { get; set; } = null!;
 		internal Dictionary<Variable, string> Transformers { get; } = [];
 		internal Dictionary<Variable, string> Producers { get; } = [];
 		internal List<DataClassModel> Database { get; } = [];
+		internal Dictionary<string, TypeDefinition> Types { get; } = [];
 
 		public void AddVar(Variable v, Node n)
 		{
@@ -57,6 +58,13 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnSaveStatement(this);
 	}
 
+	public class TypeDefinition(StreamDefinition definition) : Statement
+	{
+		public StreamDefinition Definition { get; } = definition;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnTypeDefinition(this);
+	}
+
 	public enum VarDeclarationType
 	{
 		Table,
@@ -69,7 +77,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public string Name { get; } = name;
 		public CompoundIdentifier Identifier { get; } = identifier;
 
-		public StreamDefinition Stream { get; internal set; } = null!;
+		public StreamDefinition? Stream { get; internal set; }
 
 		internal override void Accept(IVisitor visitor) => visitor.OnVarDeclaration(this);
 	}
@@ -103,6 +111,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		ToStream = 1 << 1,
 		Joined = 1 << 2,
 		Grouped = 1 << 3,
+		WithCte = 1 << 4,
 	}
 
 	public class AnalyzeStatement(Identifier conn, Identifier dict, AnalyzeOption[]? options) : Statement
@@ -118,6 +127,8 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnAnalyzeStatement(this);
 	}
 
+	internal record CteData(string Name, SqlModel Model, StreamDefinition Stream);
+
 	public class SqlTransformStatement(SqlStatement sqlNode, Identifier dest) : Statement
 	{
 		public SqlStatement SqlNode { get; } = sqlNode;
@@ -128,6 +139,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal TransactionType TransactionType { get; set; }
 		internal SqlModel DataModel { get; set; } = null!;
 		internal IndexData Indices { get; set; } = null!;
+		internal List<CteData> Ctes { get; } = [];
 
 		internal override void Accept(IVisitor visitor) => visitor.OnSqlStatement(this);
 	}
@@ -150,7 +162,24 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnSyncStatement(this);
 	}
 
+	internal class ScriptVarDeclarationStatement(ScriptVarExpression name, TypeReferenceExpression type, Expression? expr) : Statement
+	{
+		public ScriptVarExpression Name { get; } = name;
+		public TypeReferenceExpression Type { get; } = type;
+		public Expression? Expr { get; } = expr;
+
+		internal FieldType FieldType { get; set; } = null!;
+		internal Identifier ScriptName { get; set; } = null!;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarDeclarationStatement(this);
+	}
+
 	public abstract class Expression : Node { }
+
+	public abstract class TypedExpression : Expression
+	{
+		internal abstract FieldType ExpressionType { get; }
+	}
 
 	public class Identifier(string name) : Expression
 	{
@@ -159,6 +188,29 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnIdentifier(this);
 
 		public override string ToString() => Name;
+	}
+
+	public class ScriptVarExpression(string name) : TypedExpression
+	{
+		public string Name { get; internal set; } = name;
+
+		internal FieldType VarType { get; set; } = null!;
+
+		internal override FieldType ExpressionType => VarType;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarExpression(this);
+
+		public override string ToString() => Name;
+	}
+
+	public class TypeReferenceExpression(string name, int? magnitude, bool isArray) : Expression
+	{
+		public string Name { get; } = name;
+		public int? Magnitude { get; } = magnitude;
+		public bool IsArray { get; } = isArray;
+
+		internal override void Accept(IVisitor visitor)
+		{ }
 	}
 
 	public class CompoundIdentifier(string parent, string name) : Expression
@@ -171,17 +223,35 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public override string ToString() => $"{Parent}.{Name}";
 	}
 
-	public class CredentialExpression(string method, string value) : Expression
+	public class FunctionCallExpression(string method, Expression[] args) : TypedExpression
 	{
 		public string Method { get; } = method;
-		public string Value { get; } = value;
+		public Expression[] Args { get; } = args;
+
+		internal FieldType? ReturnType { get; set; }
+
+		internal override FieldType ExpressionType => ReturnType ?? throw new CompilerError($"No return type has been bound", this);
+
+		public string? CodeName { get; internal set; }
+		public string? Namespace { get; internal set; }
+		public bool IsProp {  get; internal set; }
+
+		internal override void Accept(IVisitor visitor) => visitor.OnFunctionCallExpression(this);
+
+		public override string ToString() => IsProp ? CodeName! : $"{CodeName ?? Method}({string.Join<Expression>(", ", Args)})";
+	}
+
+	public class CredentialExpression(string method, TypedExpression value) : Expression
+	{
+		public string Method { get; } = method;
+		public TypedExpression Value { get; } = value;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnCredentialExpression(this);
 
 		public override string ToString() => Method switch {
-			"__literal" => Value,
-			"__direct" => Value.ToLiteral(),
-			_ => $"{Method}({Value.ToLiteral()})"
+			"__literal" => ((StringLiteralExpression)Value).Value,
+			"__direct" => Value.ToString()!,
+			_ => $"{Method}({Value})"
 		};
 	}
 
@@ -206,5 +276,30 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public Expression[]? Values { get; } = values;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnAnalyzeOption(this);
+	}
+
+	public abstract class LiteralExpression : TypedExpression
+	{ }
+
+	public class StringLiteralExpression(string value) : LiteralExpression
+	{
+		public string Value { get; } = value;
+
+		internal override FieldType ExpressionType => TypesHelper.TextType;
+
+		public override string ToString() => Value.ToLiteral();
+
+		internal override void Accept(IVisitor visitor) => visitor.OnStringLiteralExpression(this);
+	}
+
+	public class IntegerLiteralExpression(int value) : LiteralExpression
+	{
+		public int Value { get; } = value;
+
+		internal override FieldType ExpressionType => TypesHelper.TextType;
+
+		public override string ToString() => Value.ToString();
+
+		internal override void Accept(IVisitor visitor) => visitor.OnIntegerLiteralExpression(this);
 	}
 }

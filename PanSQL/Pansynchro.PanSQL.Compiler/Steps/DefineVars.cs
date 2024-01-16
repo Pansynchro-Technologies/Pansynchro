@@ -7,6 +7,8 @@ using Microsoft.SqlServer.Management.SqlParser.SqlCodeDom;
 
 using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.Ast;
+using Pansynchro.PanSQL.Compiler.DataModels;
+using Pansynchro.PanSQL.Compiler.Helpers;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
@@ -38,17 +40,41 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			VerifyDictionaryName(node.Name, node);
 		}
 
+		public override void OnTypeDefinition(TypeDefinition node)
+		{
+			if (!_file.Types.TryAdd(node.Definition.Name.Name, node)) {
+				throw new CompilerError($"A type named '{node.Definition.Name}' has already been defined.", node);
+			}
+		}
+
 		public override void OnVarDeclaration(VarDeclaration node)
 		{
-			var id = node.Identifier;
-			var dict = VerifyDictionaryName(id.Parent, id);
+			var cid = node.Identifier;
+			var dict = VerifyDictionaryName(cid.Parent, cid);
 			try {
-				node.Stream = ((LoadStatement)dict.Declaration).Dict.GetStream(id.Name);
+				node.Stream = ((LoadStatement)dict.Declaration).Dict.GetStream(cid.Name);
 			} catch (KeyNotFoundException) {
-				throw new CompilerError($"'{id.Parent}' does not contain a stream named {id.Name}", node);
+				throw new CompilerError($"'{cid.Parent}' does not contain a stream named {cid.Name}", node);
 			}
 			var newvar = new Variable(node.Name, node.Type.ToString(), node);
 			_file.AddVar(newvar, node);
+		}
+
+		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
+		{
+			var newvar = new Variable(node.Name.Name, "ScriptVar", node);
+			_file.AddVar(newvar, node);
+		}
+
+		public override void OnScriptVarExpression(ScriptVarExpression node)
+		{
+			if (!_file.Vars.TryGetValue(node.Name, out var sVar)) {
+				throw new CompilerError($"No variable named '{node.Name}' has been defined", node);
+			}
+			if (sVar.Type != "ScriptVar")
+			{
+				throw new CompilerError($"The variable '{node.Name}' is not a script variable", node);
+			}
 		}
 
 		public override void OnOpenStatement(OpenStatement node)
@@ -97,25 +123,33 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			var stmt = node.SqlNode;
 			var grouped = false;
+			var oneAgg = false;
 			switch (stmt) {
 				case SqlSelectStatement sel:
 					node.Tables.AddRange(VerifySelect(sel, node));
-					node.Output = VerifyTableName(node.Dest.Name, false, node);
-					grouped = ((SqlQuerySpecification)sel.SelectSpecification.QueryExpression).GroupByClause != null;
+					node.Output = VerifyTableName(node.Dest.Name, false, node)[0];
+					var spec = (SqlQuerySpecification)sel.SelectSpecification.QueryExpression;
+					grouped = spec.GroupByClause != null;
+					if (!grouped) {
+						oneAgg = new OneAggVisitor().Check(spec);
+					}
 					break;
 				default:
 					throw new CompilerError("Only SELECT statements are supported at this time", node);
 			}
 
-			var tt = node.Tables.All(v => v.Type == "Table") ? TransactionType.PureMemory : TransactionType.Streamed;
+			var tt = node.Tables.Any(v => v.Type == "Stream") ? TransactionType.Streamed : TransactionType.PureMemory;
 			if (node.Tables.Count > 1) {
 				tt |= TransactionType.Joined;
 			}
 			if (node.Output.Type == "Stream") {
 				tt |= TransactionType.ToStream;
 			}
-			if (grouped) {
+			if (grouped || oneAgg) {
 				tt |= TransactionType.Grouped;
+			}
+			if (((SqlSelectStatement)node.SqlNode).QueryWithClause != null) {
+				tt |= TransactionType.WithCte;
 			}
 			node.TransactionType = tt;
 		}
@@ -134,8 +168,15 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			return false;
 		}
 
-		private IEnumerable<Variable> VerifySelect(SqlSelectStatement sel, Ast.SqlTransformStatement node)
+		private IEnumerable<Variable> VerifySelect(SqlSelectStatement sel, SqlTransformStatement node)
 		{
+			if (sel.QueryWithClause != null) {
+				foreach (var cte in sel.QueryWithClause.CommonTableExpressions) {
+					foreach (var result in VerifyQuerySpec((SqlQuerySpecification)cte.QueryExpression, node))
+					{ }
+					AddCte(cte, node);
+				}
+			}
 			var from = ((SqlQuerySpecification)sel.SelectSpecification.QueryExpression).FromClause;
 			var tableRequired = false;
 			foreach (var table in from.TableExpressions) {
@@ -146,12 +187,37 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
+		private void AddCte(SqlCommonTableExpression cte, SqlTransformStatement node)
+		{
+			var name = cte.Name.Value.ToPropertyName();
+			if (_file.Vars.ContainsKey(name)) {
+				throw new CompilerError($"CTE name '{name}' must not be used elsewhere in the script.", node);
+			}
+			var result = new Variable(name, "Cte", node);
+			_file.AddVar(result, node);
+		}
+
+		private IEnumerable<Variable> VerifyQuerySpec(SqlQuerySpecification spec, SqlTransformStatement node) 
+			=> VerifyQueryFromClause(spec.FromClause, node);
+
+		private IEnumerable<Variable> VerifyQueryFromClause(SqlFromClause from, SqlTransformStatement node)
+		{
+			foreach (var table in from.TableExpressions) {
+				foreach (var result in VerifyTable(table, false, node)) {
+					yield return result;
+				}
+			}
+
+		}
+
 		private IEnumerable<Variable> VerifyTable(SqlTableExpression table, bool tableRequired, Ast.SqlTransformStatement node)
 		{
 			switch (table) {
 				case SqlTableRefExpression tRef:
 					var name = tRef.ObjectIdentifier.ObjectName.Value;
-					yield return VerifyTableName(name, tableRequired, node);
+					foreach (var result in VerifyTableName(name, tableRequired, node)) {
+						yield return result;
+					}
 					break;
 				case SqlJoinTableExpression join:
 					foreach (var result in VerifyTable(join.Left, tableRequired, node).Concat(VerifyTable(join.Right, true, node))) {
@@ -162,13 +228,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private Variable VerifyTableName(string name, bool tableRequired, Ast.SqlTransformStatement node)
+		private Variable[] VerifyTableName(string name, bool tableRequired, Ast.SqlTransformStatement node)
 		{
 			if (!_file.Vars.TryGetValue(name, out var tVar)) {
 				throw new CompilerError($"Table names in a SQL FROM or JOIN clause must be declared. '{name}' has not been defined.", node);
 			}
-			if (!(tVar.Type is "Table" or "Stream")) {
-				throw new CompilerError($"Table names in a SQL FROM or JOIN clause must be declared. '{name}' is not a table or stream variable.", node);
+			if (!(tVar.Type is "Table" or "Stream" or "Cte")) {
+				throw new CompilerError($"Table names in a SQL FROM or JOIN clause must be declared. '{name}' is not a table or stream variable, or a CTE.", node);
 			}
 			if (tableRequired && tVar.Type == "Stream") {
 				throw new CompilerError($"The target of a SQL JOIN clause must be declared as a table. '{name}' is a stream variable.", node);
@@ -176,8 +242,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (tVar.Used && tVar.Type == "Stream") {
 				throw new CompilerError($"The stream '{name}' has already been processed in an earlier command.  If it needs to be used multiple times, it should be declared as 'table'.", node);
 			}
+			if (tVar.Type == "Cte") {
+				if (tVar.Declaration != node) { 
+					throw new CompilerError($"The CTE '{name}' can only be used in the SQL statement that declared it.", node);
+				}
+			}
 			tVar.Used = true;
-			return tVar;
+			return [tVar];
 		}
 
 		public override void OnAnalyzeStatement(AnalyzeStatement node)
@@ -236,6 +307,36 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 			if (conn.Type != type) {
 				throw new CompilerError($"Invalid connector type. '{name}' is not a {type.ToLower()}.", node);
+			}
+		}
+
+		private class OneAggVisitor: Microsoft.SqlServer.Management.SqlParser.SqlCodeDom.SqlCodeObjectRecursiveVisitor
+		{
+			private bool _found = false;
+
+			public override void Visit(SqlAggregateFunctionCallExpression codeObject)
+			{
+				_found = true;
+			}
+
+			public override void Visit(SqlBuiltinScalarFunctionCallExpression codeObject)
+			{
+				if (codeObject.FunctionName.ToUpper() == "STRING_AGG") {
+					_found = true;
+				}
+				base.Visit(codeObject);
+			}
+
+			internal bool Check(SqlQuerySpecification queryExpression)
+			{
+				foreach (var expr in queryExpression.SelectClause.SelectExpressions)
+				{
+					expr.Accept(this);
+					if (_found) {
+						return true;
+					}
+				}
+				return false;
 			}
 		}
 	}

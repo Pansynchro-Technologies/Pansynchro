@@ -271,6 +271,41 @@ namespace Pansynchro.PanSQL.Core
 			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 		}
 
+		public static String_aggAggregate<TKey, TValue> String_agg<TKey, TValue>(string separator)
+			where TKey : notnull
+			=> new(separator);
+
+		public readonly struct String_aggAggregate<TKey, TValue> : IAggregate<TKey, string> where TKey: notnull
+		{
+			private readonly Dictionary<TKey, List<TValue>> _dictionary = [];
+			private readonly string _separator;
+
+			public String_aggAggregate(string separator)
+			{
+				_separator = separator;
+			}
+
+			public void Add(TKey key, TValue value)
+			{
+				if (!_dictionary.TryGetValue(key, out var list)) {
+					list = new();
+					_dictionary.Add(key, list);
+				}
+				list.Add(value);
+			}
+
+			public string Get(TKey key) => string.Join(_separator, _dictionary[key]);
+
+			public IEnumerator<KeyValuePair<TKey, string>> GetEnumerator()
+			{
+				foreach (var pair in _dictionary) {
+					yield return KeyValuePair.Create(pair.Key, string.Join(_separator, pair.Value));
+				}
+			}
+
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		}
+
 		public static IEnumerable<KeyValuePair<TKey, ValueTuple<A1, A2>>>
 			Combine<TKey, A1, A2>(IAggregate<TKey, A1> agg1, IAggregate<TKey, A2> agg2)
 		{

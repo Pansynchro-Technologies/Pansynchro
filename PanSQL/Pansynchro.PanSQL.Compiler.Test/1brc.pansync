@@ -1,0 +1,9 @@
+﻿DataDictionary BillionRowChallenge:
+	Stream Data:
+		Field Name(Varchar(32))
+		Field Temperature(Float)
+		Identity Name, Temperature
+	DependencyOrder :
+		[Data]
+	CustomTypes 
+	Incremental {}

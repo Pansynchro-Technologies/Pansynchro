@@ -4,20 +4,17 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows;net8.0;net8.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.15</AssemblyVersion>
-	<FileVersion>0.6.15</FileVersion>
-	<Version>0.6.15</Version>
+	<AssemblyVersion>0.6.22</AssemblyVersion>
+	<FileVersion>0.6.22</FileVersion>
+	<Version>0.6.22</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro MS SQL Server Connector</Product>
 	<Description>Pansynchro connector to read from or write to SQL Server databases.</Description>
-	<Copyright>Copyright 2022-2023, Pansynchro Technologies</Copyright>
+	<Copyright>Copyright 2022-2024, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;mssql;sql-server</PackageTags>
 	<PackageReleaseNotes>
-		Adding support for .NET 8
 		Updating dependencies
-		Writer will not use staging for empty tables
-		Fixing several compiler warnings
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>
@@ -29,7 +26,7 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.10.4" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.2" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.4" />
     <PackageReference Include="Microsoft.SqlServer.Types" Version="160.1000.6" />
   </ItemGroup>
 

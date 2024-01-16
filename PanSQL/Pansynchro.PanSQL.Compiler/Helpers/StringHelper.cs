@@ -15,5 +15,11 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		};
 
 		public static string ToIndexName(this MemberReferenceExpression field) => field.ToString().Replace(".", "__");
+
+		public static string UpTo(this string value, char marker)
+		{
+			var idx = value.IndexOf(marker);
+			return idx ==  -1 ? value : value.Substring(0, idx);
+		}
 	}
 }

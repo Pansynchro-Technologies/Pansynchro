@@ -14,14 +14,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		DbExpression? Filter,
 		MemberReferenceExpression[]? GroupKey,
 		DbExpression[] Outputs,
+		string[] ScriptVariables,
 		AggregateExpression[] AggOutputs,
 		BooleanExpression? AggFilter,
-		OrderingExpression[]? Ordering);
+		OrderingExpression[]? Ordering,
+		string? OutputTable);
 
 	enum TableType
 	{
 		Stream,
-		Table
+		Table,
+		Cte
 	}
 
 	record TableReference(string Name, TableType Type, StreamDefinition Stream)
@@ -29,8 +32,8 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public TableReference(Ast.Variable t) :
 			this(
 				t.Name,
-				t.Type switch { "Table" => TableType.Table, "Stream" => TableType.Stream, _ => throw new ArgumentException($"Invalid table type: {t.Type}") },
-				((VarDeclaration)t.Declaration).Stream
+				t.Type switch { "Table" => TableType.Table, "Stream" => TableType.Stream, "Cte" => TableType.Cte, _ => throw new ArgumentException($"Invalid table type: {t.Type}") },
+				(t.Declaration as VarDeclaration)?.Stream ?? ((SqlTransformStatement)t.Declaration).Ctes.First(c => c.Name == t.Name).Stream
 			)
 		{ }
 	}
@@ -50,6 +53,9 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		internal abstract bool Match(DbExpression other);
 
 		virtual public bool IsLiteral => false;
+
+		protected bool MatchAll(DbExpression[] l, DbExpression[] r) => l.Length == r.Length
+			   && l.Zip(r).All(p => p.First.Match(p.Second));
 	}
 
 	class ReferenceExpression(string name) : DbExpression
@@ -57,7 +63,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public string Name { get; } = name;
 
 		internal override bool Match(DbExpression other) 
-			=> other is ReferenceExpression r && r.GetType() == typeof(ReferenceExpression) && r.Name == Name;
+			=> other is ReferenceExpression r && r.GetType() == this.GetType() && r.Name == Name;
 
 		public override string ToString() => Name;
 	}
@@ -72,6 +78,9 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			=> other is MemberReferenceExpression mr && mr.Name == Name && mr.Parent.Match(Parent);
 	}
 
+	class VariableReferenceExpression(string name) : ReferenceExpression(name)
+	{ }
+
 	class AliasedExpression(DbExpression expr, string alias) : DbExpression
 	{
 		public DbExpression Expr { get; } = expr;
@@ -85,14 +94,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 	class CallExpression(ReferenceExpression func, DbExpression[] args) : DbExpression
 	{
-		public ReferenceExpression Function { get; } = func;
+		public ReferenceExpression Function { get; internal set; } = func;
 		public DbExpression[] Args { get; } = args;
+
+		public bool IsProp { get; internal set; }
 
 		internal override bool Match(DbExpression other)
 			=> other is CallExpression ce
 			   && ce.Function.Match(Function)
-			   && ce.Args.Length == Args.Length
-			   && ce.Args.Zip(Args).All(p => p.First.Match(p.Second));
+			   && MatchAll(ce.Args, Args);
+
+		public override string ToString() => $"{Function}({string.Join<DbExpression>(", ", Args)})";
 	}
 
 	enum BoolExpressionType
@@ -127,14 +139,81 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public override string ToString() => $"{Left} {OpString} {Right}";
 	}
 
-	class AggregateExpression(string name, DbExpression arg) : DbExpression
+	enum BinExpressionType
+	{
+		And,
+		Or,
+		Add,
+		Subtract,
+		Multiply,
+		Divide,
+		Mod,
+		BitAnd,
+		BitOr,
+		BitXor,
+	}
+
+	class BinaryExpression(BinExpressionType type, DbExpression left, DbExpression right) : DbExpression
+	{
+		public BinExpressionType Op { get; } = type;
+		public DbExpression Left { get; } = left;
+		public DbExpression Right { get; } = right;
+
+		public string OpString => Op switch {
+			BinExpressionType.And => "&&",
+			BinExpressionType.Or => "||",
+			BinExpressionType.Add => "+",
+			BinExpressionType.Subtract => "-",
+			BinExpressionType.Multiply => "*",
+			BinExpressionType.Divide => "/",
+			BinExpressionType.Mod => "%",
+			BinExpressionType.BitAnd => "&",
+			BinExpressionType.BitOr => "|",
+			BinExpressionType.BitXor => "^",
+			_ => throw new NotImplementedException(),
+		};
+
+		internal override bool Match(DbExpression other)
+			=> other is BinaryExpression be && be.Op == Op && be.Left.Match(Left) && be.Right.Match(Right);
+
+		public override string ToString() => $"{Left} {OpString} {Right}";
+	}
+
+	class AggregateExpression(string name, params DbExpression[] args) : DbExpression
 	{
 		public string Name { get; } = name;
-		public DbExpression Arg { get; } = arg;
+		public DbExpression[] Args { get; } = args;
 
-		internal override bool Match(DbExpression other) => other is AggregateExpression agg && agg.Name == Name && agg.Arg.Match(Arg);
+		internal override bool Match(DbExpression other) 
+			=> other is AggregateExpression agg && agg.Name == Name && MatchAll(agg.Args, Args);
 
-		public override string ToString() => $"{Name}({Arg})";
+		public override string ToString() => $"{Name}({string.Join<DbExpression>(", ", Args)})";
+	}
+
+	class CollectionExpression(DbExpression[] values) : DbExpression
+	{
+		public DbExpression[] Values { get; } = values;
+
+		public override bool IsLiteral => Values.All(v => v.IsLiteral);
+
+		internal override bool Match(DbExpression other) =>
+			other is CollectionExpression c && c.Values.Length == Values.Length && c.Values.Zip(Values).All(pair => pair.First.Match(pair.Second));
+
+		public override string ToString()
+		{
+			return $"[{string.Join<DbExpression>(", ", Values)}]";
+		}
+	}
+
+	class ContainsExpression(DbExpression collection, DbExpression value) : DbExpression
+	{
+		public DbExpression Collection { get; } = collection;
+		public DbExpression Value { get; } = value;
+
+		internal override bool Match(DbExpression other) =>
+			other is ContainsExpression ce && ce.Collection.Match(Collection) && ce.Value.Match(Value);
+
+		public override string ToString() => $"{Collection}.Contains({Value})";
 	}
 
 	class CountExpression : DbExpression
@@ -209,13 +288,13 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public override string ToString() => $"join {Iteration} on {OnLeft} equals {OnRight}";
 	}
 
-	class LinqQuery(Iteration fromIter, LinqJoin[]? joins, DbExpression? filter, OrderingExpression[]? ordering, DbExpression[] outputs) : DbExpression
+	class LinqQuery(Iteration fromIter, LinqJoin[]? joins, DbExpression? filter, OrderingExpression[]? ordering, DbExpression[]? outputs) : DbExpression
 	{
 		public Iteration FromIter { get; } = fromIter;
 		public LinqJoin[]? Joins { get; } = joins;
 		public DbExpression? Filter { get; } = filter;
 		public OrderingExpression[]? Ordering { get; } = ordering;
-		public DbExpression[] Outputs { get; } = outputs;
+		public DbExpression[]? Outputs { get; } = outputs;
 
 		internal override bool Match(DbExpression other)
 		{
@@ -243,10 +322,10 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			if (Ordering != null && !(Ordering.Zip(lq.Ordering!).All(pair => pair.First.Match(pair.Second)))) {
 				return false;
 			}
-			if (Outputs.Length != lq.Outputs.Length) {
+			if (Outputs?.Length != lq.Outputs?.Length) {
 				return false;
 			}
-			if (!(Outputs.Zip(lq.Outputs!).All(pair => pair.First.Match(pair.Second)))) {
+			if (Outputs != null && !(Outputs.Zip(lq.Outputs!).All(pair => pair.First.Match(pair.Second)))) {
 				return false;
 			}
 			return true;
@@ -257,13 +336,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			var joins = Joins is null ? string.Empty : ' ' + string.Join(' ', (IEnumerable<LinqJoin>)Joins);
 			var filter = Filter == null ? string.Empty : " where " + Filter.ToString();
 			var order = Ordering == null ? string.Empty : " orderby " + string.Join(' ', (IEnumerable<OrderingExpression>)Ordering);
-			var fields = Outputs.Select(GetOutputName).ToArray();
-			return $"from {FromIter}{joins}{filter}{order} select new {{ {string.Join(", ", fields)} }}";
+			var fields = Outputs?.Select(GetOutputName).ToArray();
+			var fieldCode = fields == null ? FromIter.Iter.ToString() : $"new {{ {string.Join(", ", fields)} }}";
+			return $"from {FromIter}{joins}{filter}{order} select {fieldCode}";
 		}
 
 		private static string GetOutputName(DbExpression expression) => expression switch {
 			MemberReferenceExpression mre => mre.ToString(),
 			AliasedExpression ae => $"{ae.Alias} = {GetOutputName(ae.Expr)}",
+			BinaryExpression bin => $"{GetOutputName(bin.Left)} {bin.OpString} {GetOutputName(bin.Right)}",
+			CallExpression ce => $"{ce.Function}({string.Join(", ", ce.Args.Select(GetOutputName))})",
+			LiteralExpression => expression.ToString()!,
 			_ => throw new NotImplementedException()
 		};
 	}

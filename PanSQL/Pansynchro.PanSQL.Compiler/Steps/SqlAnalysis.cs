@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,13 +11,29 @@ using Pansynchro.PanSQL.Compiler.Helpers;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
+	using StringLiteralExpression = DataModels.StringLiteralExpression;
+	using IntegerLiteralExpression = DataModels.IntegerLiteralExpression;
+
 	internal class SqlAnalysis : VisitorCompileStep
 	{
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
 			var tt = node.TransactionType;
-			var model = tt.HasFlag(TransactionType.ToStream) ? BuildStreamedModel(node, tt) : BuildMemoryModel(node, tt);
-			node.DataModel = model;
+			if (tt.HasFlag(TransactionType.WithCte)) {
+				foreach (var cte in ((SqlSelectStatement)node.SqlNode).QueryWithClause.CommonTableExpressions) {
+					var name = cte.Name.Value.ToPropertyName();
+					var cteModel = BuildDataModel(cte, node);
+					var tt2 = cteModel.Inputs.Any(i => i.Type == TableType.Stream) ? TransactionType.Streamed : TransactionType.PureMemory;
+					if (cteModel.AggOutputs?.Length > 0) {
+						tt2 |= TransactionType.Grouped;
+					}
+					var typedef = TypesHelper.BuildStreamDefFromDataModel(cteModel, name);
+					node.Ctes.Add(new(name, BuildMemoryModel(cteModel, tt2), typedef));
+				}
+			}
+			var model = BuildDataModel(node);
+			var modelGen = tt.HasFlag(TransactionType.ToStream) ? BuildStreamedModel(model, tt) : BuildMemoryModel(model, tt);
+			node.DataModel = modelGen;
 			node.Indices = BuildIndexData(node);
 		}
 
@@ -26,7 +43,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var targets = node.DataModel.Model.Joins.SelectMany(j => j.TargetFields).DistinctBy(f => f.ToString()).ToArray();
 			var tables = targets.Select(t => t.Parent.Name).Distinct().Select(n => _file.Vars[n]).ToDictionary(v => v.Name);
 			foreach (var tf in targets) {
-				var table = ((VarDeclaration)tables[tf.Parent.ToString()].Declaration).Stream;
+				var table = ((VarDeclaration)tables[tf.Parent.ToString()].Declaration).Stream!;
 				var unique = table.Identity.Length == 1 && tf.Name == table.Identity[0];
 				var indexTf = new MemberReferenceExpression(new(table.Name.ToString()), tf.Name);
 				indices.Add(new(indexTf.ToIndexName(), unique));
@@ -35,33 +52,28 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			return new IndexData(indices.ToDictionary(i => i.Name), lookups);
 		}
 
-		private SqlModel BuildStreamedModel(SqlTransformStatement node, TransactionType tt) 
-			=> tt.HasFlag(TransactionType.Streamed) ? BuildTransformerModel(node, tt) : BuildStreamGeneratorModel(node, tt);
+		private static SqlModel BuildStreamedModel(DataModel model, TransactionType tt) 
+			=> tt.HasFlag(TransactionType.Streamed) ? BuildTransformerModel(model, tt) : BuildStreamGeneratorModel(model, tt);
 
-		private SqlModel BuildTransformerModel(SqlTransformStatement node, TransactionType tt)
-		{
-			var model = BuildDataModel(node);
-			return tt.HasFlag(TransactionType.Grouped) ? new AggregateStreamModel(model) : new IterateStreamModel(model);
-		}
+		private static SqlModel BuildTransformerModel(DataModel model, TransactionType tt)
+			=> tt.HasFlag(TransactionType.Grouped) ? new AggregateStreamModel(model) : new IterateStreamModel(model);
 
-		private MemorySqlModel BuildStreamGeneratorModel(SqlTransformStatement node, TransactionType tt)
-		{
-			var model = BuildDataModel(node);
-			return tt.HasFlag(TransactionType.Grouped) ? new AggregateStreamGeneratorModel(model) : new StreamGeneratorModel(model); 
-		}
+		private static MemorySqlModel BuildStreamGeneratorModel(DataModel model, TransactionType tt) 
+			=> tt.HasFlag(TransactionType.Grouped) ? new AggregateStreamGeneratorModel(model) : new StreamGeneratorModel(model);
 
-		private SqlModel BuildMemoryModel(SqlTransformStatement node, TransactionType tt)
-		{
-			throw new NotImplementedException();
-		}
+		private static SqlModel BuildMemoryModel(DataModel model, TransactionType tt)
+			=> tt.HasFlag(TransactionType.Streamed) ? BuildStreamedToMemoryModel(model, tt) : throw new NotImplementedException();
+
+		private static SqlModel BuildStreamedToMemoryModel(DataModel model, TransactionType tt)
+			=> tt.HasFlag(TransactionType.Grouped) ? new StreamToAggregateMemoryModel(model) : throw new NotImplementedException();
 
 		private const int MAX_AGGS = 7;
 
-		private DataModel BuildDataModel(SqlTransformStatement node)
+		private DataModel BuildDataModel(SqlCodeObject obj, SqlTransformStatement node)
 		{
 			var builder = new DataModelBuilder(_file);
 			try { 
-				node.SqlNode.Accept(builder);
+				obj.Accept(builder);
 			} catch (Exception e) {
 				throw new CompilerError(e.Message, node);
 			}
@@ -69,7 +81,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				throw new CompilerError($"PanSQL only supports a maximum of {MAX_AGGS} aggregate functions in a single query.", node);
 			}
 			return builder.Model;
+
 		}
+
+		private DataModel BuildDataModel(SqlTransformStatement node) => BuildDataModel(node.SqlNode, node);
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies() => [Dependency<DefineVars>()];
 
@@ -79,6 +94,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			private readonly List<TableReference> _tables = [];
 			private readonly List<JoinSpec> _joins = [];
 			private readonly List<DbExpression> _selects = [];
+			private readonly HashSet<string> _scriptVars = [];
 			private DbExpression? _where;
 			private MemberReferenceExpression[]? _groupKey;
 			private BooleanExpression? _having;
@@ -86,13 +102,20 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			private readonly DataExpressionVisitor _expressionVisitor;
 			private readonly List<AggregateExpression> _aggs = [];
 			private OrderingExpression[]? _orderBy;
+			private string? _outputTable;
 
-			public DataModel Model => new([.. _tables], [.. _joins], _where, _groupKey, [.. _selects], [.. _aggs], _having, _orderBy);
+			public DataModel Model => new([.. _tables], [.. _joins], _where, _groupKey, [.. _selects], [.. _scriptVars], [.. _aggs], _having, _orderBy, _outputTable);
 
 			public DataModelBuilder(PanSqlFile file)
 			{
 				_file = file;
-				_expressionVisitor = new(_file, _aliases);
+				_expressionVisitor = new(_file, _aliases, _scriptVars);
+			}
+
+			public override void Visit(SqlCommonTableExpression cte)
+			{
+				cte.QueryExpression.Accept(this);
+				_outputTable = cte.Name.Value.ToPropertyName();
 			}
 
 			public override void Visit(SqlSelectStatement statement)
@@ -158,11 +181,58 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				foreach (var se in codeObject.SelectExpressions) {
 					var expr = se.Accept(_expressionVisitor);
 					_selects.Add(expr);
-					if (expr is AggregateExpression agg) {
-						_aggs.Add(agg);
-					} else if (expr is AliasedExpression { Expr : AggregateExpression agg2}) {
-						_aggs.Add(agg2);
-					}
+					_aggs.AddRange(FindAggregateExpressions(expr));
+				}
+			}
+
+			private IEnumerable<AggregateExpression> FindAggregateExpressions(DbExpression expr)
+			{
+				switch (expr) {
+					case AggregateExpression agg:
+						foreach (var result in agg.Args.SelectMany(FindAggregateExpressions)) {
+							yield return result;
+						}
+						yield return agg;
+						break;
+					case AliasedExpression ae:
+						foreach (var result in FindAggregateExpressions(ae.Expr)) {
+							yield return result;
+						}
+						break;
+					case BinaryExpression bin:
+						foreach (var result in FindAggregateExpressions(bin.Left)) {
+							yield return result;
+						}
+						foreach (var result in FindAggregateExpressions(bin.Right)) {
+							yield return result;
+						}
+						break;
+					case BooleanExpression bo:
+						foreach (var result in FindAggregateExpressions(bo.Left)) {
+							yield return result;
+						}
+						foreach (var result in FindAggregateExpressions(bo.Right)) {
+							yield return result;
+						}
+						break;
+					case CallExpression call:
+						foreach (var result in call.Args.SelectMany(FindAggregateExpressions)) {
+							yield return result;
+						}
+						break;
+					case CollectionExpression coll:
+						foreach (var result in coll.Values.SelectMany(FindAggregateExpressions)) {
+							yield return result;
+						}
+						break;
+					case ContainsExpression cont:
+						foreach (var result in FindAggregateExpressions(cont.Collection)) {
+							yield return result;
+						}
+						foreach (var result in FindAggregateExpressions(cont.Value)) {
+							yield return result;
+						}
+						break;
 				}
 			}
 
@@ -191,30 +261,38 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private class DataExpressionVisitor(PanSqlFile file, Dictionary<string, Variable> aliases) : AbstractSqlCodeVisitor<DbExpression>
+		private class DataExpressionVisitor(PanSqlFile file, Dictionary<string, Variable> aliases, HashSet<string> scriptVars) : AbstractSqlCodeVisitor<DbExpression>
 		{
 			private readonly PanSqlFile _file = file;
 			private readonly Dictionary<string, Variable> _aliases = aliases;
 			private readonly List<MemberReferenceExpression> _targetFields = [];
+			private readonly HashSet<string> _scriptVars = scriptVars;
 
 			internal TableReference[] Tables { get; set; } = [];
 
-			private static readonly string[] AGGREGATE_FUNCTIONS_SUPPORTED = ["Avg", "Sum", "Count", "Min", "Max"];
+			private static readonly Dictionary<string, int> AGGREGATE_FUNCTIONS_SUPPORTED = new()
+			{ {"Avg", 1}, {"Sum", 1}, {"Count", 1}, {"Min", 1}, {"Max", 1}, {"String_agg", 2} };
 
 			public override DbExpression Visit(SqlAggregateFunctionCallExpression codeObject)
 			{
-				var name = codeObject.FunctionName.ToLower().ToPropertyName();
-				if (!AGGREGATE_FUNCTIONS_SUPPORTED.Contains(name)) {
+				var name = codeObject.FunctionName;
+				var args = codeObject.Arguments?.Select(a => a.Accept(this)).ToArray();
+				return CheckAggExpression(name, args);
+			}
+
+			private static AggregateExpression CheckAggExpression(string name, DbExpression[]? args)
+			{
+				name = name.ToLower().ToPropertyName();
+				if (!AGGREGATE_FUNCTIONS_SUPPORTED.TryGetValue(name, out var argCount)) {
 					throw new Exception($"The '{name}' function is not supported by PanSQL at this time");
 				}
-				if (name == "Count" && codeObject.Arguments == null) {
+				if (name == "Count" && args == null) {
 					return new AggregateExpression(name, new CountExpression());
 				}
-				if (codeObject.Arguments.Count != 1) {
-					throw new Exception($"The '{name}' function only accepts one argument.");
+				if (args?.Length != argCount) {
+					throw new Exception($"The '{name}' function requires {argCount} argument(s).");
 				}
-				var arg = codeObject.Arguments[0].Accept(this);
-				return new AggregateExpression(name, arg);
+				return new AggregateExpression(name, args);
 			}
 
 			public override DbExpression Visit(SqlComparisonBooleanExpression codeObject)
@@ -261,28 +339,80 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			public override DbExpression Visit(SqlIdentifier codeObject)
 			{
 				var fieldName = codeObject.Value;
-				var matches = Tables
-					.SelectMany(t => t.Stream.Fields, (tr, f) => KeyValuePair.Create(tr.Name, f))
-					.Where(f => f.Value.Name.Equals(fieldName, StringComparison.InvariantCultureIgnoreCase))
-					.ToArray();
-				return matches.Length switch {
-					0 => throw new Exception($"No field named {fieldName} is available"),
-					1 => new MemberReferenceExpression(new(matches[0].Key), matches[0].Value.Name),
-					_ => throw new Exception($"Ambiguous field name: {fieldName}. {matches.Length} different tables contain a field by that name.  Make sure to qualify the name.")
-				};
+				var match = TypesHelper.LookupField(Tables, fieldName);
+				return new MemberReferenceExpression(new(match.Key), match.Value.Name);
 			}
 
+			public override DbExpression Visit(SqlColumnRefExpression codeObject) => Visit(codeObject.ColumnName);
+			
 			public override DbExpression Visit(SqlSelectScalarExpression codeObject)
 			{
 				var result = codeObject.Expression.Accept(this);
 				return codeObject.Alias == null ? result : new AliasedExpression(result, codeObject.Alias.Value);
 			}
 
-			public override DbExpression Visit(SqlScalarExpression codeObject) => codeObject switch
+			public override DbExpression Visit(SqlScalarVariableRefExpression codeObject)
 			{
+				var varName = codeObject.VariableName[1..];
+				if (!(_file.Vars.TryGetValue(varName, out var value) && value.Declaration is ScriptVarDeclarationStatement)) {
+					throw new Exception($"No script variable named '{codeObject.VariableName}' is declared in this script.");
+				}
+				var refName = '_' + varName;
+				_scriptVars.Add(refName);
+				return new VariableReferenceExpression(refName);
+			}
+
+			public override DbExpression Visit(SqlScalarExpression codeObject) => codeObject switch {
 				SqlColumnRefExpression cr => Visit(cr.ColumnName),
 				_ => throw new NotImplementedException()
 			};
+
+			private static Dictionary<SqlBinaryScalarOperatorType, BinExpressionType> BIN_OPS = new()
+			{   { SqlBinaryScalarOperatorType.Add, BinExpressionType.Add }, { SqlBinaryScalarOperatorType.Subtract, BinExpressionType.Subtract },
+				{ SqlBinaryScalarOperatorType.Multiply, BinExpressionType.Multiply }, { SqlBinaryScalarOperatorType.Divide, BinExpressionType.Divide },
+				{ SqlBinaryScalarOperatorType.Modulus, BinExpressionType.Mod }, { SqlBinaryScalarOperatorType.BitwiseAnd, BinExpressionType.BitAnd },
+				{ SqlBinaryScalarOperatorType.BitwiseOr, BinExpressionType.BitOr }, { SqlBinaryScalarOperatorType.BitwiseXor, BinExpressionType.BitXor },
+			};
+
+			public override DbExpression Visit(SqlBinaryScalarExpression codeObject)
+			{
+				var l = codeObject.Left.Accept(this);
+				var r = codeObject.Right.Accept(this);
+				if (!BIN_OPS.TryGetValue(codeObject.Operator, out var type)) {
+					throw new Exception($"SQL operator '{codeObject.Operator}' is not currently supported by PanSQL");
+				}
+				return new BinaryExpression(type, l, r);
+			}
+
+			public override DbExpression Visit(SqlBinaryBooleanExpression codeObject)
+			{
+				var l = codeObject.Left.Accept(this);
+				var r = codeObject.Right.Accept(this);
+				var type = (BinExpressionType)codeObject.Operator;
+				return new BinaryExpression(type, l, r);
+			}
+
+			public override DbExpression Visit(SqlInBooleanExpression codeObject)
+			{
+				var value = codeObject.InExpression.Accept(this);
+				var coll = codeObject.ComparisonValue.Accept(this);
+				return new ContainsExpression(coll, value);
+			}
+
+			public override DbExpression Visit(SqlInBooleanExpressionCollectionValue codeObject)
+			{
+				var values = codeObject.Values.Select(v => v.Accept(this)).ToArray();
+				return new CollectionExpression(values);
+			}
+
+			public override DbExpression Visit(SqlBuiltinScalarFunctionCallExpression codeObject)
+			{
+				var args = codeObject.Arguments?.Select(a => a.Accept(this)).ToArray() ?? Array.Empty<DbExpression>();
+				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(codeObject.FunctionName.ToLower().ToPropertyName())) {
+					return CheckAggExpression(codeObject.FunctionName, args);
+				}
+				return new CallExpression(new ReferenceExpression(codeObject.FunctionName), args);
+			}
 
 			public override DbExpression Visit(SqlSimpleGroupByItem codeObject) => Visit(codeObject.Expression);
 

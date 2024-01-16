@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 
 using Antlr4.Runtime;
@@ -16,6 +17,20 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			return result;
 		}
 
+		private static Exception? ParseError(ParserRuleContext context)
+		{
+			if (context.exception != null) {
+				return context.exception;
+			}
+			foreach (var child in context.children.OfType<ParserRuleContext>()) {
+				var result = ParseError(child);
+				if (result != null) {
+					return result;
+				}
+			}
+			return null;
+		}
+
 		public static PanSqlFile Parse(string data)
 		{
 			var reader = new StringReader(data);
@@ -23,7 +38,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var lexer = new PanSqlLexer(stream);
 			var parser = new PanSqlParser(new CommonTokenStream(lexer));
 			var file = parser.file();
-			if (file.exception != null || file.children.OfType<ParserRuleContext>().Any(c => c.exception != null)) {
+			if (ParseError(file) != null) {
 				throw new CompilerError("Invalid PanSQL syntax", new PanSqlFile([]));
 			}
 			var result = (PanSqlFile)file.Accept(new PanSqlParserVisitor());

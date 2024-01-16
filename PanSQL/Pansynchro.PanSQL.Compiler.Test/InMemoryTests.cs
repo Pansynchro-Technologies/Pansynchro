@@ -57,7 +57,8 @@ sync myInput to myOutput
 		[Test]
 		public void ParseMissingFieldSpec()
 		{
-			Assert.Throws<CompilerError>(() => new Compiler().Compile("test", MISSING_FIELD_SPEC), "The following field(s) on users2 are not nullable, but are not assigned a value: Id");
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", MISSING_FIELD_SPEC));
+			Assert.That(err.Message, Is.EqualTo("The following field(s) on users2 are not nullable, but are not assigned a value: Id"));
 		}
 
 		private const string CLEAN_SPEC = @"

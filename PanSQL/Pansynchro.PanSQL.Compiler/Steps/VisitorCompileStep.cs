@@ -31,7 +31,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{ }
 
 		public virtual void OnCredentialExpression(CredentialExpression node)
-		{ }
+		{
+			Visit(node.Value);
+		}
+
+		public virtual void OnFunctionCallExpression(FunctionCallExpression node)
+		{
+			VisitList(node.Args);
+		}
 
 		public virtual void OnFile(PanSqlFile node)
 		{
@@ -39,6 +46,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		}
 
 		public virtual void OnIdentifier(Identifier node)
+		{ }
+
+		public virtual void OnScriptVarExpression(ScriptVarExpression node)
 		{ }
 
 		public virtual void OnLoadStatement(LoadStatement node)
@@ -83,6 +93,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			Visit(node.Identifier);
 		}
 
+		public virtual void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
+		{
+			Visit(node.Name);
+			Visit(node.Type);
+			Visit(node.Expr);
+		}
+
 		public virtual void OnAnalyzeStatement(AnalyzeStatement node)
 		{
 			Visit(node.Conn);
@@ -94,5 +111,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			VisitList(node.Values);
 		}
+
+		public virtual void OnTypeDefinition(TypeDefinition typeDefinition)
+		{ }
+
+		public virtual void OnStringLiteralExpression(StringLiteralExpression stringLiteralExpression)
+		{ }
+
+		public void OnIntegerLiteralExpression(IntegerLiteralExpression integerLiteralExpression)
+		{ }
 	}
 }

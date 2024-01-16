@@ -185,8 +185,8 @@ class Sync : StreamTransformerBase {
 
 static class Program {
 	public static async Task Main() {
-		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""iy4BQJwJvInWMdSlfoAwbhUR9+C8qa70K6kEuUHsBCKpraUAM3iOxzjVfhdIA1fg6CUw8L/NgkioYbH8yhxCDi5JIr/yeNr5V16OiVrol3oKSoYCSjpCdmknVneVIFMrRl0utqHN+2Wi/Ci7/GCU7CC73BCoFcOFzELrASD3RunR73VHDJrweq39eUhfkYox9R4icJwI+xpKbBvKJhOnrMksPzfEu/Sq7U4uPXO/2UcF0+tDI838fvH1sMIizsI8Oyjwo9HRD+tNCS+rt3rB+eWvMC72992OEfEpKEjQxD4Qk9CDKTzKAA==""));
-		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""i6ABAJwJvInJswkSF36NUoEIWIF57e2lM4HtUcjaAXQCkdSWgLHwlMMY1b+ubcvqBc7YAtVqALC2LR8h23qXaqX1iGNQmYlwYUV94gvlCNWiQ/VcJDAKwCpR6tlIyJkVZS4XTeS6/5T34Cg7HJRI15ezVfgWnjruwllFTho44Y0lLaXfC8tqaUQJQdLkRois1RbLZlZFW4j4Ii76Sk1wktBvYKZonPR9lxXXcuUyYT5c/MLzwFCmj4xLnyt/jGfXgq9cfLraUkqnHJPd8qlgeqiyzmj2q8ZS2XDeq916K7jrpfx9DIvdIY6zuuJUrnUAzJxfWVIssGDfSA==""));
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
 		var mySource = ConnectorRegistry.GetSource(""Files"", ""{ \""Files\"": [ { \""Name\"": \""users\"", \""File\"": [\""\\\\myPath\\\\users*.avro\""] } ] }"");
 		var mySink = ConnectorRegistry.GetSink(""Files"", ""{ \""Files\"": [ { \""StreamName\"": \""*\"", \""Filename\"": \""C:\\\\PansynchroData\\\\*.csv\"" } ], \""MissingFilenameSpec\"": \""C:\\\\PansynchroData\\\\Missing\\\\*.csv\"", \""DuplicateFilenameAction\"": 0 }"");
 		var myInput = ConnectorRegistry.GetReader(""Avro"", ""connection string here"");
@@ -267,7 +267,8 @@ sync myInput to myOutput
 		[Test]
 		public void RejectIncorrectSource()
 		{
-			Assert.Throws<CompilerError>(() => new Compiler().Compile("test", BAD_SOURCE), "The 'MsSql' connector does not use a data source.");
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", BAD_SOURCE));
+			Assert.That(err.Message, Is.EqualTo("The 'MSSQL' connector does not use a data source."));
 		}
 	}
 }
