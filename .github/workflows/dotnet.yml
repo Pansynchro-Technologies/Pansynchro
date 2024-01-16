@@ -52,6 +52,17 @@ jobs:
         max_attempts: 3
         command: nuget restore $env:PANSQL
 
+    - name: Install Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'zulu'
+    - name: Test Java
+      run: |
+        dotnet --version
+        java --version
+        javac --version
+
     - name: Build
       run: dotnet build $env:SOLUTION --configuration $env:BUILD_CONFIG --no-restore
 
