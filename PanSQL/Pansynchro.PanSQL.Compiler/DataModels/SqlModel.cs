@@ -279,7 +279,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 				MemberReferenceExpression mre => GetMreInput(mre),
 				AliasedExpression ae => GetAliasedInput(ae),
 				AggregateExpression ag => GetInput(ag.Args),
-				CallExpression ce => $"{ce.Function}({string.Join(", ", ce.Args.Select(GetInput))})",
+				CallExpression ce => $"{ce.Function}({GetInput(ce.Args)})",
 				BinaryExpression bin => $"{GetInput(bin.Left)} {bin.OpString} {GetInput(bin.Right)}",
 				LiteralExpression => expr.ToString()!,
 				_ => throw new NotImplementedException()

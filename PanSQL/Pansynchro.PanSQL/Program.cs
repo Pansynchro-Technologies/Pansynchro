@@ -18,6 +18,8 @@ namespace Pansynchro.PanSQL
 
 		static int Run(ProgramArguments args)
 		{
+			_ = Pansynchro.Core.Connectors.ConnectorRegistry.ReaderTypes.ToArray(); // Hitting this to ensure the connectors load
+
 			var files = args.ArgScriptFilename.ToArray();
 			bool multiple = false;
 			switch (files.Length) {
@@ -39,10 +41,10 @@ namespace Pansynchro.PanSQL
 					multiple = true;
 					break;
 			}
-			return multiple ? CompileMultiple(files, args.OptNobuild) : CompileSingle(files[0], Path.GetDirectoryName(files[0])!, args.OptNobuild);
+			return multiple ? CompileMultiple(files, args.OptNobuild, args.OptVerbose) : CompileSingle(files[0], Path.GetDirectoryName(files[0])!, args.OptNobuild, args.OptVerbose);
 		}
 
-		private static int CompileSingle(string filename, string baseFolder, bool noBuild)
+		private static int CompileSingle(string filename, string baseFolder, bool noBuild, bool verbose)
 		{
 			var output = Path.Combine(baseFolder, Path.GetFileNameWithoutExtension(filename));
 			Directory.CreateDirectory(output);
@@ -52,14 +54,14 @@ namespace Pansynchro.PanSQL
 			var name = Path.GetFileNameWithoutExtension(filename);
 			var result = compiler.Compile(name, File.ReadAllText(filename));
 			Console.WriteLine($"{DateTime.Now}: PanSQL -> C# conversion successful.  Building project.");
-			var buildResult = ProcessResult(name, result, output, noBuild);
+			var buildResult = ProcessResult(name, result, output, noBuild, verbose);
 			if (buildResult != 0) {
 				Console.WriteLine($"{DateTime.Now}: Build failed.");
 			}
 			return buildResult;
 		}
 
-		private static int CompileMultiple(string[] files, bool noBuild)
+		private static int CompileMultiple(string[] files, bool noBuild, bool verbose)
 		{
 			var baseFolder = Path.Combine(Path.GetDirectoryName(files[0])!, "PanSQL_Project");
 			var compiler = new Compiler.Compiler();
@@ -67,7 +69,7 @@ namespace Pansynchro.PanSQL
 			try {
 				var results = compiler.CompileFiles(baseFolder, files);
 				Console.WriteLine($"{DateTime.Now}: PanSQL -> C# conversion successful.  Building projects.");
-				return ProcessResultSln(results, baseFolder, noBuild);
+				return ProcessResultSln(results, baseFolder, noBuild, verbose);
 			} catch (FileNotFoundException fnf) {
 				Console.WriteLine($"{DateTime.Now}: Unable to open '{fnf.FileName}.'");
 				return -1;
@@ -79,7 +81,7 @@ namespace Pansynchro.PanSQL
 
 		private const string CONNECTORS_FILE = "connectors.pansync";
 
-		private static int ProcessResult(string name, Script result, string basePath, bool noBuild)
+		private static int ProcessResult(string name, Script result, string basePath, bool noBuild, bool verbose)
 		{
 			if (Directory.Exists(basePath)) {
 				Directory.Delete(basePath, true);
@@ -91,7 +93,7 @@ namespace Pansynchro.PanSQL
 			File.WriteAllText(Path.Combine(basePath, CONNECTORS_FILE), result.Connectors);
 			if (!noBuild) { 
 				var buildFolder = Path.Combine(basePath, "Build");
-				var publish = RunDotnetCommand($"publish \"{project}\" --nologo -o \"{buildFolder}\" -c Release", basePath);
+				var publish = RunDotnetCommand($"publish \"{project}\" --nologo -o \"{buildFolder}\" -c Release", basePath, verbose);
 				if (publish != 0 ) {
 					return publish;
 				}
@@ -101,7 +103,7 @@ namespace Pansynchro.PanSQL
 			return 0;
 		}
 
-		private static int ProcessResultSln(Script[] projects, string basePath, bool noBuild)
+		private static int ProcessResultSln(Script[] projects, string basePath, bool noBuild, bool verbose)
 		{
 			if (projects.Length == 0) {
 				Console.WriteLine($"{DateTime.Now}: No script files found.");
@@ -111,7 +113,7 @@ namespace Pansynchro.PanSQL
 				Directory.Delete(basePath, true);
 			}
 			Directory.CreateDirectory(basePath);
-			var result = RunDotnetCommand("new sln", basePath);
+			var result = RunDotnetCommand("new sln", basePath, verbose);
 			if (result != 0) {
 				return result;
 			}
@@ -123,7 +125,7 @@ namespace Pansynchro.PanSQL
 				var csproj = Path.Combine(projectFolder, $"{project.Name}.csproj");
 				File.WriteAllText(csproj, project.ProjectFile);
 				File.WriteAllText(Path.Combine(projectFolder, CONNECTORS_FILE), project.Connectors);
-				result = RunDotnetCommand($"sln add \"{csproj}\"", basePath);
+				result = RunDotnetCommand($"sln add \"{csproj}\"", basePath, verbose);
 				if (result != 0) {
 					return result;
 				}
@@ -131,7 +133,7 @@ namespace Pansynchro.PanSQL
 			}
 			if (!noBuild) {
 				foreach (var project in projectFiles) {
-					result = RunDotnetCommand($"publish \"{project}\" --nologo -o \"{Path.Combine(basePath, "Build", Path.GetFileNameWithoutExtension(project))}\" -c Release", basePath);
+					result = RunDotnetCommand($"publish \"{project}\" --nologo -o \"{Path.Combine(basePath, "Build", Path.GetFileNameWithoutExtension(project))}\" -c Release", basePath, verbose);
 					if (result != 0) {
 						return result;
 					}
@@ -142,9 +144,12 @@ namespace Pansynchro.PanSQL
 			return 0;
 		}
 
-		private static int RunDotnetCommand(string args, string workingDir)
+		private static int RunDotnetCommand(string args, string workingDir, bool verbose)
 		{
 			var info = new ProcessStartInfo("dotnet") { Arguments = args, WorkingDirectory = workingDir };
+			if (verbose) {
+				Console.WriteLine($"{DateTime.Now}: Executing command: 'dotnet {args}'.  Working directory: {workingDir}");
+			}
 			using var process = Process.Start(info)!;
 			process.WaitForExit();
 			return process.ExitCode;

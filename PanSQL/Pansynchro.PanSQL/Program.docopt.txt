@@ -3,10 +3,12 @@
 Usage:
   PanSQL <script filename> ...
   PanSQL <script filename> --nobuild
+  PanSQL <script filename> --verbose
   PanSQL (-h | --help)
   PanSQL --version
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
-  --nobuild     Generate C# project(s) but do not compile them
+  --verbose     Output extra information about the build process.
+  --nobuild     Generate C# project(s) but do not compile them.

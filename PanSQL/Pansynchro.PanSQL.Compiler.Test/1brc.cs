@@ -107,7 +107,7 @@ class Sync : StreamTransformerBase {
 		var __preAgg = from __Aggs in __db.Aggs orderby __Aggs.Name select __Aggs;
 		var aggregator__6 = Aggregates.String_agg<bool, string>("", "");
 		foreach (var __item in __preAgg) {
-			aggregator__6.Add(true, String.Format(""{0}={1:F1}/{2:F1}/{3:F1}"", __item.Name, __item.minTemp, __item.meanTemp, __item.maxTemp));
+			aggregator__6.Add(true, String.Format(""{0}={1:F1}/{2:F1}/{3:F1}"", __item.Name, __item.MinTemp, __item.MeanTemp, __item.MaxTemp));
 		}
 		foreach (var pair in aggregator__6) {
 			result[0] = ""{"" + pair.Value + ""}"";

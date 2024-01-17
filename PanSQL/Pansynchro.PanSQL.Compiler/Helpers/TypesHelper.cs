@@ -183,7 +183,7 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		private static FieldDefinition BuildFieldDefFromDataModel(DbExpression expr, TableReference[] tables)
 		{
 			return expr switch {
-				AliasedExpression ae => BuildFieldDefFromDataModel(ae.Expr, tables) with { Name = ae.Alias},
+				AliasedExpression ae => BuildFieldDefFromDataModel(ae.Expr, tables) with { Name = ae.Alias.ToPropertyName()},
 				AggregateExpression agg => BuildFieldDefFromDataModel(agg.Args[0], tables),
 				MemberReferenceExpression mre => tables
 					.FirstOrDefault(t => t.Name.Equals(mre.Parent.Name, StringComparison.InvariantCultureIgnoreCase))?
