@@ -83,6 +83,7 @@ namespace Pansynchro.PanSQL
 
 		private static int ProcessResult(string name, Script result, string basePath, bool noBuild, bool verbose)
 		{
+			basePath = Path.GetFullPath(basePath);
 			if (Directory.Exists(basePath)) {
 				Directory.Delete(basePath, true);
 			}
@@ -109,6 +110,7 @@ namespace Pansynchro.PanSQL
 				Console.WriteLine($"{DateTime.Now}: No script files found.");
 				return -1;
 			}
+			basePath = Path.GetFullPath(basePath);
 			if (Directory.Exists(basePath)) {
 				Directory.Delete(basePath, true);
 			}
