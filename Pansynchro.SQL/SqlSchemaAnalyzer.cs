@@ -146,11 +146,12 @@ namespace Pansynchro.SQL
 		protected static IEnumerable<StreamDescription[]> OrderDeps(
 			List<StreamDescription> names, List<KeyValuePair<StreamDescription, StreamDescription>> deps)
 		{
+			deps.RemoveAll(p => p.Key == p.Value); //remove any hierarchical tables with FK to self
 			while (names.Count > 0) {
 				var uncounted = names.Count;
 				var freeList = names.Except(deps.Select(p => p.Value)).ToArray();
 				if (freeList.Length == 0) {
-					throw new Exception($"Circular references found in {freeList.Length} tables.");
+					throw new Exception($"Circular references found in {names.Count} tables.  Unresolved dependencies: ({string.Join(", ", deps.Select(d => $"{d.Key}->{d.Value}"))})");
 				}
 				yield return freeList;
 				foreach (var free in freeList) {
