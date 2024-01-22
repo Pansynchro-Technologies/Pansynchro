@@ -116,8 +116,8 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Aggs"", Transformer__5);
-		_nameMap.Add(StreamDescription.Parse(""Aggs""), StreamDescription.Parse(""Result""));
+		_streamDict.Add(""Data"", Transformer__5);
+		_nameMap.Add(StreamDescription.Parse(""Data""), StreamDescription.Parse(""Result""));
 	}
 }
 
@@ -137,7 +137,7 @@ static class Program {
 ";
 
 		[Test]
-		public void ParseLiteral1()
+		public void ParseBrc()
 		{
 			var result = new Compiler().Compile("test", BRC_SCRIPT);
 			Assert.That(result.Code, Is.EqualTo(FixDicts(BRC_SCRIPT_OUTPUT)));

@@ -33,9 +33,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			var srcName = VariableHelper.GetStream(node.Tables[0]).Name.ToString();
-			var dstName = VariableHelper.GetStream(node.Output).Name.ToString();
-			AddMapping(srcName, dstName, node);
+			var istream = VariableHelper.GetInputStream(node, _file);
+			if (istream != null) {
+				var srcName = VariableHelper.GetStream(istream).Name.ToString();
+				var dstName = VariableHelper.GetStream(node.Output).Name.ToString();
+				AddMapping(srcName, dstName, node);
+			}
 		}
 
 		private void AddMapping(string srcName, string dstName, Statement node)

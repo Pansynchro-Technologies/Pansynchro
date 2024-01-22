@@ -322,8 +322,8 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (_file.Transformers.ContainsKey(node.Tables[0])) {
 				_file.Producers.Add(node.Tables[0], method.Name);
 			} else {
-				var table = node.Tables[0];
-				if (VariableHelper.GetStream(table) != null) {
+				var table = VariableHelper.GetInputStream(node, _file);
+				if (table != null) {
 					_file.Transformers.Add(table, method.Name);
 				}
 			}
