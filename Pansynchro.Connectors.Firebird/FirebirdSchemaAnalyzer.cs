@@ -111,15 +111,14 @@ where
 
         private const string DEPS_QUERY =
 @"SELECT DISTINCT
-       rc.RDB$RELATION_NAME AS tableName,
-       d2.RDB$DEPENDED_ON_NAME AS refTableName
-FROM RDB$RELATION_CONSTRAINTS AS rc
-LEFT JOIN RDB$DEPENDENCIES d1 ON d1.RDB$DEPENDED_ON_NAME = rc.RDB$RELATION_NAME
-LEFT JOIN RDB$DEPENDENCIES d2 ON d1.RDB$DEPENDENT_NAME = d2.RDB$DEPENDENT_NAME
-WHERE rc.RDB$CONSTRAINT_TYPE = 'FOREIGN KEY'
-  AND d1.RDB$DEPENDED_ON_NAME <> d2.RDB$DEPENDED_ON_NAME
-  AND d1.RDB$FIELD_NAME <> d2.RDB$FIELD_NAME
-  AND rc.RDB$RELATION_NAME <> d2.RDB$DEPENDED_ON_NAME";
+    master_relation_constraints.rdb$relation_name AS tableName,
+    detail_relation_constraints.rdb$relation_name as refTableName
+FROM
+    rdb$relation_constraints detail_relation_constraints
+    JOIN rdb$ref_constraints ON detail_relation_constraints.rdb$constraint_name = rdb$ref_constraints.rdb$constraint_name -- Master indeksas
+    JOIN rdb$relation_constraints master_relation_constraints ON rdb$ref_constraints.rdb$const_name_uq = master_relation_constraints.rdb$constraint_name
+WHERE
+    detail_relation_constraints.rdb$constraint_type = 'FOREIGN KEY'";
 
         private const string TABLE_QUERY =
 @"select RDB$RELATION_NAME
