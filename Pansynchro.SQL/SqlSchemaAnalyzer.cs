@@ -146,12 +146,15 @@ namespace Pansynchro.SQL
 		protected static IEnumerable<StreamDescription[]> OrderDeps(
 			List<StreamDescription> names, List<KeyValuePair<StreamDescription, StreamDescription>> deps)
 		{
+			int cycles = 0;
 			deps.RemoveAll(p => p.Key == p.Value); //remove any hierarchical tables with FK to self
 			while (names.Count > 0) {
 				var uncounted = names.Count;
 				var freeList = names.Except(deps.Select(p => p.Value)).ToArray();
 				if (freeList.Length == 0) {
-					throw new Exception($"Circular references found in {names.Count} tables.  Unresolved dependencies: ({string.Join(", ", deps.Select(d => $"{d.Key}->{d.Value}"))})");
+					//throw new Exception($"Circular references found in {names.Count} tables.  Unresolved dependencies: ({string.Join(", ", deps.Select(d => $"{d.Key}->{d.Value}"))})");
+					freeList = ExtractCycles(deps);
+					cycles += freeList.Length;
 				}
 				yield return freeList;
 				foreach (var free in freeList) {
@@ -159,6 +162,27 @@ namespace Pansynchro.SQL
 					deps.RemoveAll(p => p.Key == free);
 				}
 			}
+			if (cycles > 0) {
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.Error.Write("WARNING: ");
+				Console.ResetColor();
+				Console.Error.WriteLine($"Circular refernces found in {cycles} tables.  Sync errors may occur if foreign key constraints are enabled on the destination database.");
+			}
+		}
+
+		private static StreamDescription[] ExtractCycles(List<KeyValuePair<StreamDescription, StreamDescription>> deps)
+		{
+			var result = new HashSet<StreamDescription>();
+			var lookup = deps.ToLookup(d => d.Key, d => d.Value);
+			foreach (var group in lookup) {
+				foreach (var value in group) {
+					var linked = lookup[value];
+					if (linked.Contains(group.Key)) {
+						result.Add(group.Key);
+					}
+				}
+			}
+			return result.ToArray();
 		}
 
 		async Task<DataDictionary> ISchemaAnalyzer.Optimize(DataDictionary dict, Action<string> report)
