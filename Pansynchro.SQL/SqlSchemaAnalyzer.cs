@@ -152,9 +152,11 @@ namespace Pansynchro.SQL
 				var uncounted = names.Count;
 				var freeList = names.Except(deps.Select(p => p.Value)).ToArray();
 				if (freeList.Length == 0) {
-					//throw new Exception($"Circular references found in {names.Count} tables.  Unresolved dependencies: ({string.Join(", ", deps.Select(d => $"{d.Key}->{d.Value}"))})");
 					freeList = ExtractCycles(deps);
 					cycles += freeList.Length;
+					if (freeList.Length == 0) {
+						throw new Exception($"Complex circular references found.  Unresolved dependencies: ({string.Join(", ", deps.Select(d => $"{d.Key}->{d.Value}"))})");
+					}
 				}
 				yield return freeList;
 				foreach (var free in freeList) {
