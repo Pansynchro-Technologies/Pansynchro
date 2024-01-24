@@ -14,7 +14,7 @@ namespace Pansynchro.Core.Readers
         {
             _reader = reader;
             _transformer = transformer(reader).GetEnumerator();
-            for (int i = 0; i < _reader.FieldCount; ++i) {
+            for (int i = 0; i < stream.Fields.Length; ++i) {
                 _nameMap.Add(stream.Fields[i].Name, i);
                 _names.Add(stream.Fields[i].Name);
             }
