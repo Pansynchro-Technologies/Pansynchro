@@ -11,6 +11,8 @@ INTO : 'into';
 LOAD : 'load';
 MAP : 'map';
 MAX : 'max';
+NAMESPACE : 'namespace';
+NULL : 'null';
 OPEN : 'open';
 OPTIMIZE : 'optimize';
 SAVE : 'save';

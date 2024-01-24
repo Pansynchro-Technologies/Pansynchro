@@ -23,7 +23,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 		public override Node VisitCompoundId([NotNull] PanSqlParser.CompoundIdContext context)
 		{
 			var parent = context.IDENTIFIER(0).GetText();
-			var name = context.IDENTIFIER(1).GetText();
+			var name = string.Join('.', context.IDENTIFIER().Skip(1).Select(i => i.GetText()));
 			return new CompoundIdentifier(parent, name);
 		}
 
@@ -115,10 +115,17 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 
 		Node IPanSqlParserVisitor<Node>.VisitMapStatement(PanSqlParser.MapStatementContext context)
 		{
+			if (context.NAMESPACE() != null) {
+				var ids = context.nullableId();
+				var l = ids[0].NULL() != null ? null : ids[0].id().GetText();
+				var r = ids[1].NULL() != null ? null : ids[1].id().GetText();
+				return new MapStatement(new CompoundIdentifier(null, l), new CompoundIdentifier(null, r), [], true);
+			}
+
 			var source = (CompoundIdentifier)VisitCompoundId(context.compoundId(0));
 			var dest = (CompoundIdentifier)VisitCompoundId(context.compoundId(1));
 			var mappings = VisitMappingList(context.mappingList());
-			return new MapStatement(source, dest, mappings);
+			return new MapStatement(source, dest, mappings, false);
 		}
 
 		Node IPanSqlParserVisitor<Node>.VisitOpenStatement(PanSqlParser.OpenStatementContext context)

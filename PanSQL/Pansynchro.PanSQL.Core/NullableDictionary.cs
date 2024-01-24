@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("Pansynchro.PanSQL.Compiler")]
 namespace Pansynchro.PanSQL.Core
 {
 	internal class NullableDictionary<TKey, TValue> : IEnumerable<KeyValuePair<TKey?, TValue>>
@@ -21,6 +23,8 @@ namespace Pansynchro.PanSQL.Core
 				}
 			}
 		}
+
+		public int Count => _dictionary.Count + (_nullSet ? 1 : 0);
 
 		public void Add(TKey? key, TValue value)
 		{

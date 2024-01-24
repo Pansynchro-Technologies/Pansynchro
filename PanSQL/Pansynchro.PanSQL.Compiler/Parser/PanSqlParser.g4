@@ -42,7 +42,9 @@ varDeclaration : varType id AS compoundId;
 
 varType : STREAM | TABLE;
 
-mapStatement : MAP compoundId TO compoundId (WITH mappingList)?;
+mapStatement : MAP ((NAMESPACE nullableId TO nullableId) | (compoundId TO compoundId (WITH mappingList)?));
+
+nullableId : id | NULL;
 
 mappingList : LBRACE mapping (COMMA mapping)* COMMA? RBRACE;
 
@@ -67,4 +69,4 @@ literal : STRING | NUMBER;
 
 scriptVarRef : AT IDENTIFIER;
 id : IDENTIFIER;
-compoundId: IDENTIFIER DOT IDENTIFIER;
+compoundId: IDENTIFIER (DOT IDENTIFIER)+;

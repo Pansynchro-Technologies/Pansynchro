@@ -40,6 +40,9 @@
     <None Update="myDataDict.pansync">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="nsDataDict.pansync">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="outDataDict.pansync">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

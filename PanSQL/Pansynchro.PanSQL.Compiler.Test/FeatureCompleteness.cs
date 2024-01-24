@@ -7,17 +7,20 @@ namespace Pansynchro.PanSQL.Compiler.Test
 	{
 		private string _inDict = null!;
 		private string _outDict = null!;
+		private string _nsDict = null!;
 
 		[OneTimeSetUp]
 		public void SetUp()
 		{
 			var inDict = DataDictionary.LoadFromFile("myDataDict.pansync");
 			var outDict = DataDictionary.LoadFromFile("outDataDict.pansync");
+			var nsDict = DataDictionary.LoadFromFile("nsDataDict.pansync");
 			_inDict = inDict.ToString().ToCompressedString();
 			_outDict = outDict.ToString().ToCompressedString();
+			_nsDict = nsDict.ToString().ToCompressedString();
 		}
 
-		private string FixDicts(string expected) => expected.Replace("$INDICT$", _inDict).Replace("$OUTDICT$", _outDict);
+		private string FixDicts(string expected) => expected.Replace("$INDICT$", _inDict).Replace("$OUTDICT$", _outDict).Replace("$NSDICT$", _nsDict);
 
 		private const string ANALYZE = @"
 --opens an analyzer of type MsSql with the provided connection string
@@ -269,6 +272,57 @@ sync myInput to myOutput
 		{
 			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", BAD_SOURCE));
 			Assert.That(err.Message, Is.EqualTo("The 'MSSQL' connector does not use a data source."));
+		}
+
+		private const string NS_MAP = """
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\nsDataDict.pansync'
+
+open myInput as Firebird for read with myDataDict, 'connection string here'
+
+open myOutput as MSSQL for write with outDataDict, CredentialsFromEnv('CsvConfigString')
+
+map namespace null to dbo
+
+sync myInput to myOutput
+""";
+
+		private const string NS_MAP_OUTPUT = """
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	public Sync(DataDictionary destDict) : base(destDict) {
+		MapNamespaces(null, "dbo");
+	}
+}
+
+static class Program {
+	public static async Task Main() {
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$INDICT$"));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$NSDICT$"));
+		var myInput = ConnectorRegistry.GetReader("Firebird", "connection string here");
+		var myOutput = ConnectorRegistry.GetWriter("MSSQL", CredentialsFromEnv("CsvConfigString"));
+		var reader__1 = myInput.ReadFrom(myDataDict);
+		reader__1 = new Sync(outDataDict).Transform(reader__1);
+		await myOutput.Sync(reader__1, outDataDict);
+	}
+}
+
+""";
+		[Test]
+		public void NsMap()
+		{
+			var result = new Compiler().Compile("test", NS_MAP);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(NS_MAP_OUTPUT)));
 		}
 	}
 }

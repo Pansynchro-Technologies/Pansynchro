@@ -1,0 +1,42 @@
+﻿DataDictionary StackOverflow2013:
+	Stream dbo.Users:
+		Field Id(Int)
+		Field Name(Nvarchar(40))
+		Field Address(Nvarchar(200), NULL)
+		Field Type(Nvarchar(50))
+		Field AccountId(Int, NULL)
+		Field EmailHash(Nvarchar(40), NULL)
+		Identity Id
+		RarelyChangedFields EmailHash
+		SequentialIndexId 0
+	Stream dbo.UsersAggregated:
+		Field Names(Ntext)
+		Field TypeID(Int)
+		Identity TypeID
+	Stream dbo.OrderData:
+		Field Id(Int)
+		Field Timestamp(DateTime, NULL)
+		Identity Id
+	Stream dbo.Products:
+		Field Id(Int)
+		Field name(Nvarchar(20))
+		Field VendorId(Int)
+		Field Price(Decimal)
+		Identity Id
+	Stream dbo.ProductMax:
+		Field VendorId(Int)
+		Field Price(Decimal)
+		Identity VendorId
+	Stream dbo.ProductCount:
+		Field VendorId(Int)
+		Field Quantity(Int)
+		Identity VendorId
+	Stream dbo.ProductMaxAndCount:
+		Field VendorId(Int)
+		Field Quantity(Int)
+		Field Price(Decimal)
+		Identity VendorId
+	DependencyOrder :
+		[dbo.UserTypes, dbo.Users, dbo.OrderData, dbo.Products, dbo.ProductMax, dbo.ProductCount, dbo.ProductMaxAndCount]
+	CustomTypes 
+	Incremental {}

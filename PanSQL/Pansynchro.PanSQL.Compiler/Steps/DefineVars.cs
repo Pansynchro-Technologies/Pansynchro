@@ -279,16 +279,18 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnMapStatement(MapStatement node)
 		{
-			var s = CheckStreamVar(node.Source);
-			var d = CheckStreamVar(node.Dest);
-			node.Streams = (s, d);
+			if (!node.IsNS) {
+				var s = CheckStreamVar(node.Source);
+				var d = CheckStreamVar(node.Dest);
+				node.Streams = (s, d);
+			}
 		}
 
 		private StreamDefinition CheckStreamVar(CompoundIdentifier id)
 		{
-			var dict = VerifyDictionaryName(id.Parent, id);
+			var dict = VerifyDictionaryName(id.Parent!, id);
 			try {
-				return ((LoadStatement)dict.Declaration).Dict.GetStream(id.Name);
+				return ((LoadStatement)dict.Declaration).Dict.GetStream(id.Name!);
 			} catch (KeyNotFoundException) {
 				throw new CompilerError($"No stream named {id.Name} is defined in {id.Parent}", id);
 			}

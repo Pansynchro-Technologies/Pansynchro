@@ -90,7 +90,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (node.Database.Count > 0) {
 				_imports.AddRange(USING_DB);
 			}
-			_transformer = _file.Mappings.Count != 0;
+			_transformer = _file.Mappings.Count != 0 || _file.NsMappings.Count != 0;
 			var classes = new List<ClassModel>();
 			if (_transformer) {
 				classes.Add(BuildTransformer(node, _imports));
@@ -165,6 +165,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			foreach (var m in _file.Mappings) {
 				if (m.Key != m.Value) {
 					body.Add(new CSharpStringExpression($"_nameMap.Add(StreamDescription.Parse({m.Key.ToLiteral()}), StreamDescription.Parse({m.Value.ToLiteral()}))"));
+				}
+			}
+			foreach (var nm in _file.NsMappings) {
+				if (nm.Key != nm.Value) {
+					var l = nm.Key == null ? "null" : nm.Key.ToLiteral();
+					var r = nm.Value == null ? "null" : nm.Value.ToLiteral();
+					body.Add(new CSharpStringExpression($"MapNamespaces({l}, {r})"));
 				}
 			}
 			var args = string.Join(", ", ["DataDictionary destDict", .. _initFields.Select(f => $"{f.Type} {f.Name[1..]}")]);

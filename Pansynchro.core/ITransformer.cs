@@ -17,6 +17,8 @@ namespace Pansynchro.Core
 		protected Dictionary<string, Func<IDataReader, IEnumerable<object[]>>> _streamDict
 			= new(System.StringComparer.InvariantCultureIgnoreCase);
 		protected Dictionary<StreamDescription, StreamDescription> _nameMap = new();
+		private Dictionary<string, string?> _nsMap = new();
+		private string? _nullNsMap;
 		protected readonly DataDictionary _destDict;
 
 		public StreamTransformerBase(DataDictionary destDict)
@@ -44,7 +46,15 @@ namespace Pansynchro.Core
 			await foreach (var stream in input) {
 				DataStream result;
 				Console.WriteLine($"Processing Stream: {stream.Name}");
-				_nameMap.TryGetValue(stream.Name, out var destName);
+				if (!_nameMap.TryGetValue(stream.Name, out var destName)) {
+					if (stream.Name.Namespace == null) {
+						if (_nullNsMap != null) {
+							destName = stream.Name with { Namespace = _nullNsMap };
+						}
+					} else if (_nsMap.TryGetValue(stream.Name.Namespace, out var newNs)) {
+						destName = stream.Name with { Namespace = newNs };
+					}
+				}
 				if (_streamDict.TryGetValue(stream.Name.ToString(), out var processor)) {
 					var destStream = _destDict.GetStream(destName ?? stream.Name, NameStrategy.Get(NameStrategyType.Identity));
 					if (destStream == null) {
@@ -62,6 +72,18 @@ namespace Pansynchro.Core
 			}
 			await foreach (var stream in StreamLast())	{
 				yield return stream;
+			}
+		}
+
+		protected void MapNamespaces(string? l, string? r) 
+		{
+			if (l == null) {
+				if (_nullNsMap != null) {
+					throw new Exception($"Namespace 'null' has already been mapped to {_nullNsMap}.");
+				}
+				_nullNsMap = r;
+			} else {
+				_nsMap[l] = r;
 			}
 		}
 	}

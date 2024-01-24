@@ -8,6 +8,7 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
 using Pansynchro.PanSQL.Compiler.Steps;
+using Pansynchro.PanSQL.Core;
 
 namespace Pansynchro.PanSQL.Compiler.Ast
 {
@@ -22,6 +23,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public string? Filename { get; internal set; }
 		internal Dictionary<string, Variable> Vars { get; } = new(StringComparer.InvariantCultureIgnoreCase);
 		internal Dictionary<string, string> Mappings { get; set; } = null!;
+		internal NullableDictionary<string, string> NsMappings { get; set; } = null!;
 		internal Dictionary<Variable, string> Transformers { get; } = [];
 		internal Dictionary<Variable, string> Producers { get; } = [];
 		internal List<DataClassModel> Database { get; } = [];
@@ -144,11 +146,12 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnSqlStatement(this);
 	}
 
-	public class MapStatement(CompoundIdentifier source, CompoundIdentifier dest, MappingExpression[] mappings) : Statement
+	public class MapStatement(CompoundIdentifier source, CompoundIdentifier dest, MappingExpression[] mappings, bool isNs) : Statement
 	{
 		public CompoundIdentifier Source { get; } = source;
 		public CompoundIdentifier Dest { get; } = dest;
 		public MappingExpression[] Mappings { get; } = mappings;
+		public bool IsNS { get; } = isNs;
 		public (StreamDefinition s, StreamDefinition d) Streams { get; internal set; }
 
 		internal override void Accept(IVisitor visitor) => visitor.OnMapStatement(this);
@@ -213,14 +216,14 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		{ }
 	}
 
-	public class CompoundIdentifier(string parent, string name) : Expression
+	public class CompoundIdentifier(string? parent, string? name) : Expression
 	{
-		public string Name { get; } = name;
-		public string Parent { get; } = parent;
+		public string? Name { get; } = name;
+		public string? Parent { get; } = parent;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnCompoundIdentifier(this);
 
-		public override string ToString() => $"{Parent}.{Name}";
+		public override string? ToString() => Parent != null ? $"{Parent}.{Name}" : Name != null ? Name : null;
 	}
 
 	public class FunctionCallExpression(string method, Expression[] args) : TypedExpression
