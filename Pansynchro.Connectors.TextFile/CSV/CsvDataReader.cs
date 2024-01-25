@@ -48,18 +48,20 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 		private readonly TextReader _reader;
 		private readonly IEnumerator<string> _lineReader;
-		private readonly CsvConfigurator _config;
+		private (char Delimiter, char QuoteChar, char EscapeChar, bool Trim, bool UsesQuotes, bool EolInData) _config;
 		private readonly string[] _analyzeBuffer;
 		private int _index = 0;
 
 		public (Type type, bool nullable)[] FieldTypes { get; }
+
+		private readonly Action<string, object[]>[] _fieldReader;
 
 		public string[] Names { get; }
 
 		public CsvArrayProducer(TextReader reader, CsvConfigurator config)
 		{
 			_reader = reader;
-			_config = config;
+			_config = (config.Delimiter, config.QuoteChar, config.EscapeChar, config.Trim, config.UsesQuotes, config.EolInData);
 			_lineReader = ReadLines().GetEnumerator();
 			Names = config.UsesHeader ? ReadHeader() : null!;
 			var buffer = new List<string>(ANALYZE_LINES);
@@ -71,9 +73,48 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			}
 			_analyzeBuffer = buffer.ToArray();
 			FieldTypes = AnalyzeTypes();
+			_fieldReader = BuildFieldReaders(FieldTypes);
 			if (!config.UsesHeader) {
 				Names = Enumerable.Range(1, FieldTypes.Length).Select(i => $"Item{i}").ToArray();
 			}
+		}
+
+		private static Action<string, object[]>[] BuildFieldReaders((Type type, bool nullable)[] fieldTypes)
+		{
+			var result = new Action<string, object[]>[fieldTypes.Length];
+			for (int i = 0; i < fieldTypes.Length; ++i) {
+				var reader = CsvArrayProducer.BuildFieldReader(fieldTypes[i].type, fieldTypes[i].nullable, i);
+				result[i] = reader;
+			}
+			return result;
+		}
+
+		private static Action<string, object[]> BuildFieldReader(Type type, bool nullable, int i)
+		{
+			Action<string, object[]> result;
+			if (type == typeof(bool)) {
+				result = (value, r) => r[i] = bool.Parse(value);
+			} else if (type == typeof(long)) {
+				result = (value, r) => r[i] = long.Parse(value);
+			} else if (type == typeof(double)) {
+				result = (value, r) => r[i] = double.Parse(value);
+			} else if (type == typeof(decimal)) {
+				result = (value, r) => r[i] = decimal.Parse(value);
+			} else if (type == typeof(DateTime)) {
+				result = (value, r) => r[i] = DateTime.Parse(value);
+			} else if (type == typeof(Guid)) {
+				result = (value, r) => r[i] = Guid.Parse(value);
+			} else if (type == typeof(char)) {
+				result = (value, r) => r[i] = value[0];
+			} else if (type == typeof(string)) {
+				return (value, r) => r[i] = string.IsNullOrEmpty(value) ? string.Empty : value;
+			} else {
+				throw new NotImplementedException();
+			}
+			if (nullable) {
+				return (value, r) => { if (string.IsNullOrEmpty(value)) { r[i] = DBNull.Value; } else result(value, r); };
+			}
+			return (value, r) => { if (string.IsNullOrEmpty(value)) { throw new InvalidDataException("Null value in non-nullable column"); } else result(value, r); };
 		}
 
 		private string[] ReadHeader() => _lineReader.MoveNext() ? GetFieldValues(_lineReader.Current) : Array.Empty<string>();
@@ -98,12 +139,12 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			var splitOptions = _config.Trim ? StringSplitOptions.TrimEntries : StringSplitOptions.None;
 			if (_config.UsesQuotes) {
 				return Split(line, _config.Delimiter, splitOptions, _config.QuoteChar, _config.EscapeChar, mayContainEOLInData: _config.EolInData);
-			} else {
+			} else if (_config.EolInData) {
 				List<string> fvs = new List<string>();
 				int pos = 0;
 				string? remaining = line;
 				while (remaining != null) {
-					var tokens = Split(remaining, _config.Delimiter, splitOptions, _config.QuoteChar, _config.EscapeChar, mayContainEOLInData: _config.EolInData);
+					var tokens = Split(remaining, _config.Delimiter, splitOptions, _config.QuoteChar, _config.EscapeChar, mayContainEOLInData: true);
 					if (tokens.Length > 0) {
 						var fv = tokens.First();
 						fvs.Add(fv);
@@ -118,6 +159,8 @@ namespace Pansynchro.Connectors.TextFile.CSV
 					pos++;
 				}
 				return fvs.ToArray();
+			} else {
+				return line.Split(_config.Delimiter, splitOptions); //in the simplest case, keep it simple!
 			}
 		}
 
@@ -404,38 +447,9 @@ namespace Pansynchro.Connectors.TextFile.CSV
 				if (i >= buffer.Length || i >= FieldTypes.Length) {
 					break;
 				}
-				buffer[i] = Interpret(values[i], FieldTypes[i].type, FieldTypes[i].nullable);
+				_fieldReader[i](values[i], buffer);
 			}
 			return true;
-		}
-
-		private static object Interpret(string value, Type type, bool nullable)
-		{
-			if (string.IsNullOrEmpty(value)) {
-				return type == typeof(string) ? string.Empty : (nullable ? DBNull.Value : throw new InvalidDataException("Null value in non-nullable column"));
-			}
-			if (type == typeof(bool)) {
-				return bool.Parse(value);
-			}
-			if (type == typeof(long)) {
-				return long.Parse(value);
-			}
-			if (type == typeof(double)) {
-				return double.Parse(value);
-			}
-			if (type == typeof(decimal)) {
-				return decimal.Parse(value);
-			}
-			if (type == typeof(DateTime)) {
-				return DateTime.Parse(value);
-			}
-			if (type == typeof(Guid)) {
-				return Guid.Parse(value);
-			}
-			if (type == typeof(char)) {
-				return value[0];
-			}
-			return value;
 		}
 
 		private IEnumerable<string> ReadLines(string? EOLDelimiter = null, char quoteChar = '\0', bool mayContainEOLInData = false, int maxLineSize = 32768,
