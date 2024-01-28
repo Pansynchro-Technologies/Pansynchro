@@ -671,8 +671,6 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 		private async Task ProducePipeline()
 		{
-			int count = 0;
-			int multiplier = 0;
 			var pool = ArrayPool<object[]?>.Shared;
 			var more = true;
 			while (more) {
@@ -693,12 +691,6 @@ namespace Pansynchro.Connectors.TextFile.CSV
 					}
 				}
 				await _writer.WriteAsync(block);
-				count += block.Length;
-				if (count > 100_000_000) {
-					++multiplier;
-					count -= 100_000_000;
-					Console.WriteLine($"{DateTime.Now}: {multiplier}00,000,000 lines read");
-				}
 			}
 			_writer.Complete();
 		}
