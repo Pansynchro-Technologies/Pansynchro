@@ -18,6 +18,7 @@ namespace Pansynchro.Sources.Files
     public class FileDataSource : IDataSource
     {
         private readonly FileSpec[] _conn;
+        private readonly int? _textBufferSize;
 
         public FileDataSource(string connectionString)
         {
@@ -31,6 +32,9 @@ namespace Pansynchro.Sources.Files
                 throw new ArgumentException("JSON Files property does not match the spec");
             }
             _conn = list;
+            if (json.ContainsKey("TextBufferSize")) {
+                _textBufferSize = (int)json["TextBufferSize"]!;
+            }
         }
 
         private IEnumerable<(string name, string filename)> GetFilenames()
@@ -66,20 +70,16 @@ namespace Pansynchro.Sources.Files
 
         public async IAsyncEnumerable<(string name, TextReader data)> GetTextAsync()
         {
-            foreach (var (name, filename) in GetFilenames()) {
-                yield return (name.Replace("*", Path.GetFileNameWithoutExtension(filename)), File.OpenText(filename));
-            }
-            await Task.CompletedTask; //just here to shut the compiler up
+            await foreach (var (name, stream) in GetDataAsync()) {
+				yield return (name, _textBufferSize == null ? new StreamReader(stream) : new StreamReader(stream, bufferSize: _textBufferSize.Value));
+			}
         }
 
         public async IAsyncEnumerable<TextReader> GetTextAsync(string name)
         {
-            foreach (var (lName, filename) in GetFilenames()) {
-                if (lName == name) {
-                    yield return File.OpenText(filename);
-                }
+            await foreach (var stream in GetDataAsync(name)) {
+                yield return _textBufferSize == null ? new StreamReader(stream) : new StreamReader(stream, bufferSize: _textBufferSize.Value);
             }
-            await Task.CompletedTask;  //just here to shut the compiler up
         }
     }
 }

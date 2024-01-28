@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
+	<TargetFramework>net8.0</TargetFramework>
+	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.22</AssemblyVersion>
-	<FileVersion>0.6.22</FileVersion>
-	<Version>0.6.22</Version>
+	<AssemblyVersion>0.6.30</AssemblyVersion>
+	<FileVersion>0.6.30</FileVersion>
+	<Version>0.6.30</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Console Writer Connector</Product>
 	<Description>Pansynchro connector to write output to the console for debug purposes.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Initial release!
+		Write Unicode characters correctly to the console.
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>

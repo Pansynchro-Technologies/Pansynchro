@@ -30,6 +30,7 @@ namespace Pansynchro.Core
 
         protected string? GetString(string key) => TryGetValue(key, out var value) ? (string)value : null;
         protected bool GetBool(string key) => TryGetValue(key, out var value) ? Convert.ToBoolean(value) : false;
+        protected int GetInt(string key) => TryGetValue(key, out var value) ? Convert.ToInt32(value) : 0;
         
         protected char GetChar(string key, char defaultValue)
         {

@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using Pansynchro.Core.Readers;
@@ -48,20 +50,27 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 		private readonly TextReader _reader;
 		private readonly IEnumerator<string> _lineReader;
-		private (char Delimiter, char QuoteChar, char EscapeChar, bool Trim, bool UsesQuotes, bool EolInData) _config;
+		private (char Delimiter, char QuoteChar, char EscapeChar, bool Trim, bool UsesQuotes, bool EolInData, bool DecimalAsSingle) _config;
 		private readonly string[] _analyzeBuffer;
 		private int _index = 0;
 
 		public (Type type, bool nullable)[] FieldTypes { get; }
 
+#if NET8_0_OR_GREATER
+		delegate void SpanReader(ReadOnlySpan<char> input, object[] buffer);
+		private readonly SpanReader[] _fieldReader;
+#else
 		private readonly Action<string, object[]>[] _fieldReader;
+#endif
+
+		protected int FieldCount => _fieldReader.Length;
 
 		public string[] Names { get; }
 
 		public CsvArrayProducer(TextReader reader, CsvConfigurator config)
 		{
 			_reader = reader;
-			_config = (config.Delimiter, config.QuoteChar, config.EscapeChar, config.Trim, config.UsesQuotes, config.EolInData);
+			_config = (config.Delimiter, config.QuoteChar, config.EscapeChar, config.Trim, config.UsesQuotes, config.EolInData, config.DecimalAsSingle);
 			_lineReader = ReadLines().GetEnumerator();
 			Names = config.UsesHeader ? ReadHeader() : null!;
 			var buffer = new List<string>(ANALYZE_LINES);
@@ -79,11 +88,52 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			}
 		}
 
+#if NET8_0_OR_GREATER
+		private static SpanReader[] BuildFieldReaders((Type type, bool nullable)[] fieldTypes)
+		{
+			var result = new SpanReader[fieldTypes.Length];
+			for (int i = 0; i < fieldTypes.Length; ++i) {
+				var reader = BuildFieldReader(fieldTypes[i].type, fieldTypes[i].nullable, i);
+				result[i] = reader;
+			}
+			return result;
+		}
+
+		private static SpanReader BuildFieldReader(Type type, bool nullable, int i)
+		{
+			SpanReader result;
+			if (type == typeof(bool)) {
+				result = (value, r) => r[i] = bool.Parse(value);
+			} else if (type == typeof(long)) {
+				result = (value, r) => r[i] = long.Parse(value);
+			} else if (type == typeof(double)) {
+				result = (value, r) => r[i] = double.Parse(value);
+			} else if (type == typeof(float)) {
+				result = (value, r) => r[i] = float.Parse(value);
+			} else if (type == typeof(decimal)) {
+				result = (value, r) => r[i] = decimal.Parse(value);
+			} else if (type == typeof(DateTime)) {
+				result = (value, r) => r[i] = DateTime.Parse(value);
+			} else if (type == typeof(Guid)) {
+				result = (value, r) => r[i] = Guid.Parse(value);
+			} else if (type == typeof(char)) {
+				result = (value, r) => r[i] = value[0];
+			} else if (type == typeof(string)) {
+				return (value, r) => r[i] = value.IsEmpty ? string.Empty : new string(value);
+			} else {
+				throw new NotImplementedException();
+			}
+			if (nullable) {
+				return (value, r) => { if (value.IsEmpty) { r[i] = DBNull.Value; } else result(value, r); };
+			}
+			return (value, r) => { if (value.IsEmpty) { throw new InvalidDataException("Null value in non-nullable column"); } else result(value, r); };
+		}
+#else
 		private static Action<string, object[]>[] BuildFieldReaders((Type type, bool nullable)[] fieldTypes)
 		{
 			var result = new Action<string, object[]>[fieldTypes.Length];
 			for (int i = 0; i < fieldTypes.Length; ++i) {
-				var reader = CsvArrayProducer.BuildFieldReader(fieldTypes[i].type, fieldTypes[i].nullable, i);
+				var reader = BuildFieldReader(fieldTypes[i].type, fieldTypes[i].nullable, i);
 				result[i] = reader;
 			}
 			return result;
@@ -116,6 +166,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			}
 			return (value, r) => { if (string.IsNullOrEmpty(value)) { throw new InvalidDataException("Null value in non-nullable column"); } else result(value, r); };
 		}
+#endif
 
 		private string[] ReadHeader() => _lineReader.MoveNext() ? GetFieldValues(_lineReader.Current) : Array.Empty<string>();
 
@@ -128,7 +179,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 				types ??= new Type[values.Length];
 				hasNulls ??= new bool[values.Length];
 				for (int j = 0; j < values.Length; ++j) {
-					types[j] = CsvArrayProducer.DetermineType(types[j], values[j], i == _analyzeBuffer.Length - 1, ref hasNulls[j]);
+					types[j] = DetermineType(types[j], values[j], i == _analyzeBuffer.Length - 1, ref hasNulls[j]);
 				}
 			}
 			return types!.Zip(hasNulls, (t, b) => (t!, b)).ToArray();
@@ -346,7 +397,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			return source.Substring(index);
 		}
 
-		protected static Type? DetermineType(Type? existingType, string value, bool isLastScanRow, ref bool hasNulls)
+		protected Type? DetermineType(Type? existingType, string value, bool isLastScanRow, ref bool hasNulls)
 		{
 			if (value == "" && existingType != null && existingType != typeof(string)) {
 				hasNulls = true;
@@ -362,7 +413,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			else if (!(value.ToString().Contains(ci.NumberFormat.NumberDecimalSeparator)) && long.TryParse(value.ToString(), out _))
 				fieldType = typeof(long);
 			else if (double.TryParse(value.ToString(), out _))
-				fieldType = typeof(double);
+				fieldType = _config.DecimalAsSingle ? typeof(float) : typeof(double);
 			else if (decimal.TryParse(value.ToString(), out _))
 				fieldType = typeof(decimal);
 			else if (Decimal.TryParse(value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture, out _))
@@ -399,10 +450,19 @@ namespace Pansynchro.Connectors.TextFile.CSV
 				else if (existingType == typeof(DateTime))
 					return typeof(string);
 				else if (existingType == typeof(double)
+					|| existingType == typeof(float)
 					|| existingType == typeof(long)
 					|| existingType == typeof(bool))
 					return fieldType;
 			} else if (fieldType == typeof(double)) {
+				if (existingType == null)
+					return fieldType;
+				else if (existingType == typeof(DateTime))
+					return typeof(string);
+				else if (existingType == typeof(long)
+					|| existingType == typeof(bool))
+					return fieldType;
+			} else if (fieldType == typeof(float)) {
 				if (existingType == null)
 					return fieldType;
 				else if (existingType == typeof(DateTime))
@@ -431,7 +491,12 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			return fieldType;
 		}
 
-		internal bool Produce(object[] buffer)
+		internal virtual bool Produce(object[] buffer)
+		{
+			return DoProduce(buffer);
+		}
+
+		protected bool DoProduce(object[] buffer)
 		{
 			string line;
 			if (_index < _analyzeBuffer.Length) {
@@ -442,6 +507,12 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			} else { 
 				line = _lineReader.Current;
 			}
+#if NET8_0_OR_GREATER
+			if (!_config.UsesQuotes) {
+				FastProduceValues(line, buffer);
+				return true;
+			}
+#endif
 			var values = GetFieldValues(line);
 			for (int i = 0; i < values.Length; ++i) {
 				if (i >= buffer.Length || i >= FieldTypes.Length) {
@@ -451,6 +522,19 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			}
 			return true;
 		}
+
+#if NET8_0_OR_GREATER
+		private void FastProduceValues(string line, object[] buffer)
+		{
+			Span<Range> subStrings = stackalloc Range[_fieldReader.Length];
+			ReadOnlySpan<char> lineSpan = line;
+			lineSpan.Split(subStrings, _config.Delimiter, _config.Trim ? StringSplitOptions.TrimEntries : StringSplitOptions.None);
+			for (int i = 0; i < _fieldReader.Length; ++i) {
+				var range = subStrings[i];
+				_fieldReader[i](lineSpan.Slice(range.Start.Value, range.End.Value - range.Start.Value), buffer);
+			}
+		}
+#endif
 
 		private IEnumerable<string> ReadLines(string? EOLDelimiter = null, char quoteChar = '\0', bool mayContainEOLInData = false, int maxLineSize = 32768,
 			char escapeChar = '\\')
@@ -565,6 +649,90 @@ namespace Pansynchro.Connectors.TextFile.CSV
 				};
 				return items.ToString();
 			}
+		}
+	}
+
+	internal class PipelinedCsvArrayProducer : CsvArrayProducer
+	{
+		private ChannelReader<object[]?[]> _reader;
+		private ChannelWriter<object[]?[]> _writer;
+		private int _blockSize;
+
+		public PipelinedCsvArrayProducer(TextReader reader, CsvConfigurator config) : base(reader, config)
+		{
+			var options = new BoundedChannelOptions(2)
+			  { AllowSynchronousContinuations = true, SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait };
+			var channel = Channel.CreateBounded<object[]?[]>(options);
+			_reader = channel.Reader;
+			_writer = channel.Writer;
+			_blockSize = config.Pipelined;
+			Task.Run(ProducePipeline);
+		}
+
+		private async Task ProducePipeline()
+		{
+			int count = 0;
+			int multiplier = 0;
+			var pool = ArrayPool<object[]?>.Shared;
+			var more = true;
+			while (more) {
+				var block = pool.Rent(_blockSize);
+				for (int i = 0; i < block.Length; ++i) {
+					var buffer = block[i];
+					if (buffer == null) {
+						buffer = new object[FieldCount];
+						block[i] = buffer;
+					} else if (buffer.Length != FieldCount) {
+						Array.Resize(ref buffer, FieldCount);
+						block[i] = buffer;
+					}
+					if (!DoProduce(buffer)) {
+						block[i] = null;
+						more = false;
+						break;
+					}
+				}
+				await _writer.WriteAsync(block);
+				count += block.Length;
+				if (count > 100_000_000) {
+					++multiplier;
+					count -= 100_000_000;
+					Console.WriteLine($"{DateTime.Now}: {multiplier}00,000,000 lines read");
+				}
+			}
+			_writer.Complete();
+		}
+
+		private object[]?[]? _block;
+		private int _blockIdx;
+
+		internal override bool Produce(object[] buffer)
+		{
+			if (_block == null || _blockIdx == _block.Length) {
+				if (_reader.Completion.IsCompleted || _reader.Completion.IsFaulted) {
+					return false;
+				}
+				if (_block != null) {
+					ArrayPool<object[]?>.Shared.Return(_block);
+				}
+				if (!_reader.TryRead(out _block)) {
+					var more = _reader.WaitToReadAsync().AsTask().GetAwaiter().GetResult();
+					if (!more) {
+						return false;
+					}
+					if (!_reader.TryRead(out _block)) {
+						throw new Exception("Failed to read from pipeline");
+					}
+				}
+				_blockIdx = 0;
+			}
+			var oldBuffer = _block[_blockIdx];
+			if (oldBuffer == null) {
+				return false;
+			}
+			Array.Copy(oldBuffer, buffer, FieldCount);
+			++_blockIdx;
+			return true;
 		}
 	}
 }

@@ -11,6 +11,7 @@ namespace Pansynchro.Connectors.Debug
 	{
 		public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
 		{
+			Console.OutputEncoding = System.Text.Encoding.UTF8;
 			await foreach (var stream in streams) {
 				var buffer = new object[stream.Reader.FieldCount];
 				while (stream.Reader.Read()) {

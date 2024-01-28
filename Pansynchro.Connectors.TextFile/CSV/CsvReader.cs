@@ -53,7 +53,9 @@ namespace Pansynchro.Connectors.TextFile.CSV
         private CsvDataReader CreateReader(TextReader reader)
         {
             var configurator = new CsvConfigurator(_conf);
-            return new CsvDataReader(new CsvArrayProducer(reader, configurator));
+            return new CsvDataReader(
+                configurator.Pipelined != 0 ? new PipelinedCsvArrayProducer(reader, configurator) : new CsvArrayProducer(reader, configurator)
+            );
         }
 
         public void SetDataSource(IDataSource source)

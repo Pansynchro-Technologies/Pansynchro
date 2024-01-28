@@ -42,6 +42,10 @@ namespace Pansynchro.Sources.Files
                 },
                 ""required"": [""Name"", ""File""]
             }
+        },
+        ""TextBufferSize"": {
+            ""description"": ""Specify a size for any StreamReader produced by this source to use as its char buffer"",
+            ""type"": ""integer""
         }
     },
     ""required"": [""Files""]

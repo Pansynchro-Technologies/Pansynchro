@@ -87,5 +87,23 @@ namespace Pansynchro.Connectors.TextFile.CSV
             get => GetChar(nameof(EscapeChar), '\\');
             set => this[nameof(EscapeChar)] = value;
         }
-    }
+
+		[Category("CSV")]
+		[Description("If true, the CSV reader runs in a separate thread. Improves performance on large CSV files.")]
+		[DefaultValue(false)]
+		public int Pipelined
+		{
+			get => GetInt(nameof(Pipelined));
+			set => this[nameof(Pipelined)] = value;
+		}
+
+		[Category("CSV")]
+		[Description("If true, decimal values will be read as single-precision floats rather than double-precision")]
+		[DefaultValue(false)]
+		public bool DecimalAsSingle
+		{
+			get => GetBool(nameof(DecimalAsSingle));
+			set => this[nameof(DecimalAsSingle)] = value;
+		}
+	}
 }
