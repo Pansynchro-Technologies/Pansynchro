@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 [assembly: InternalsVisibleTo("Pansynchro.PanSQL.Compiler")]
 namespace Pansynchro.PanSQL.Core
@@ -38,6 +39,16 @@ namespace Pansynchro.PanSQL.Core
 			} else { 
 				_dictionary.Add(key, value);
 			}
+		}
+
+		public ref TValue? GetValueRefOrAddDefault(TKey? key, out bool exists)
+		{
+			if (key is null) {
+				exists = _nullSet;
+				_nullSet = true;
+				return ref _nullValue;
+			}
+			return ref CollectionsMarshal.GetValueRefOrAddDefault(_dictionary, key!, out exists);
 		}
 
 		public IEnumerator<KeyValuePair<TKey?, TValue>> GetEnumerator()

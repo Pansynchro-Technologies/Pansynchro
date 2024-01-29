@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Pansynchro.PanSQL.Core
 {
@@ -24,12 +25,13 @@ namespace Pansynchro.PanSQL.Core
 
 			public void Add(TKey key, TValue value)
 			{
-				if (_dictionary.TryGetValue(key, out var old)) {
+				ref var old = ref CollectionsMarshal.GetValueRefOrAddDefault(_dictionary, key, out var found);
+				if (found) {
 					if (old is null || old.CompareTo(value) < 0) {
-						_dictionary[key] = value;
+						old = value;
 					}
 				} else {
-					_dictionary.Add(key, value);
+					old = value;
 				}
 			}
 
@@ -52,12 +54,13 @@ namespace Pansynchro.PanSQL.Core
 
 			public void Add(TKey? key, TValue value)
 			{
-				if (_dictionary.TryGetValue(key, out var old)) {
+				ref var old = ref _dictionary.GetValueRefOrAddDefault(key, out var found);
+				if (found) {
 					if (old is null || old.CompareTo(value) < 0) {
-						_dictionary[key] = value;
+						old = value;
 					}
 				} else {
-					_dictionary.Add(key, value);
+					old = value;
 				}
 			}
 
@@ -80,12 +83,13 @@ namespace Pansynchro.PanSQL.Core
 
 			public void Add(TKey key, TValue value)
 			{
-				if (_dictionary.TryGetValue(key, out var old)) {
+				ref var old = ref CollectionsMarshal.GetValueRefOrAddDefault(_dictionary, key, out var found);
+				if (found) {
 					if (old is null || old.CompareTo(value) > 0) {
-						_dictionary[key] = value;
+						old = value;
 					}
 				} else {
-					_dictionary.Add(key, value);
+					old = value;
 				}
 			}
 
@@ -108,12 +112,13 @@ namespace Pansynchro.PanSQL.Core
 
 			public void Add(TKey? key, TValue value)
 			{
-				if (_dictionary.TryGetValue(key, out var old)) {
+				ref var old = ref _dictionary.GetValueRefOrAddDefault(key, out var found);
+				if (found) {
 					if (old is null || old.CompareTo(value) > 0) {
-						_dictionary[key] = value;
+						old = value;
 					}
 				} else {
-					_dictionary.Add(key, value);
+					old = value;
 				}
 			}
 
@@ -134,7 +139,11 @@ namespace Pansynchro.PanSQL.Core
 
 			public CountAggregate() { }
 
-			public void Add(TKey key) => _dictionary[key] = _dictionary.TryGetValue(key, out var count) ? count + 1 : 1;
+			public void Add(TKey key)
+			{
+				ref var old = ref CollectionsMarshal.GetValueRefOrAddDefault(_dictionary, key, out _);
+				++old;
+			}
 
 			public int Get(TKey key) => _dictionary[key];
 
@@ -152,7 +161,11 @@ namespace Pansynchro.PanSQL.Core
 
 			public CountAggregateNullable() { }
 
-			public void Add(TKey key) => _dictionary[key] = _dictionary.TryGetValue(key, out var count) ? count + 1 : 1;
+			public void Add(TKey key)
+			{
+				ref var old = ref _dictionary.GetValueRefOrAddDefault(key, out _);
+				++old;
+			}
 
 			public int Get(TKey? key) => _dictionary[key];
 
@@ -173,11 +186,8 @@ namespace Pansynchro.PanSQL.Core
 
 			public void Add(TKey key, TValue value)
 			{
-				if (_dictionary.TryGetValue(key, out var old)) {
-					_dictionary[key] = old is null ? value : old + value;
-				} else {
-					_dictionary.Add(key, value);
-				}
+				ref var old = ref CollectionsMarshal.GetValueRefOrAddDefault(_dictionary, key, out _);
+				old = old is null ? value : old + value;
 			}
 
 			public TValue Get(TKey key) => _dictionary[key];
@@ -199,11 +209,8 @@ namespace Pansynchro.PanSQL.Core
 
 			public void Add(TKey key, TValue value)
 			{
-				if (_dictionary.TryGetValue(key, out var old)) {
-					_dictionary[key] = old is null ? value : old + value;
-				} else {
-					_dictionary.Add(key, value);
-				}
+				ref var old = ref _dictionary.GetValueRefOrAddDefault(key, out _);
+				old = old is null ? value : old + value;
 			}
 
 			public TValue Get(TKey? key) => _dictionary[key];

@@ -4,9 +4,9 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<AssemblyVersion>0.2.5</AssemblyVersion>
-		<FileVersion>0.2.5</FileVersion>
-		<Version>0.2.5</Version>
+		<AssemblyVersion>0.2.6</AssemblyVersion>
+		<FileVersion>0.2.6</FileVersion>
+		<Version>0.2.6</Version>
 		<Authors>Pansynchro Technologies</Authors>
 		<Product>PanSQL core runtime</Product>
 		<Description>Supports data pipelines built with PanSQL</Description>
@@ -14,7 +14,7 @@
 		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 		<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 		<PackageReleaseNotes>
-			Make NullableDictionary available to the compiler
+			Speed up aggregate processing with CollectionsMarshal.GetValueRefOrAddDefault
 		</PackageReleaseNotes>
 		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 		<NoWarn>$(NoWarn);NU1605</NoWarn>
