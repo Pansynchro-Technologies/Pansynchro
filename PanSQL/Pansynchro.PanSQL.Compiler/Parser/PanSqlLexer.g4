@@ -4,6 +4,7 @@ ANALYZE : 'analyze';
 AS : 'as';
 DECLARE : 'declare';
 EXCLUDE : 'exclude';
+FALSE : 'false';
 FOR : 'for';
 FROM : 'from';
 INCLUDE : 'include';
@@ -23,18 +24,22 @@ STREAM : 'stream';
 SYNC : 'sync';
 TABLE : 'table';
 TO : 'to';
+TRUE : 'true';
 READ : 'read';
 WITH : 'with';
 WRITE : 'write';
 
 ARRAY  : '[]';
 AT     : '@';
+COLON  : ':';
 COMMA  : ',';
 DOT    : '.';
 LPAREN : '(';
 RPAREN : ')';
 LBRACE : '{';
 RBRACE : '}';
+LBRACK : '[';
+RBRACK : ']';
 EQUALS : '=';
 
 OPERATOR : '+' | '-' | '*' | '/' | '<>' | '>=' | '<=' | '>' | '<' | EQUALS | '||' | '|' | '&&' | '&' | '^' ;
@@ -47,7 +52,7 @@ IDENTIFIER
 	;
 
 NUMBER
-	: DIGIT+
+	: DIGIT+ ~[.Ee]
 	;
 
 fragment
@@ -102,3 +107,23 @@ NEWLINE
 		|	'\r' '\n'?
 		)
 	;
+
+
+JSONSTRING : '"' (JSONESC | JSONCHAR)* '"' ;
+
+fragment JSONESC : '\\' (["\\/bfnrt] | HEX4) ;
+
+fragment HEX4 : 'u' HEX HEX HEX HEX ;
+
+fragment HEX : [0-9a-fA-F] ;
+
+fragment JSONCHAR : ~ ["\\\u0000-\u001F] ;
+
+JSONNUMBER : '-'? JSONINT (DOT DIGIT+)? JSONEXP? ;
+
+fragment JSONINT // JSON standard does not permit leading 0s
+	: '0'
+	| [1-9] DIGIT*
+	;
+
+fragment JSONEXP : [Ee] [+\-]? DIGIT+ ;

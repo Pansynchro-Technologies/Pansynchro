@@ -138,10 +138,10 @@ stream users as myDataDict.Users
 stream users2 as outDataDict.Users
 
 -- opens a local file data source
-open mySource as Files for source with '{ "Files": [ { "Name": "users", "File": ["\\myPath\\users*.avro"] } ] }'
+open mySource as Files for source with { "Files": [ { "Name": "users", "File": ["\\myPath\\users*.avro"] } ] }
 
 -- opens a local file data sink
-open mySink as Files for sink with '{ "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }'
+open mySink as Files for sink with { "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }
 
 --opens a reader of type Avro with the provided connection string, associated with myDataDict, and using mySource for the data source
 open myInput as Avro for read with myDataDict, 'connection string here', mySource
@@ -190,8 +190,8 @@ static class Program {
 	public static async Task Main() {
 		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
-		var mySource = ConnectorRegistry.GetSource(""Files"", ""{ \""Files\"": [ { \""Name\"": \""users\"", \""File\"": [\""\\\\myPath\\\\users*.avro\""] } ] }"");
-		var mySink = ConnectorRegistry.GetSink(""Files"", ""{ \""Files\"": [ { \""StreamName\"": \""*\"", \""Filename\"": \""C:\\\\PansynchroData\\\\*.csv\"" } ], \""MissingFilenameSpec\"": \""C:\\\\PansynchroData\\\\Missing\\\\*.csv\"", \""DuplicateFilenameAction\"": 0 }"");
+		var mySource = ConnectorRegistry.GetSource(""Files"", ""{\""Files\"":[{\""Name\"":\""users\"",\""File\"":[\""\\\\myPath\\\\users*.avro\""]}]}"");
+		var mySink = ConnectorRegistry.GetSink(""Files"", ""{\""Files\"":[{\""StreamName\"":\""*\"",\""Filename\"":\""C:\\\\PansynchroData\\\\*.csv\""}],\""MissingFilenameSpec\"":\""C:\\\\PansynchroData\\\\Missing\\\\*.csv\"",\""DuplicateFilenameAction\"":0}"");
 		var myInput = ConnectorRegistry.GetReader(""Avro"", ""connection string here"");
 		((ISourcedConnector)myInput).SetDataSource(mySource);
 		var myOutput = ConnectorRegistry.GetWriter(""CSV"", CredentialsFromEnv(""CsvConfigString""));
@@ -249,10 +249,10 @@ stream users as myDataDict.Users
 stream users2 as outDataDict.Users
 
 -- opens a local file data source
-open mySource as Files for source with '{ "Files": [ { "Name": "users", "File": ["\\myPath\\users*.avro"] } ] }'
+open mySource as Files for source with { "Files": [ { "Name": "users", "File": ["\\myPath\\users*.avro"] } ] }
 
 -- opens a local file data sink
-open mySink as Files for sink with '{ "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }'
+open mySink as Files for sink with { "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }
 
 --opens a reader of type Avro with the provided connection string, associated with myDataDict, and using mySource for the data source
 open myInput as MsSql for read with myDataDict, 'connection string here', mySource

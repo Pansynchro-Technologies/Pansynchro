@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.CodeAnalysis.Operations;
+
 using Pansynchro.Core.Connectors;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
@@ -282,6 +282,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (node.Connector.Equals("Network", StringComparison.InvariantCultureIgnoreCase)) {
 				ProcessNetworkConnection(node);
 			}
+			Visit(node.Creds);
 			var line = $"ConnectorRegistry.{method}({node.Connector.ToLiteral()}, {node.Creds})";
 			_mainBody.Add(new VarDecl(node.Name, new CSharpStringExpression(line)));
 			if (node.Source != null) {
@@ -382,6 +383,17 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
 		{
 			_scriptVars.Add(node);
+		}
+
+		public override void OnJsonInterpolatedExpression(JsonInterpolatedExpression node)
+		{
+			_imports.Add("System.Text.Json.Nodes");
+			var name = CodeBuilder.NewNameReference("json");
+			_mainBody.Add(new VarDecl(name.Name, new CSharpStringExpression($"JsonNode.Parse({node.JsonString})!")));
+			foreach (var interp in node.Ints) {
+				_mainBody.Add(new CSharpStringExpression(interp.Key.ToCodeString(name.Name, interp.Value)));
+			}
+			node.VarName = name.Name;
 		}
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies()

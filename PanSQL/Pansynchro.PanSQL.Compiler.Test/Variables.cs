@@ -341,5 +341,202 @@ sync myInput to myOutput
 			Assert.That(err?.Message, Is.EqualTo("Incompatible types in expression 'products.SKU == _sku':  'Nvarchar(20)' and 'Int'"));
 		}
 
+		private const string JSON_WITH_VAR_OBJ = """
+declare @streamname text
+
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream users as myDataDict.Users
+stream users2 as outDataDict.Users
+
+open mySource as Files for source with { "Files": [ { "Name": @streamname, "File": ["\\myPath\\users*.avro"] } ] }
+open mySink as Files for sink with { "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }
+open myInput as Avro for read with myDataDict, 'connection string here', mySource
+open myOutput as Csv for write with outDataDict, CredentialsFromEnv('CsvConfigString'), mySink
+
+select u.id, u.name, u.address, 'NONE' as type, null
+from users u
+into users2
+
+sync myInput to myOutput
+""";
+
+		private const string JSON_WITH_VAR_OBJ_OUTPUT = """
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+		var result = new object[6];
+		result[3] = "NONE";
+		result[4] = DBNull.Value;
+		result[5] = DBNull.Value;
+		while (r.Read()) {
+			result[0] = r.GetInt32(0);
+			result[1] = r.GetString(1);
+			result[2] = (r.IsDBNull(2) ? System.DBNull.Value : r.GetString(2));
+			yield return result;
+		}
+	}
+
+	public Sync(DataDictionary destDict) : base(destDict) {
+		_streamDict.Add("Users", Transformer__2);
+	}
+}
+
+static class Program {
+	public static async Task Main(string[] args) {
+		string streamname__1;
+		var __varResult = new VariableReader(args, true).ReadVar("streamname", out streamname__1).Result;
+		if (__varResult != null) {
+			System.Console.WriteLine(__varResult);
+			return;
+		}
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$INDICT$"));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$OUTDICT$"));
+		var json__3 = JsonNode.Parse("{\"Files\":[{\"File\":[\"\\\\myPath\\\\users*.avro\"]}]}")!;
+		json__3["Files"]![0]!["Name"] = streamname__1;
+		var mySource = ConnectorRegistry.GetSource("Files", json__3.ToJsonString());
+		var mySink = ConnectorRegistry.GetSink("Files", "{\"Files\":[{\"StreamName\":\"*\",\"Filename\":\"C:\\\\PansynchroData\\\\*.csv\"}],\"MissingFilenameSpec\":\"C:\\\\PansynchroData\\\\Missing\\\\*.csv\",\"DuplicateFilenameAction\":0}");
+		var myInput = ConnectorRegistry.GetReader("Avro", "connection string here");
+		((ISourcedConnector)myInput).SetDataSource(mySource);
+		var myOutput = ConnectorRegistry.GetWriter("CSV", CredentialsFromEnv("CsvConfigString"));
+		((ISinkConnector)myOutput).SetDataSink(mySink);
+		var reader__4 = myInput.ReadFrom(myDataDict);
+		reader__4 = new Sync(outDataDict).Transform(reader__4);
+		await myOutput.Sync(reader__4, outDataDict);
+	}
+}
+
+""";
+
+		[Test]
+		public void ObjectVariablesInJsonLiteral()
+		{
+			var result = new Compiler().Compile("test", JSON_WITH_VAR_OBJ);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(JSON_WITH_VAR_OBJ_OUTPUT)));
+		}
+
+		private const string JSON_WITH_VAR_ARR = """
+declare @filename text
+
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream users as myDataDict.Users
+stream users2 as outDataDict.Users
+
+open mySource as Files for source with { "Files": [ { "Name": "files", "File": [@filename] } ] }
+open mySink as Files for sink with { "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }
+open myInput as Avro for read with myDataDict, 'connection string here', mySource
+open myOutput as Csv for write with outDataDict, CredentialsFromEnv('CsvConfigString'), mySink
+
+select u.id, u.name, u.address, 'NONE' as type, null
+from users u
+into users2
+
+sync myInput to myOutput
+""";
+
+		private const string JSON_WITH_VAR_ARR_OUTPUT = """
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+		var result = new object[6];
+		result[3] = "NONE";
+		result[4] = DBNull.Value;
+		result[5] = DBNull.Value;
+		while (r.Read()) {
+			result[0] = r.GetInt32(0);
+			result[1] = r.GetString(1);
+			result[2] = (r.IsDBNull(2) ? System.DBNull.Value : r.GetString(2));
+			yield return result;
+		}
+	}
+
+	public Sync(DataDictionary destDict) : base(destDict) {
+		_streamDict.Add("Users", Transformer__2);
+	}
+}
+
+static class Program {
+	public static async Task Main(string[] args) {
+		string filename__1;
+		var __varResult = new VariableReader(args, true).ReadVar("filename", out filename__1).Result;
+		if (__varResult != null) {
+			System.Console.WriteLine(__varResult);
+			return;
+		}
+		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$INDICT$"));
+		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$OUTDICT$"));
+		var json__3 = JsonNode.Parse("{\"Files\":[{\"Name\":\"files\",\"File\":[]}]}")!;
+		((JsonArray)json__3["Files"]![0]!["File"]!).Insert(0, filename__1);
+		var mySource = ConnectorRegistry.GetSource("Files", json__3.ToJsonString());
+		var mySink = ConnectorRegistry.GetSink("Files", "{\"Files\":[{\"StreamName\":\"*\",\"Filename\":\"C:\\\\PansynchroData\\\\*.csv\"}],\"MissingFilenameSpec\":\"C:\\\\PansynchroData\\\\Missing\\\\*.csv\",\"DuplicateFilenameAction\":0}");
+		var myInput = ConnectorRegistry.GetReader("Avro", "connection string here");
+		((ISourcedConnector)myInput).SetDataSource(mySource);
+		var myOutput = ConnectorRegistry.GetWriter("CSV", CredentialsFromEnv("CsvConfigString"));
+		((ISinkConnector)myOutput).SetDataSink(mySink);
+		var reader__4 = myInput.ReadFrom(myDataDict);
+		reader__4 = new Sync(outDataDict).Transform(reader__4);
+		await myOutput.Sync(reader__4, outDataDict);
+	}
+}
+
+""";
+
+		[Test]
+		public void ArrayVariablesInJsonLiteral()
+		{
+			var result = new Compiler().Compile("test", JSON_WITH_VAR_ARR);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(JSON_WITH_VAR_ARR_OUTPUT)));
+		}
+
+		private const string JSON_WITH_MISSING_VAR = """
+load myDataDict from '.\myDataDict.pansync'
+load outDataDict from '.\outDataDict.pansync'
+
+stream users as myDataDict.Users
+stream users2 as outDataDict.Users
+
+open mySource as Files for source with { "Files": [ { "Name": @streamname, "File": ["\\myPath\\users*.avro"] } ] }
+open mySink as Files for sink with { "Files": [ { "StreamName": "*", "Filename": "C:\\PansynchroData\\*.csv" } ], "MissingFilenameSpec": "C:\\PansynchroData\\Missing\\*.csv", "DuplicateFilenameAction": 0 }
+open myInput as Avro for read with myDataDict, 'connection string here', mySource
+open myOutput as Csv for write with outDataDict, CredentialsFromEnv('CsvConfigString'), mySink
+
+select u.id, u.name, u.address, 'NONE' as type, null
+from users u
+into users2
+
+sync myInput to myOutput
+""";
+
+		[Test]
+		public void MissingVariablesInJsonLiteral()
+		{
+			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", JSON_WITH_MISSING_VAR));
+			Assert.That(err?.Message, Is.EqualTo("No variable named 'streamname' has been defined"));
+		}
 	}
 }

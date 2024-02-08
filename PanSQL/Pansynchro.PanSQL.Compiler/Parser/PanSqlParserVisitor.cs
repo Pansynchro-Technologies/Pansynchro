@@ -1,6 +1,8 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
@@ -249,6 +251,115 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 				return new IntegerLiteralExpression(value);
 			}
 			throw new NotImplementedException();
+		}
+
+		public override Expression VisitJsonExpression(PanSqlParser.JsonExpressionContext context)
+			=> context.jsonObject() != null ? VisitJsonObject(context.jsonObject()) : VisitJsonArray(context.jsonArray());
+
+		public override Expression VisitJsonArray([NotNull] PanSqlParser.JsonArrayContext context)
+		{
+			try {
+				var arr = JsonArray.Parse(context.GetText())!;
+				return new JsonLiteralExpression(arr);
+			} catch (JsonException) {
+				return VisitInterpolatedJsonArray(context);
+			}
+		}
+
+		private JsonInterpolatedExpression VisitInterpolatedJsonArray([NotNull] PanSqlParser.JsonArrayContext context)
+		{
+			var arr = new JsonArray();
+			var ints = new List<KeyValuePair<JsonIndexing, Expression>>();
+			foreach (var item in context.jsonValue()) {
+				switch (item.GetChild(0)) {
+					case PanSqlParser.JsonObjectContext o:
+						var obj = VisitJsonObject(o);
+						if (obj is JsonLiteralExpression jl) {
+							arr.Add(jl.Value);
+						} else {
+							JsonMerge(arr, ints, (JsonInterpolatedExpression)obj);
+						}
+						break;
+					case PanSqlParser.JsonArrayContext a:
+						var sub = VisitJsonArray(a);
+						if (sub is JsonLiteralExpression jl2) {
+							arr.Add(jl2.Value);
+						} else {
+							JsonMerge(arr, ints, (JsonInterpolatedExpression)sub);
+						}
+						break;
+					case PanSqlParser.ScriptVarRefContext v:
+						ints.Add(KeyValuePair.Create(new JsonIndexing(arr.Count + ints.Count), (Expression)Visit(v)));
+						break;
+					default:
+						arr.Add(JsonNode.Parse(item.GetText()));
+						break;
+
+				}
+			}
+			return new JsonInterpolatedExpression(arr, ints);
+		}
+
+		public override Expression VisitJsonObject([NotNull] PanSqlParser.JsonObjectContext context)
+		{
+			try {
+				var obj = JsonObject.Parse(context.GetText())!;
+				return new JsonLiteralExpression(obj);
+
+			} catch (JsonException) {
+				return VisitInterpolatedJsonObject(context);
+			}
+		}
+
+		private JsonInterpolatedExpression VisitInterpolatedJsonObject([NotNull] PanSqlParser.JsonObjectContext context)
+		{
+			var obj = new JsonObject();
+			var ints = new List<KeyValuePair<JsonIndexing, Expression>>();
+			foreach (var pair in context.jsonPair()) {
+				var name = JsonNode.Parse(pair.JSONSTRING().GetText())!.AsValue().ToString();
+				switch (pair.jsonValue().GetChild(0)) {
+					case PanSqlParser.JsonObjectContext o:
+						var sub = VisitJsonObject(o);
+						if (sub is JsonLiteralExpression jl) {
+							obj.Add(name, jl.Value);
+						} else {
+							JsonMerge(obj, ints, name, (JsonInterpolatedExpression)sub);
+						}
+						break;
+					case PanSqlParser.JsonArrayContext a:
+						var arr = VisitJsonArray(a);
+						if (arr is JsonLiteralExpression jl2) {
+							obj.Add(name, jl2.Value);
+						} else {
+							JsonMerge(obj, ints, name, (JsonInterpolatedExpression)arr);
+						}
+						break;
+					case PanSqlParser.ScriptVarRefContext v:
+						ints.Add(KeyValuePair.Create(new JsonIndexing(name), (Expression)Visit(v)));
+						break;
+					default:
+						obj.Add(name, JsonNode.Parse(pair.jsonValue().GetText()));
+						break;
+				}
+			}
+			return new JsonInterpolatedExpression(obj, ints);
+		}
+
+		private static void JsonMerge(JsonObject obj, List<KeyValuePair<JsonIndexing, Expression>> ints, string key, JsonInterpolatedExpression value)
+		{
+			foreach(var interp in value.Ints) {
+				ints.Add(KeyValuePair.Create(interp.Key.Reparent(key), interp.Value));
+			}
+			obj.Add(key, value.Value);
+		}
+
+		private static void JsonMerge(JsonArray arr, List<KeyValuePair<JsonIndexing, Expression>> ints, JsonInterpolatedExpression value)
+		{
+			var idx = arr.Count + ints.Count;
+			foreach(var interp in value.Ints) {
+				ints.Add(KeyValuePair.Create(interp.Key.Reparent(idx), interp.Value));
+			}
+			arr.Add(value.Value);
 		}
 	}
 }

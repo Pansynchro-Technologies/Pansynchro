@@ -62,7 +62,7 @@ scriptVarType : id scriptVarSize? ARRAY?;
 
 scriptVarSize : LPAREN (NUMBER | MAX) RPAREN;
 
-expression : literal | idElement | functionCall | scriptVarRef;
+expression : literal | idElement | functionCall | scriptVarRef | jsonExpression;
 
 literal : STRING | NUMBER;
 
@@ -70,3 +70,17 @@ literal : STRING | NUMBER;
 scriptVarRef : AT IDENTIFIER;
 id : IDENTIFIER;
 compoundId: IDENTIFIER (DOT IDENTIFIER)+;
+
+jsonExpression : jsonObject | jsonArray ;
+
+jsonObject : LBRACE jsonPair (COMMA jsonPair)* RBRACE
+	| LBRACE RBRACE
+	;
+
+jsonArray : LBRACK jsonValue (COMMA jsonValue)* RBRACK
+	| LBRACK RBRACK
+	;
+
+jsonPair : JSONSTRING COLON jsonValue;
+
+jsonValue : JSONSTRING | JSONNUMBER | NUMBER | jsonObject | jsonArray | TRUE | FALSE | NULL | scriptVarRef;

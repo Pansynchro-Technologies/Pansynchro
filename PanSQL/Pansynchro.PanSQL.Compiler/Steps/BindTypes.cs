@@ -47,7 +47,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnScriptVarExpression(ScriptVarExpression node)
 		{
-			var sVar = ((ScriptVarDeclarationStatement)_file.Vars[node.Name].Declaration);
+			if (!_file.Vars.TryGetValue(node.Name, out var vbl)) {
+				throw new CompilerError($"No variable named '{node}' has been defined", node);
+			}
+			var sVar = ((ScriptVarDeclarationStatement)vbl.Declaration);
 			node.VarType = sVar.FieldType;
 			node.Name = sVar.ScriptName.Name;
 		}

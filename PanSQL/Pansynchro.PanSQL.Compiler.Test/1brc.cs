@@ -23,7 +23,7 @@ namespace Pansynchro.PanSQL.Compiler.Test
 load dataDict from '.\1brc.pansync'
 load resultDict from '.\1brc_results.pansync'
 
-open mySource as Files for source with '{ ""Files"": [ { ""Name"": ""Data"", ""File"": [""measurements.txt""] } ] }'
+open mySource as Files for source with { ""Files"": [ { ""Name"": ""Data"", ""File"": [""measurements.txt""] } ] }
 open myInput as Csv for read with dataDict, 'Delimiter='';''', mySource
 open myOutput as Console for write with resultDict, ''
 
@@ -125,7 +125,7 @@ static class Program {
 	public static async Task Main() {
 		var dataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
 		var resultDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
-		var mySource = ConnectorRegistry.GetSource(""Files"", ""{ \""Files\"": [ { \""Name\"": \""Data\"", \""File\"": [\""measurements.txt\""] } ] }"");
+		var mySource = ConnectorRegistry.GetSource(""Files"", ""{\""Files\"":[{\""Name\"":\""Data\"",\""File\"":[\""measurements.txt\""]}]}"");
 		var myInput = ConnectorRegistry.GetReader(""CSV"", ""Delimiter=';'"");
 		((ISourcedConnector)myInput).SetDataSource(mySource);
 		var myOutput = ConnectorRegistry.GetWriter(""Console"", """");

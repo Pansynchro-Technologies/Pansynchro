@@ -118,7 +118,17 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public virtual void OnStringLiteralExpression(StringLiteralExpression stringLiteralExpression)
 		{ }
 
-		public void OnIntegerLiteralExpression(IntegerLiteralExpression integerLiteralExpression)
+		public virtual void OnIntegerLiteralExpression(IntegerLiteralExpression integerLiteralExpression)
 		{ }
+
+		public virtual void OnJsonLiteralExpression(JsonLiteralExpression jsonLiteralExpression)
+		{ }
+
+		public virtual void OnJsonInterpolatedExpression(JsonInterpolatedExpression node)
+		{
+			foreach (var pair in node.Ints) {
+				Visit(pair.Value);
+			}
+		}
 	}
 }

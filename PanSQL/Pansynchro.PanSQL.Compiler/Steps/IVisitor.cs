@@ -12,6 +12,8 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		void OnFunctionCallExpression(FunctionCallExpression functionCallExpression);
 		void OnIdentifier(Identifier identifier);
 		void OnIntegerLiteralExpression(IntegerLiteralExpression integerLiteralExpression);
+		void OnJsonInterpolatedExpression(JsonInterpolatedExpression jsonInterpolatedExpression);
+		void OnJsonLiteralExpression(JsonLiteralExpression jsonLiteralExpression);
 		void OnLoadStatement(LoadStatement loadStatement);
 		void OnMappingExpression(MappingExpression mappingExpression);
 		void OnMapStatement(MapStatement mapStatement);

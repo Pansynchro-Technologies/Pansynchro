@@ -20,6 +20,7 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		internal static FieldType DoubleType = new(TypeTag.Double, false, CollectionType.None, null);
 		internal static FieldType TextType = new(TypeTag.Ntext, false, CollectionType.None, null);
 		internal static FieldType DateTimeType = new(TypeTag.DateTime, false, CollectionType.None, null);
+		internal static FieldType JsonType = new(TypeTag.Json, false, CollectionType.None, null);
 
 		internal static FieldType MakeStringType(string value) => new(TypeTag.Nchar, false, CollectionType.None, value.Length.ToString());
 

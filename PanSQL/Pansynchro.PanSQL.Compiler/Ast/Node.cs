@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Microsoft.SqlServer.Management.SqlParser.SqlCodeDom;
 
@@ -304,5 +306,87 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public override string ToString() => Value.ToString();
 
 		internal override void Accept(IVisitor visitor) => visitor.OnIntegerLiteralExpression(this);
+	}
+
+	public class JsonLiteralExpression(JsonNode value) : LiteralExpression
+	{
+		internal static JsonSerializerOptions _options = new JsonSerializerOptions { WriteIndented = false };
+
+		public JsonNode Value { get; } = value;
+
+		internal override FieldType ExpressionType => TypesHelper.JsonType;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnJsonLiteralExpression(this);
+
+		public override string ToString() => Value.ToJsonString(_options).ToLiteral();
+	}
+
+	public class JsonInterpolatedExpression(JsonNode value, List<KeyValuePair<JsonIndexing, Expression>> ints) : TypedExpression
+	{
+		public JsonNode Value { get; } = value;
+		public List<KeyValuePair<JsonIndexing, Expression>> Ints { get; } = ints;
+
+		internal string? VarName { get; set; }
+
+		internal override FieldType ExpressionType => TypesHelper.JsonType;
+		internal override void Accept(IVisitor visitor) => visitor.OnJsonInterpolatedExpression(this);
+		internal string JsonString => Value.ToJsonString(JsonLiteralExpression._options).ToLiteral();
+		public override string ToString() => (VarName ?? throw new Exception("Interpolated string has not been processed")) + ".ToJsonString()";
+	}
+
+	public class JsonIndexing
+	{
+		public JsonIndexing? Child { get; }
+		public int? ArrIndex { get; }
+		public string? ObjIndex { get; }
+
+		internal bool IsInsert => Child?.IsInsert ?? ArrIndex.HasValue;
+
+		private JsonIndexing(JsonIndexing? child, int value)
+		{
+			Child = child;
+			ArrIndex = value;
+		}
+
+		private JsonIndexing(JsonIndexing? child, string value)
+		{
+			Child = child;
+			ObjIndex = value;
+		}
+
+		public JsonIndexing(int value)
+		{
+			ArrIndex = value;
+		}
+
+		public JsonIndexing(string value)
+		{
+			ObjIndex = value;
+		}
+
+		public JsonIndexing Reparent(int value) => new JsonIndexing(this, value);
+
+		public JsonIndexing Reparent(string value) => new JsonIndexing(this, value);
+
+		public string ToCodeString(string parent, Expression value)
+		{
+			if (IsInsert) {
+				if (Child != null) {
+					if (parent.EndsWith(']')) {
+						parent = parent + '!';
+					}
+					parent = parent + (ArrIndex.HasValue ? $"[{ArrIndex}]" : $"[\"{ObjIndex}\"]");
+					return Child.ToCodeString(parent, value);
+				}
+				return $"((JsonArray){parent}!).Insert({ArrIndex}, {value})";
+			}
+			return $"{parent}{this} = {value}";
+		}
+
+		public override string ToString()
+		{
+			var result = ArrIndex.HasValue ? $"[{ArrIndex}]" : $"[\"{ObjIndex}\"]";
+			return Child == null ? result : result + '!' + Child.ToString();
+		}
 	}
 }
