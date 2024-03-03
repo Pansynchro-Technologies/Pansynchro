@@ -192,6 +192,13 @@ namespace Pansynchro.Core.DataDict
         private static readonly NameNode AUDIT_ID = new("AuditIndex");
         private static readonly NameNode QUERY = new("CustomQuery");
 
+        public static StreamDefinition ParseStream(string data)
+        {
+            var module = PansyncData.Parse(data);
+            var ast = (Command)module.Body[0];
+            return ParseStream(ast);
+        }
+
         private static StreamDefinition ParseStream(Command ast)
         {
             StreamDescription name = StreamDescription.Parse(((NameNode)ast.Arguments[0]).ToString());
