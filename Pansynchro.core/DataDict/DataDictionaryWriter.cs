@@ -53,6 +53,8 @@ namespace Pansynchro.Core.DataDict
             return result;
         }
 
+        public static string WriteStream(StreamDefinition stream) => SerializeStream(stream).ToString();
+
         private static Command SerializeStream(StreamDefinition stream)
         {
             var body = new List<Statement>();
