@@ -160,11 +160,18 @@ WHERE constraint_type = 'PRIMARY KEY' and tc.table_name = :tableName and c.table
 					new KeyValuePair<string, object>("tableName", table),
 					new KeyValuePair<string, object>("tableSchema", namespace_))
 				.ToArray();
-			var nonPkColumns = columns.Except(pkColumns).ToArray();
-			if (nonPkColumns.Length == 0) {
-				MergeLinkingTable(conn, table, namespace_, columns, pkColumns);
-			} else {
-				MergeNormalTable(conn, table, namespace_, columns, pkColumns, nonPkColumns);
+			if (pkColumns.Length == 0)
+			{
+				CopyData(conn, table, namespace_, columns);
+			}
+			else
+			{
+				var nonPkColumns = columns.Except(pkColumns).ToArray();
+				if (nonPkColumns.Length == 0) {
+					MergeLinkingTable(conn, table, namespace_, columns, pkColumns);
+				} else {
+					MergeNormalTable(conn, table, namespace_, columns, pkColumns, nonPkColumns);
+				}
 			}
 		}
 
@@ -203,7 +210,21 @@ DO UPDATE SET {5}";
 			conn.Execute(SQL);
 		}
 
-		private static string CorrespondColumns(string[] columns, string separator, string joiner)
+        const string COPY_DATA_TEMPLATE =
+@"INSERT INTO ""{0}"".""{1}"" ({2})
+select {2} from {3}";
+
+        public static void CopyData(NpgsqlConnection conn, string name, string namespace_, string[] columns)
+        {
+            var formatter = PostgresFormatter.Instance;
+            var inserterCols = string.Join(", ", columns);
+            var inserterVals = string.Join(", ", columns.Select(c => "SOURCE." + c));
+            var SQL = string.Format(CultureInfo.InvariantCulture, COPY_DATA_TEMPLATE,
+                namespace_, name, inserterCols, $"Pansynchro.{formatter.QuoteName(name)}");
+            conn.Execute(SQL);
+        }
+
+        private static string CorrespondColumns(string[] columns, string separator, string joiner)
 		{
 			return string.Join(joiner, columns.Select(c => $"{c} {separator} excluded.{c}"));
 		}
