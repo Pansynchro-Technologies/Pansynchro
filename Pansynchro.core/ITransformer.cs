@@ -38,7 +38,12 @@ namespace Pansynchro.Core
 			yield break;
 		}
 
-		public async IAsyncEnumerable<DataStream> Transform(IAsyncEnumerable<DataStream> input)
+        protected virtual Func<IDataReader, IEnumerable<object[]>>? GetProcessor(DataStream stream)
+        {
+            return _streamDict.TryGetValue(stream.Name.ToString(), out var processor) ? processor : null;
+        }
+
+        public async IAsyncEnumerable<DataStream> Transform(IAsyncEnumerable<DataStream> input)
 		{
 			await foreach (var stream in StreamFirst()) {
 				yield return stream;
@@ -55,8 +60,10 @@ namespace Pansynchro.Core
 						destName = stream.Name with { Namespace = newNs };
 					}
 				}
-				if (_streamDict.TryGetValue(stream.Name.ToString(), out var processor)) {
-					var destStream = _destDict.GetStream(destName ?? stream.Name, NameStrategy.Get(NameStrategyType.Identity));
+                var processor = GetProcessor(stream);
+                if (processor != null)
+                {
+                    var destStream = _destDict.GetStream(destName ?? stream.Name, NameStrategy.Get(NameStrategyType.Identity));
 					if (destStream == null) {
 						Console.WriteLine($"Stream name '{destName}' not found in data dictionary");
 						result = stream;
