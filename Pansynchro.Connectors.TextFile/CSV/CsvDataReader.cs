@@ -361,12 +361,12 @@ namespace Pansynchro.Connectors.TextFile.CSV
 					if (hasChar) {
 						string subString = offset == 0 ? text.Substring(offset, i) : text.Substring(offset, i - offset);
 						word = NormalizeString(subString.Replace("\\", String.Empty), quoteChar);
-						splitStrings.Add(word);
+						splitStrings.Add(word!);
 						hasChar = false;
 					} else {
 						string subString = offset == 0 ? text.Substring(offset, i) : text.Substring(offset, i - offset);
 						word = NormalizeString(subString, quoteChar);
-						splitStrings.Add(word);
+						splitStrings.Add(word!);
 						i = i + len;
 					}
 					offset = i + 1;
@@ -376,8 +376,8 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 			if (offset <= text.Length)
 				splitStrings.Add(hasChar 
-					? NormalizeString(text.Substring(offset).Replace("\\", String.Empty), quoteChar)
-					: NormalizeString(text.Substring(offset), quoteChar));
+					? NormalizeString(text.Substring(offset).Replace("\\", String.Empty), quoteChar)!
+					: NormalizeString(text.Substring(offset), quoteChar)!);
 
 			return splitStrings.ToArray();
 		}
