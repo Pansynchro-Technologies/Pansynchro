@@ -12,6 +12,8 @@ using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
+using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.Connectors.Avro
 {
@@ -21,19 +23,27 @@ namespace Pansynchro.Connectors.Avro
 
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
+            EventLog.Instance.AddStartSyncEvent();
             if (_sink == null) {
                 throw new DataException("Must call SetDataSink before calling Sync");
             }
             await foreach (var (name, _, reader) in streams) {
+                EventLog.Instance.AddStartSyncStreamEvent(name);
                 try {
                     using var stream = await _sink.WriteData(name.ToString());
                     var schema = BuildAvroSchema(dest.GetStream(name.ToString()));
                     using var writer = DataFileWriter<GenericRecord>.OpenWriter(new GenericDatumWriter<GenericRecord>(schema), stream, Codec.CreateCodec(Codec.Type.Deflate), false);
                     WriteReader(reader, writer, stream, schema);
+                } catch (Exception ex) {
+                    EventLog.Instance.AddErrorEvent(ex, name);
+                    if (!ErrorManager.ContinueOnError)
+                        throw;
                 } finally {
                     reader.Dispose();
                 }
+                EventLog.Instance.AddEndSyncStreamEvent(name);
             }
+            EventLog.Instance.AddEndSyncEvent();
         }
 
         private static readonly long AVRO_EPOCH = new DateTime(1970, 1, 1, 0, 0, 0).Ticks;

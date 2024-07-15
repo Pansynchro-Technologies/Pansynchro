@@ -12,6 +12,8 @@ using Pansynchro.Core.Helpers;
 using Pansynchro.Sources.Files;
 using Pansynchro.Sources.Compression;
 using Pansynchro.Core.Transformations;
+using Pansynchro.Core.Errors;
+using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.Connectors.Snowflake
 {
@@ -41,6 +43,7 @@ namespace Pansynchro.Connectors.Snowflake
             using var subWriter = new AvroWriter();
             var tempdir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             Directory.CreateDirectory(tempdir);
+            EventLog.Instance.AddStartSyncEvent();
             try {
                 var path = Path.Combine(tempdir, "*.avro").Replace("\\", "\\\\");
                 var sink = new FileDataSink(string.Format(FILE_SINK_CONFIG, path));
@@ -49,9 +52,14 @@ namespace Pansynchro.Connectors.Snowflake
                 var partitioner = new SizePartitionTransformer(uploader.GetMeter, SNOWFLAKE_SIZE);
                 await subWriter.Sync(partitioner.Transform(streams), dest);
                 await Task.WhenAll(uploads);
+            } catch (Exception ex) {
+                EventLog.Instance.AddErrorEvent(ex);
+                if (!ErrorManager.ContinueOnError)
+                    throw;
             } finally {
                 Directory.Delete(tempdir, true);
             }
+            EventLog.Instance.AddEndSyncEvent();
         }
 
         public void Dispose()

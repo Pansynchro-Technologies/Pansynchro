@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
+using Pansynchro.Core.Errors;
 using Pansynchro.Core.Incremental;
 using Pansynchro.State;
 
@@ -30,8 +32,10 @@ namespace Pansynchro.SQL
                 await _conn.OpenAsync();
             }
             try {
+                EventLog.Instance.AddStartSyncEvent();
                 await foreach (var (name, settings, reader) in streams) {
-                    try { 
+                    EventLog.Instance.AddStartSyncStreamEvent(name);
+                    try {
                         if (reader is IncrementalDataReader inc) {
                             var bookmark = IncrementalSync(name, inc);
                             if (bookmark != null) {
@@ -40,11 +44,17 @@ namespace Pansynchro.SQL
                         } else {
                             FullStreamSync(name, settings, reader);
                         }
+                    } catch (Exception ex) {
+                        EventLog.Instance.AddErrorEvent(ex, name);
+                        if (!ErrorManager.ContinueOnError)
+                            throw;
                     } finally {
+                        EventLog.Instance.AddEndSyncStreamEvent(name);
                         reader.Dispose();
                     }
                 }
                 await Finish();
+                EventLog.Instance.AddEndSyncEvent();
             } finally {
                 await _conn.CloseAsync();
             }

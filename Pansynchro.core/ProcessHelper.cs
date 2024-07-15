@@ -27,11 +27,13 @@ namespace Pansynchro.Core
                     RedirectStandardOutput = outputTextWriter != null,
                     RedirectStandardError = errorTextWriter != null,
                     UseShellExecute = false,
-                    WorkingDirectory = workingDirectory ?? "",
-                    LoadUserProfile = true
+                    WorkingDirectory = workingDirectory ?? ""
                 }
             })
             {
+                if (OperatingSystem.IsWindows()) {
+                    process.StartInfo.LoadUserProfile = true;
+                }
                 var cancellationTokenSource = timeout.HasValue ?
                     new CancellationTokenSource(timeout.Value) :
                     new CancellationTokenSource();

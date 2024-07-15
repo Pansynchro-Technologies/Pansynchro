@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
 using Pansynchro.Core.Streams;
 
 namespace Pansynchro.Protocol
@@ -222,7 +223,7 @@ namespace Pansynchro.Protocol
 				yield return new DataStream(streamName, StreamSettings.None, new StreamingReader(_reader, schema, dict, mode, () => locked = false));
 			}
 			CheckEqual(_reader.ReadByte(), (byte)Markers.End, "Expected end of stream not found.");
-			Console.WriteLine($"Bytes read: {_meter.TotalBytesRead.ToString("N0")}");
+			EventLog.Instance.AddInformationEvent($"Bytes read: {_meter.TotalBytesRead.ToString("N0")}");
 			await Task.CompletedTask; // just to shut the compiler up
 		}
 

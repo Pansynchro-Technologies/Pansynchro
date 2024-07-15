@@ -9,6 +9,7 @@ using Microsoft.Data.SqlClient;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
 using Pansynchro.Core.Incremental;
 using Pansynchro.SQL;
 using Pansynchro.State;
@@ -45,10 +46,10 @@ namespace Pansynchro.Connectors.MSSQL
         {
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
-            Console.WriteLine($"{DateTime.Now}: Merging table '{table.Name}'");
+            EventLog.Instance.AddMergingStreamEvent(table);
             MetadataHelper.MergeTable(conn, table);
-            MetadataHelper.TruncateTable(conn, table);
-            Console.WriteLine($"{DateTime.Now}: Finished merging table '{table.Name}'");
+            EventLog.Instance.AddTruncatingStreamEvent(table);
+            MetadataHelper.TruncateTable(conn, table);            
         }
 
         const SqlBulkCopyOptions COPY_OPTIONS = SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.KeepNulls | SqlBulkCopyOptions.TableLock | SqlBulkCopyOptions.UseInternalTransaction;
@@ -65,7 +66,6 @@ namespace Pansynchro.Connectors.MSSQL
 
         protected override void FullStreamSync(StreamDescription name, StreamSettings settings, IDataReader reader)
         {
-            Console.WriteLine($"{ DateTime.Now}: Writing to {name}");
             ulong progress = 0;
             var noStaging = MetadataHelper.TableIsEmpty((SqlConnection)_conn, name);
 			if (!noStaging) {

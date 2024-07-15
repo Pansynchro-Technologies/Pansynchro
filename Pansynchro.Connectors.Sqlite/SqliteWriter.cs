@@ -1,6 +1,8 @@
 ﻿using Microsoft.Data.Sqlite;
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
+using Pansynchro.Core.EventsSystem;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -27,7 +29,9 @@ namespace Pansynchro.Connectors.Sqlite
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
             _schema = dest;
+            EventLog.Instance.AddStartSyncEvent();
             await foreach (var (name, averageSize, reader) in streams) {
+                EventLog.Instance.AddStartSyncStreamEvent(name);
                 try {
                     var lineReader = BuildReader(name);
                     ulong progress = 0;
@@ -44,10 +48,16 @@ namespace Pansynchro.Connectors.Sqlite
                         }
                         tran.Commit();
                     }
+                } catch (Exception ex) {
+                    EventLog.Instance.AddErrorEvent(ex, name);
+                    if (!ErrorManager.ContinueOnError)
+                        throw;
                 } finally {
                     reader.Dispose();
                 }
+                EventLog.Instance.AddEndSyncStreamEvent(name);
             }
+            EventLog.Instance.AddEndSyncEvent();
         }
 
         private Action<IDataReader, SqliteTransaction> BuildReader(StreamDescription name)

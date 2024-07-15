@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
 using Pansynchro.Core.Incremental;
 
 namespace Pansynchro.SQL
@@ -165,10 +166,7 @@ namespace Pansynchro.SQL
 				}
 			}
 			if (cycles > 0) {
-				Console.ForegroundColor = ConsoleColor.Red;
-				Console.Error.Write("WARNING: ");
-				Console.ResetColor();
-				Console.Error.WriteLine($"Circular refernces found in {cycles} tables.  Sync errors may occur if foreign key constraints are enabled on the destination database.");
+				EventLog.Instance.AddWarningEvent($"Circular refernces found in {cycles} tables.  Sync errors may occur if foreign key constraints are enabled on the destination database.");
 			}
 		}
 
