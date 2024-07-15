@@ -51,18 +51,19 @@ namespace Pansynchro.Connectors.TextFile.JSON
             }
         }
 
+        [AllowNull]
         public override object this[string keyword]
         {
             get => keyword == "Streams" ? Streams : base[keyword];
             set {
                 if (keyword == "Streams") {
-                    Streams = (ObservableCollection<JsonConf>)value;
+                    Streams = (ObservableCollection<JsonConf>)value!;
                 } else {
                     var existing = Streams.FirstOrDefault(s => s.Name.ToLowerInvariant() == keyword.ToLowerInvariant());
                     if (existing != null) {
                         Streams.Remove(existing);
                     }
-                    var newStream = JsonConvert.DeserializeObject<JsonConf>((string)value);
+                    var newStream = JsonConvert.DeserializeObject<JsonConf>((string)value!);
                     if (newStream?.Name.ToLowerInvariant() != keyword.ToLowerInvariant()) {
                         throw new ArgumentException($"Invalid stream name: {keyword}");
                     }

@@ -150,7 +150,7 @@ WHERE constraint_type = 'PRIMARY KEY' and tc.table_name = :tableName and c.table
 		internal static void MergeTable(NpgsqlConnection conn, string table, string namespace_)
 		{
 			var columns = PostgresHelper.ReadStrings(
-					conn, EXTRACT_COLUMNS, 
+					conn, EXTRACT_COLUMNS,
 					new KeyValuePair<string, object>("tableName", table),
 					new KeyValuePair<string, object>("tableSchema", namespace_))
 				.Select(c => '"' + c + '"')
@@ -160,11 +160,15 @@ WHERE constraint_type = 'PRIMARY KEY' and tc.table_name = :tableName and c.table
 					new KeyValuePair<string, object>("tableName", table),
 					new KeyValuePair<string, object>("tableSchema", namespace_))
 				.ToArray();
-			var nonPkColumns = columns.Except(pkColumns).ToArray();
-			if (nonPkColumns.Length == 0) {
-				MergeLinkingTable(conn, table, namespace_, columns, pkColumns);
+			if (pkColumns.Length == 0) {
+				CopyData(conn, table, namespace_, columns);
 			} else {
-				MergeNormalTable(conn, table, namespace_, columns, pkColumns, nonPkColumns);
+				var nonPkColumns = columns.Except(pkColumns).ToArray();
+				if (nonPkColumns.Length == 0) {
+					MergeLinkingTable(conn, table, namespace_, columns, pkColumns);
+				} else {
+					MergeNormalTable(conn, table, namespace_, columns, pkColumns, nonPkColumns);
+				}
 			}
 		}
 
@@ -200,6 +204,20 @@ DO UPDATE SET {5}";
 			var inserterVals = string.Join(", ", columns.Select(c => "SOURCE." + c));
 			var SQL = string.Format(CultureInfo.InvariantCulture, MERGE_NORMAL_TEMPLATE,
 				namespace_, name, inserterCols, $"Pansynchro.{formatter.QuoteName(name)}", pkCols, updater);
+			conn.Execute(SQL);
+		}
+
+		const string COPY_DATA_TEMPLATE =
+@"INSERT INTO ""{0}"".""{1}"" ({2})
+select {2} from {3}";
+
+		public static void CopyData(NpgsqlConnection conn, string name, string namespace_, string[] columns)
+		{
+			var formatter = PostgresFormatter.Instance;
+			var inserterCols = string.Join(", ", columns);
+			var inserterVals = string.Join(", ", columns.Select(c => "SOURCE." + c));
+			var SQL = string.Format(CultureInfo.InvariantCulture, COPY_DATA_TEMPLATE,
+				namespace_, name, inserterCols, $"Pansynchro.{formatter.QuoteName(name)}");
 			conn.Execute(SQL);
 		}
 

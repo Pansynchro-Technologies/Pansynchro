@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
+using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.Connectors.TextFile.Lines
 {
@@ -17,16 +19,24 @@ namespace Pansynchro.Connectors.TextFile.Lines
             if (_sink == null) {
                 throw new DataException("Must call SetDataSink before calling Sync");
             }
+            EventLog.Instance.AddStartSyncEvent();
             await foreach (var (name, settings, stream) in streams) {
+                EventLog.Instance.AddStartSyncStreamEvent(name);
                 try {
                     using var writer = await _sink.WriteText(name.ToString());
                     while (stream.Read()) {
                         writer.WriteLine(stream.GetString(stream.GetOrdinal("Value")));
                     }
+                } catch (Exception ex) {
+                    EventLog.Instance.AddErrorEvent(ex, name);
+                    if (!ErrorManager.ContinueOnError)
+                        throw;
                 } finally {
                     stream.Dispose();
                 }
+                EventLog.Instance.AddEndSyncStreamEvent(name);
             }
+            EventLog.Instance.AddEndSyncEvent();
         }
 
         public void SetDataSink(IDataSink sink) => _sink = sink;

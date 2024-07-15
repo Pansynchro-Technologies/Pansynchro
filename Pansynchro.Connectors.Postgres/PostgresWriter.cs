@@ -10,6 +10,7 @@ using NpgsqlTypes;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Postgres
@@ -30,7 +31,6 @@ namespace Pansynchro.Connectors.Postgres
 
         private void BinCopy(StreamDescription name, IDataReader reader)
         {
-            Console.WriteLine($"{DateTime.Now}: Writing stream '{name}'.");
             var schema = ExtractSchema(name);
             var fields = string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(i => Formatter.QuoteName(reader.GetName(i))));
             var lName = Formatter.QuoteName(name.Name);
@@ -48,11 +48,12 @@ namespace Pansynchro.Connectors.Postgres
         {
             var conn = (NpgsqlConnection)_conn;
             foreach (var table in _dict!.DependencyOrder.SelectMany(sd => sd).Reverse()) {
-                Console.WriteLine($"{DateTime.Now}: Merging table '{table}'");
+                EventLog.Instance.AddMergingStreamEvent(table);
                 MetadataHelper.MergeTable(conn, table.Name, table.Namespace!);
             }
-            Console.WriteLine($"{DateTime.Now}: Truncating");
+            
             foreach (var table in _dict.DependencyOrder.SelectMany(sd => sd)) {
+                EventLog.Instance.AddTruncatingStreamEvent(table);
                 MetadataHelper.TruncateTable(conn, table.Name);
             }
             return Task.CompletedTask;

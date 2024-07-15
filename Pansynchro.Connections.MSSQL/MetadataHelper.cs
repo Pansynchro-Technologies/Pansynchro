@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.MSSQL
@@ -185,8 +186,8 @@ THEN INSERT ({3}) VALUES ({4});";
 				name, $"Pansynchro.[{name}]", pkMatch, inserterCols, inserterVals);
 			try {
 				conn.Execute(SQL);
-			} catch (SqlException) {
-				Console.WriteLine($"SqlException while writing query:{Environment.NewLine}{SQL}");
+			} catch (SqlException ex) {
+				EventLog.Instance.AddErrorEvent(ex, name, $"SqlException while writing query:{Environment.NewLine}{SQL}");
 				throw;
 			}
 			if (hasID) {
@@ -217,8 +218,8 @@ THEN INSERT ({5}) VALUES ({6});";
 				name.Namespace, name.Name, $"Pansynchro.[{name.Name}]", pkMatch, updater, inserterCols, inserterVals);
 			try {
 				conn.Execute(SQL);
-			} catch (SqlException) {
-				Console.WriteLine($"SqlException while writing query:{Environment.NewLine}{SQL}");
+			} catch (SqlException ex) {
+				EventLog.Instance.AddErrorEvent(ex, name, $"SqlException while writing query:{Environment.NewLine}{SQL}");
 				throw;
 			}
 			if (hasID) {

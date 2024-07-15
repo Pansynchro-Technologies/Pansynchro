@@ -12,6 +12,7 @@ using Pansynchro.Sources.Files;
 using Pansynchro.SQL;
 using System.IO.Compression;
 using Pansynchro.Core.Streams;
+using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.Connectors.Snowflake
 {
@@ -72,6 +73,7 @@ namespace Pansynchro.Connectors.Snowflake
 
         private async Task UploadAsync(string filename, StreamDescription streamName)
         {
+            EventLog.Instance.AddStartSyncStreamEvent(streamName);
             try {
                 using var conn = new SnowflakeDbConnection { ConnectionString = _connectionString };
                 var stageName = GetStageName(streamName);
@@ -81,11 +83,12 @@ namespace Pansynchro.Connectors.Snowflake
                 conn.Execute($"copy into {SnowflakeUploader.GetTargetName(streamName)} from '@{stageName}/{lFilename}' file_format = (type = avro) match_by_column_name = case_insensitive;");
                 await conn.CloseAsync();
             } catch (Exception e) {
-                Console.WriteLine(e);
+                EventLog.Instance.AddErrorEvent(e, streamName);
                 throw;
             } finally { 
                 File.Delete(filename);
             }
+            EventLog.Instance.AddEndSyncStreamEvent(streamName);
         }
 
         private static string GetStageName(StreamDescription desc)

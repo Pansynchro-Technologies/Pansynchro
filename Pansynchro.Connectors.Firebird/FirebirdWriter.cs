@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using FirebirdSql.Data.FirebirdClient;
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
+using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.Connectors.Firebird
 {
@@ -29,7 +31,9 @@ namespace Pansynchro.Connectors.Firebird
         public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
         {
             _schema = dest;
+            EventLog.Instance.AddStartSyncEvent();
             await foreach (var (name, averageSize, reader) in streams) {
+                EventLog.Instance.AddStartSyncStreamEvent(name);
                 try {
                     var lineReader = BuildReader(name);
                     ulong progress = 0;
@@ -46,10 +50,17 @@ namespace Pansynchro.Connectors.Firebird
                         }
                         tran.Commit();
                     }
+                }
+                catch (Exception ex) {
+                    EventLog.Instance.AddErrorEvent(ex, name);
+                    if (!ErrorManager.ContinueOnError)
+                        throw;
                 } finally {
                     reader.Dispose();
                 }
+                EventLog.Instance.AddEndSyncStreamEvent(name);
             }
+            EventLog.Instance.AddEndSyncEvent();
         }
 
         private Action<IDataReader, FbTransaction> BuildReader(StreamDescription name)

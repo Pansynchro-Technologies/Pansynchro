@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
 using Pansynchro.Core.Incremental;
 using Pansynchro.SQL;
 
@@ -136,9 +137,8 @@ namespace Pansynchro.SQL
                 var streams = source.Streams.ToDictionary(s => s.Name);
                 foreach (var name in source.DependencyOrder.SelectMany(s => s)) {
                     var stream = streams[name];
-                    Console.WriteLine($"{DateTime.Now}: Reading table '{stream.Name}'");
                     var recordSize = PayloadSizeAnalyzer.AverageSize(_conn, stream, SqlFormatter, _tran);
-                    Console.WriteLine($"{DateTime.Now}: Average data size: {recordSize}");
+                    EventLog.Instance.AddReadingStreamEvent(stream.Name, $"Average data size: {recordSize}");
                     _getReader = FullSyncReader;
                     var fullIncremental = false;
                     if (_incrementalPlan != null) {

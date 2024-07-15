@@ -12,6 +12,8 @@ using DataColumn = Parquet.Data.DataColumn;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
+using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.Connectors.Parquet
 {
@@ -29,17 +31,25 @@ namespace Pansynchro.Connectors.Parquet
             if (_sink == null) {
                 throw new DataException("Must call SetDataSink before calling Sync");
             }
+            EventLog.Instance.AddStartSyncEvent();
             await foreach (var (name, settings, reader) in streams) {
+                EventLog.Instance.AddStartSyncStreamEvent(name);
                 try {
                     var streamDef = dest.GetStream(name, NameStrategy.Get(NameStrategyType.Identity));
                     var (schema, writers) = ParquetWriter.BuildSchema(streamDef);
                     using var writer = new PWriter(schema, await _sink.WriteData(name.ToString()));
                     using var group = writer.CreateRowGroup();
                     ParquetWriter.WriteParquetData(reader, writers, group);
+                } catch (Exception ex) {
+                    EventLog.Instance.AddErrorEvent(ex, name);
+                    if (!ErrorManager.ContinueOnError)
+                        throw;
                 } finally {
                     reader.Dispose();
                 }
+                EventLog.Instance.AddEndSyncStreamEvent(name);
             }
+            EventLog.Instance.AddEndSyncEvent();
         }
 
         private static void WriteParquetData(

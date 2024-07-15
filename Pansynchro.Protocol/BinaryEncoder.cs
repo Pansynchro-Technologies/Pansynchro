@@ -17,6 +17,8 @@ using Newtonsoft.Json.Linq;
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.EventsSystem;
+
 #if DEBUG
 using Pansynchro.Core.Streams;
 #endif
@@ -69,11 +71,14 @@ namespace Pansynchro.Protocol
 
 		public async Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest)
 		{
+			EventLog.Instance.AddStartSyncEvent();
+
 			_dataDict ??= dest;
 			WriteVersion(_outputWriter);
 			WriteDataDictHash(_outputWriter, _dataDict);
 			using var bufferWriter = new BinaryWriter(_bufferStream, Encoding.UTF8);
 			await foreach (var (name, settings, reader) in streams) {
+				EventLog.Instance.AddStartSyncStreamEvent(name);
 				try {
 #if DEBUG
 					var progress = _meter.TotalBytesWritten;
@@ -87,16 +92,19 @@ namespace Pansynchro.Protocol
 						settings.HasFlag(StreamSettings.UseRcf));
 					_outputWriter.Write((byte)0);
 #if DEBUG
-					Console.WriteLine($"Stream {name} written with settings ({settings}): {(_meter.TotalBytesWritten - progress).ToString("N0")} bytes");
+					EventLog.Instance.AddInformationEvent($"Stream {name} written with settings ({settings}): {(_meter.TotalBytesWritten - progress).ToString("N0")} bytes");
 #endif
 				}
 				finally {
 					reader.Dispose();
 				}
+				EventLog.Instance.AddEndSyncStreamEvent(name);
 			}
 			_outputWriter.Write((byte)Markers.End);
 			_outputWriter.Flush();
 			await WaitForDisconnect();
+
+			EventLog.Instance.AddEndSyncEvent();
 		}
 
 		private async Task WaitForDisconnect()
