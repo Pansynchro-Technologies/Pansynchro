@@ -5,7 +5,6 @@ using System.Linq;
 using Microsoft.Data.SqlClient;
 
 using Pansynchro.Core;
-using Pansynchro.Core.DataDict;
 using Pansynchro.Core.EventsSystem;
 using Pansynchro.SQL;
 
@@ -13,7 +12,7 @@ namespace Pansynchro.Connectors.MSSQL
 {
 	static class MetadataHelper
 	{
-		const string CREATE_STMT_BUILDER = 
+		const string CREATE_STMT_BUILDER =
 @"DECLARE  
 	  @object_name SYSNAME  
 	, @object_id INT  
@@ -130,9 +129,9 @@ WHERE c.[object_id] = object_id(@tableName, 'U')
 			if (TableIsEmpty(conn, name)) {
 				CopyTable(conn, name, columns);
 			} else {
-                var pkColumns = SqlHelper.ReadStrings(conn, EXTRACT_PK, new KeyValuePair<string, object>("tableName", name.ToString())).ToArray();
-                var nonPkColumns = columns.Except(pkColumns).ToArray();
-                if (nonPkColumns.Length == 0) {
+				var pkColumns = SqlHelper.ReadStrings(conn, EXTRACT_PK, new KeyValuePair<string, object>("tableName", name.ToString())).ToArray();
+				var nonPkColumns = columns.Except(pkColumns).ToArray();
+				if (nonPkColumns.Length == 0) {
 					MergeLinkingTable(conn, name, columns, pkColumns);
 				} else {
 					MergeNormalTable(conn, name, columns, pkColumns, nonPkColumns);
@@ -140,21 +139,21 @@ WHERE c.[object_id] = object_id(@tableName, 'U')
 			}
 		}
 
-        private static void CopyTable(SqlConnection conn, StreamDescription name, string[] columns)
-        {
+		private static void CopyTable(SqlConnection conn, StreamDescription name, string[] columns)
+		{
 			ISqlFormatter formatter = MssqlFormatter.Instance;
-            var hasID = (int)new SqlCommand($"SELECT OBJECTPROPERTY(OBJECT_ID('{name}'), 'TableHasIdentity')", conn).ExecuteScalar() == 1;
-            if (hasID) {
-                conn.Execute($"set IDENTITY_INSERT {name} ON");
-            }
-            var columnList = string.Join(", ", columns.Select(formatter.QuoteName));
+			var hasID = (int)new SqlCommand($"SELECT OBJECTPROPERTY(OBJECT_ID('{name}'), 'TableHasIdentity')", conn).ExecuteScalar() == 1;
+			if (hasID) {
+				conn.Execute($"set IDENTITY_INSERT {name} ON");
+			}
+			var columnList = string.Join(", ", columns.Select(formatter.QuoteName));
 			conn.Execute($"insert into {formatter.QuoteName(name)} ({columnList}) select {columnList} from Pansynchro.{formatter.QuoteName(name.Name)}");
-            if (hasID) {
-                conn.Execute($"set IDENTITY_INSERT {name} OFF");
-            }
-        }
+			if (hasID) {
+				conn.Execute($"set IDENTITY_INSERT {name} OFF");
+			}
+		}
 
-        internal static bool TableIsEmpty(SqlConnection conn, StreamDescription name)
+		internal static bool TableIsEmpty(SqlConnection conn, StreamDescription name)
 		{
 			var query = @$"select case 
 when exists (select top 1 * from {((ISqlFormatter)MssqlFormatter.Instance).QuoteName(name)}) then 1
@@ -205,7 +204,7 @@ WHEN NOT MATCHED BY TARGET
 THEN INSERT ({5}) VALUES ({6});";
 
 		private static void MergeNormalTable(SqlConnection conn, StreamDescription name, string[] columns, string[] pkColumns, string[] nonPkColumns)
-		{ 
+		{
 			var pkMatch = CorrespondColumns(pkColumns, "=", " AND ");
 			var updater = CorrespondColumns(nonPkColumns, "=", ", ");
 			var inserterCols = string.Join(", ", columns);

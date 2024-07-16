@@ -75,12 +75,12 @@ namespace Pansynchro.Core
 				}
 				yield return destName != null ? result with { Name = destName } : result;
 			}
-			await foreach (var stream in StreamLast())	{
+			await foreach (var stream in StreamLast()) {
 				yield return stream;
 			}
 		}
 
-		protected void MapNamespaces(string? l, string? r) 
+		protected void MapNamespaces(string? l, string? r)
 		{
 			if (l == null) {
 				if (_nullNsMap != null) {

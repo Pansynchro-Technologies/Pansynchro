@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.EventsSystem;
-using Pansynchro.Core.Incremental;
 
 namespace Pansynchro.SQL
 {
@@ -102,7 +101,7 @@ namespace Pansynchro.SQL
 			}
 		}
 
-		private StreamDefinition AnalyzeCustomTableSchema(StreamDescription name, IDataReader reader) 
+		private StreamDefinition AnalyzeCustomTableSchema(StreamDescription name, IDataReader reader)
 			=> new StreamDefinition(name, AnalyzeCustomTableFields(reader), Array.Empty<string>());
 
 		protected abstract FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader);
@@ -285,7 +284,7 @@ namespace Pansynchro.SQL
 			var result = new KeyValuePair<string, long>[reader.FieldCount];
 			for (int i = 0; i < reader.FieldCount; ++i) {
 				result[i] = KeyValuePair.Create(
-					reader.GetName(i), 
+					reader.GetName(i),
 					reader.IsDBNull(i) ? 0 : ((DateTimeOffset)reader.GetValue(i)).Ticks);
 			}
 			return result;
@@ -295,7 +294,7 @@ namespace Pansynchro.SQL
 
 		private const long LARGE_TABLE_THRESHOLD = 100_000L;
 
-		private bool CountOverThreshold(StreamDefinition stream) 
+		private bool CountOverThreshold(StreamDefinition stream)
 		{
 			return SqlHelper.ReadValue<long>(_conn, GetTableRowCount(stream.Name)) >= LARGE_TABLE_THRESHOLD;
 		}

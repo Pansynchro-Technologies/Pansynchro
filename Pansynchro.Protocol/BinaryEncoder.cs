@@ -36,7 +36,7 @@ namespace Pansynchro.Protocol
 		private readonly BinaryWriter _outputWriter;
 		//private readonly BinaryWriter _incompressibleWriter;
 		private readonly BrotliStream _compressor;
-#if DEBUG  
+#if DEBUG
 		private readonly MeteredStream _meter;
 #endif
 
@@ -94,8 +94,7 @@ namespace Pansynchro.Protocol
 #if DEBUG
 					EventLog.Instance.AddInformationEvent($"Stream {name} written with settings ({settings}): {(_meter.TotalBytesWritten - progress).ToString("N0")} bytes");
 #endif
-				}
-				finally {
+				} finally {
 					reader.Dispose();
 				}
 				EventLog.Instance.AddEndSyncStreamEvent(name);
@@ -147,11 +146,9 @@ namespace Pansynchro.Protocol
 			Action<object, BinaryWriter>[] columnWriters = BuildColumnWriters(reader, schema, _dataDict, incompressibles, rcfWriters);
 			var ch = Channel.CreateBounded<WriteJob>(CHANNEL_OPTIONS);
 			var writeTask = Task.Run(() => WriteBlocks(ch.Reader));
-			try
-			{
+			try {
 				//loop until it returns false
-				while (await ProcessBlock(reader, columnWriters, schema.SeqIdIndex, ch.Writer, incompressibles, rcfWriters))
-				{ }
+				while (await ProcessBlock(reader, columnWriters, schema.SeqIdIndex, ch.Writer, incompressibles, rcfWriters)) { }
 				ch.Writer.Complete();
 			} catch (Exception e) {
 				ch.Writer.Complete(e);
@@ -355,7 +352,7 @@ namespace Pansynchro.Protocol
 		private static void WriteBin(byte[] bytes)
 		{
 			int i = 1;
-			foreach(var b in bytes) {
+			foreach (var b in bytes) {
 				Console.Write(b);
 				if (i % 25 == 0) {
 					Console.WriteLine();
@@ -661,21 +658,20 @@ namespace Pansynchro.Protocol
 			return writer;
 		}
 
-		private static Action<object, BinaryWriter> MakeArrayWriter(Action<object, BinaryWriter> writer) => (o, w) =>
-			{
-				// there exists ambiguity as to whether a nullable array denotes an array that can be null, or an array of
-				// nullable values.  Playing it safe here.
-				if (o == null || o == DBNull.Value) {
-					w.Write(false);
-				} else {
-					w.Write(true);
-					var arr = (Array)o;
-					w.Write7BitEncodedInt(arr.Length);
-					foreach (var element in arr) {
-						writer(element, w);
-					}
+		private static Action<object, BinaryWriter> MakeArrayWriter(Action<object, BinaryWriter> writer) => (o, w) => {
+			// there exists ambiguity as to whether a nullable array denotes an array that can be null, or an array of
+			// nullable values.  Playing it safe here.
+			if (o == null || o == DBNull.Value) {
+				w.Write(false);
+			} else {
+				w.Write(true);
+				var arr = (Array)o;
+				w.Write7BitEncodedInt(arr.Length);
+				foreach (var element in arr) {
+					writer(element, w);
 				}
-			};
+			}
+		};
 
 		private static Action<object, BinaryWriter> GetCustomTypeWriter(
 			int i, FieldType type, long domainReduction, DataDictionary dict)
@@ -686,18 +682,16 @@ namespace Pansynchro.Protocol
 			return Unimplemented(type, i);
 		}
 
-		private static Action<object, BinaryWriter> MakeTimeSpanWriter() => (o, s) => 
+		private static Action<object, BinaryWriter> MakeTimeSpanWriter() => (o, s) =>
 			s.Write7BitEncodedInt64(((TimeSpan)o).Ticks);
 
-		private static Action<object, BinaryWriter> MakeGuidWriter() => (o, s) =>
-		{
+		private static Action<object, BinaryWriter> MakeGuidWriter() => (o, s) => {
 			var g = new GuidConverter((Guid)o);
 			s.Write(g.High);
 			s.Write(g.Low);
 		};
 
-		private static Action<object, BinaryWriter> MakeDateTimeTZWriter(long domainReduction) => (o, s) =>
-		{
+		private static Action<object, BinaryWriter> MakeDateTimeTZWriter(long domainReduction) => (o, s) => {
 			var dto = (DateTimeOffset)o;
 			s.Write7BitEncodedInt64(dto.DateTime.Ticks - domainReduction);
 			s.Write((short)dto.Offset.TotalMinutes);
@@ -707,16 +701,15 @@ namespace Pansynchro.Protocol
 
 		private static Action<object, BinaryWriter> MakeNullable(Action<object, BinaryWriter> writer)
 			=> (o, s) => {
-			if (o is null || o == System.DBNull.Value) {
-				s.Write(false);
-			} else {
-				s.Write(true);
-				writer(o, s);
-			}
-		};
+				if (o is null || o == System.DBNull.Value) {
+					s.Write(false);
+				} else {
+					s.Write(true);
+					writer(o, s);
+				}
+			};
 
-		private static Action<object, BinaryWriter> MakeBytesWriter() => (o, s) =>
-		{
+		private static Action<object, BinaryWriter> MakeBytesWriter() => (o, s) => {
 			var data = (byte[])o;
 			s.Write7BitEncodedInt(data.Length);
 			s.Write(data);

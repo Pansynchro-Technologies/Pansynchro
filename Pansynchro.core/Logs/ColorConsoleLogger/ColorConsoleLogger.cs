@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Pansynchro.Core.EventsSystem;
 using System;
-using System.Linq;
 
 namespace Pansynchro.Core.Logs.ColorConsoleLogger;
 

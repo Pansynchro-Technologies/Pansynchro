@@ -4,17 +4,17 @@ using System.Runtime.CompilerServices;
 
 namespace Pansynchro.Sources.Http
 {
-    public class RestSourceFactory : DataSourceFactoryCore
-    {
-        public override string Name => "Rest";
+	public class RestSourceFactory : DataSourceFactoryCore
+	{
+		public override string Name => "Rest";
 
-        public override SourceCapabilities Capabilities => SourceCapabilities.Source;
+		public override SourceCapabilities Capabilities => SourceCapabilities.Source;
 
-        public override IDataSink GetSink(string config) => throw new System.NotImplementedException();
+		public override IDataSink GetSink(string config) => throw new System.NotImplementedException();
 
-        public override IDataSource GetSource(string config) => new RestSource(config);
+		public override IDataSource GetSource(string config) => new RestSource(config);
 
-        public override string SourceConfigSchema => @"{
+		public override string SourceConfigSchema => @"{
     ""type"": ""object"",
     ""properties"": {
         ""Urls"": {
@@ -44,7 +44,7 @@ namespace Pansynchro.Sources.Http
     ""required"": [""Urls""]
 }";
 
-        public override string EmptySourceConfig =>
+		public override string EmptySourceConfig =>
 @"{
   ""Urls"": [
     {
@@ -55,14 +55,14 @@ namespace Pansynchro.Sources.Http
     ""Next"": null
 }";
 
-        public override string SinkConfigSchema => throw new System.NotImplementedException();
+		public override string SinkConfigSchema => throw new System.NotImplementedException();
 
-        public override string EmptySinkConfig => throw new System.NotImplementedException();
+		public override string EmptySinkConfig => throw new System.NotImplementedException();
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource(new RestSourceFactory());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterSource(new RestSourceFactory());
+		}
+	}
 }

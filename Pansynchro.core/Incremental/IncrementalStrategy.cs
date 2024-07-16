@@ -1,10 +1,10 @@
 ﻿namespace Pansynchro.Core.Incremental
 {
-    public enum IncrementalStrategy
-    {
-        None,
-        Cdc,
-        Column,
-        ChangeTracking
-    }
+	public enum IncrementalStrategy
+	{
+		None,
+		Cdc,
+		Column,
+		ChangeTracking
+	}
 }

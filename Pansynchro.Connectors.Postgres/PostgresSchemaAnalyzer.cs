@@ -67,8 +67,7 @@ AND    pg_catalog.pg_type_is_visible(t.oid)";
 
 		protected override async Task<Dictionary<string, FieldType>> LoadCustomTypes()
 		{
-			await foreach (var type in SqlHelper.ReadValuesAsync(_conn, CUSTOM_TYPE_QUERY, ReadCustomType))
-			{
+			await foreach (var type in SqlHelper.ReadValuesAsync(_conn, CUSTOM_TYPE_QUERY, ReadCustomType)) {
 				_customTypes.Add(type.Name, type.Type);
 			}
 			return _customTypes;
@@ -114,7 +113,7 @@ AND    pg_catalog.pg_type_is_visible(t.oid)";
 			string? info = null;
 			if (typeName.EndsWith(')')) {
 				var startPos = typeName.LastIndexOf('(');
-				info = typeName[(startPos+1) .. ^1];
+				info = typeName[(startPos + 1)..^1];
 				typeName = typeName.Substring(0, startPos);
 			}
 			var type = GetTagType(typeName);
@@ -196,12 +195,10 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
 		{
 			var names = new List<StreamDescription>();
 			var deps = new List<KeyValuePair<StreamDescription, StreamDescription>>();
-			await foreach (var sd in SqlHelper.ReadValuesAsync(_conn, TABLE_QUERY, r => new StreamDescription(r.GetString(0), r.GetString(1))))
-			{
+			await foreach (var sd in SqlHelper.ReadValuesAsync(_conn, TABLE_QUERY, r => new StreamDescription(r.GetString(0), r.GetString(1)))) {
 				names.Add(sd);
 			}
-			await foreach (var pair in SqlHelper.ReadValuesAsync(_conn, READ_DEPS, r => KeyValuePair.Create(new StreamDescription(r.GetString(0), r.GetString(1)), new StreamDescription(r.GetString(2), r.GetString(3)))))
-			{
+			await foreach (var pair in SqlHelper.ReadValuesAsync(_conn, READ_DEPS, r => KeyValuePair.Create(new StreamDescription(r.GetString(0), r.GetString(1)), new StreamDescription(r.GetString(2), r.GetString(3))))) {
 				deps.Add(pair);
 			}
 			return OrderDeps(names, deps).Reverse().ToArray();

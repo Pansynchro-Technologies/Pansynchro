@@ -9,26 +9,26 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.Postgres
 {
-    public class PostgresConnector : ConnectorCore
-    {
-        public override string Name => "Postgres";
+	public class PostgresConnector : ConnectorCore
+	{
+		public override string Name => "Postgres";
 
-        public override Capabilities Capabilities => Capabilities.ALL;
+		public override Capabilities Capabilities => Capabilities.ALL;
 
-        public override NameStrategyType Strategy => NameStrategyType.LowerCase;
+		public override NameStrategyType Strategy => NameStrategyType.LowerCase;
 
-        public override ISchemaAnalyzer GetAnalyzer(string config) => new PostgresSchemaAnalyzer(config);
+		public override ISchemaAnalyzer GetAnalyzer(string config) => new PostgresSchemaAnalyzer(config);
 
-        public override DbConnectionStringBuilder GetConfig() => new NpgsqlConnectionStringBuilder();
+		public override DbConnectionStringBuilder GetConfig() => new NpgsqlConnectionStringBuilder();
 
-        public override IReader GetReader(string config) => new PostgresReader(config);
+		public override IReader GetReader(string config) => new PostgresReader(config);
 
-        public override IWriter GetWriter(string config) => new PostgresWriter(config);
+		public override IWriter GetWriter(string config) => new PostgresWriter(config);
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterConnector(new PostgresConnector());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterConnector(new PostgresConnector());
+		}
+	}
 }

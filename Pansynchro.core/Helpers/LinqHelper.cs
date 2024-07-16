@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Pansynchro.Core.Helpers
 {
@@ -44,7 +43,7 @@ namespace Pansynchro.Core.Helpers
 					sharedState = new(firstItem, firstKey, true);
 
 					Tuple<TSource, TKey, bool>? previousState = null;
-					while (true) 					{
+					while (true) {
 						var state = Volatile.Read(ref sharedState);
 						if (ReferenceEquals(state, previousState))
 							throw new InvalidOperationException("Out of order enumeration.");
@@ -53,9 +52,8 @@ namespace Pansynchro.Core.Helpers
 						previousState = state;
 						yield return new AsyncGrouping<TKey, TSource>(key!, GetAdjacent(state!));
 					}
-				}
-				finally {
-					await enumerator.DisposeAsync().ConfigureAwait(false); 
+				} finally {
+					await enumerator.DisposeAsync().ConfigureAwait(false);
 				}
 
 				async IAsyncEnumerable<TSource> GetAdjacent(Tuple<TSource, TKey, bool> state)
@@ -125,7 +123,7 @@ namespace Pansynchro.Core.Helpers
 			}
 		}
 
-		public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T: class
+		public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : class
 		{
 			ArgumentNullException.ThrowIfNull(source, nameof(source));
 			return WhereNotNullImpl(source);

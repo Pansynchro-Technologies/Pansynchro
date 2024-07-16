@@ -8,49 +8,49 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.TextFile.Lines
 {
-    class TextLinesAnalyzer : ISchemaAnalyzer, ISourcedConnector
-    {
-        private readonly string _config;
-        private IDataSource? _source;
+	class TextLinesAnalyzer : ISchemaAnalyzer, ISourcedConnector
+	{
+		private readonly string _config;
+		private IDataSource? _source;
 
-        public TextLinesAnalyzer(string config)
-        {
-            _config = config;
-        }
+		public TextLinesAnalyzer(string config)
+		{
+			_config = config;
+		}
 
-        async ValueTask<DataDictionary> ISchemaAnalyzer.AnalyzeAsync(string name)
-        {
-            if (_source == null) {
-                throw new DataException("Must call SetDataSource before calling AnalyzeAsync");
-            }
-            var defs = new List<StreamDefinition>();
-            string? lastName = null;
-            await foreach (var (sName, stream) in _source.GetTextAsync()) {
-                try {
-                    if (lastName != sName) {
-                        defs.Add(AnalyzeFile(sName));
-                        lastName = sName;
-                    }
-                } finally {
-                    stream.Dispose();
-                }
-            }
-            return new DataDictionary(name, defs.ToArray());
-        }
+		async ValueTask<DataDictionary> ISchemaAnalyzer.AnalyzeAsync(string name)
+		{
+			if (_source == null) {
+				throw new DataException("Must call SetDataSource before calling AnalyzeAsync");
+			}
+			var defs = new List<StreamDefinition>();
+			string? lastName = null;
+			await foreach (var (sName, stream) in _source.GetTextAsync()) {
+				try {
+					if (lastName != sName) {
+						defs.Add(AnalyzeFile(sName));
+						lastName = sName;
+					}
+				} finally {
+					stream.Dispose();
+				}
+			}
+			return new DataDictionary(name, defs.ToArray());
+		}
 
-        private static StreamDefinition AnalyzeFile(string sName)
-        {
-            var fields = new FieldDefinition[] {
-                new FieldDefinition("Name", new FieldType(TypeTag.Nvarchar, false, CollectionType.None, "255")),
-                new FieldDefinition("Line", new FieldType(TypeTag.Int, false, CollectionType.None, null)),
-                new FieldDefinition("Value", new FieldType(TypeTag.Ntext, false, CollectionType.None, null)),
-            };
-            return new StreamDefinition(new StreamDescription(null, sName), fields, Array.Empty<string>());
-        }
+		private static StreamDefinition AnalyzeFile(string sName)
+		{
+			var fields = new FieldDefinition[] {
+				new FieldDefinition("Name", new FieldType(TypeTag.Nvarchar, false, CollectionType.None, "255")),
+				new FieldDefinition("Line", new FieldType(TypeTag.Int, false, CollectionType.None, null)),
+				new FieldDefinition("Value", new FieldType(TypeTag.Ntext, false, CollectionType.None, null)),
+			};
+			return new StreamDefinition(new StreamDescription(null, sName), fields, Array.Empty<string>());
+		}
 
-        public void SetDataSource(IDataSource source)
-        {
-            _source = source;
-        }
-    }
+		public void SetDataSource(IDataSource source)
+		{
+			_source = source;
+		}
+	}
 }

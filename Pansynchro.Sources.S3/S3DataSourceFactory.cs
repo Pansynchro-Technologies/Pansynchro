@@ -1,22 +1,21 @@
-﻿using System;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
 
 namespace Pansynchro.Sources.S3
 {
-    public class S3DataSourceFactory : DataSourceFactoryCore
-    {
-        public override string Name => "S3";
+	public class S3DataSourceFactory : DataSourceFactoryCore
+	{
+		public override string Name => "S3";
 
-        public override SourceCapabilities Capabilities => SourceCapabilities.ALL;
+		public override SourceCapabilities Capabilities => SourceCapabilities.ALL;
 
-        public override IDataSource GetSource(string config) => new S3DataSource(config);
+		public override IDataSource GetSource(string config) => new S3DataSource(config);
 
-        public override IDataSink GetSink(string config) => new S3DataSink(config);
+		public override IDataSink GetSink(string config) => new S3DataSink(config);
 
-        public override string SourceConfigSchema =>
+		public override string SourceConfigSchema =>
 @"{
   ""title"": ""S3 Configuration"",
   ""type"": ""object"",
@@ -69,7 +68,7 @@ namespace Pansynchro.Sources.S3
   ""required"": [""Conn"", ""Bucket"", ""Files""]
 }";
 
-        public override string EmptySourceConfig =>
+		public override string EmptySourceConfig =>
 @"{
     ""Conn"": {
         ""AccessKeyId"": ""0123456789abcdef"",
@@ -85,7 +84,7 @@ namespace Pansynchro.Sources.S3
     ]
 }";
 
-        public override string SinkConfigSchema =>
+		public override string SinkConfigSchema =>
 @"{
   ""title"": ""S3WriteConfig"",
   ""definitions"": {
@@ -137,7 +136,7 @@ namespace Pansynchro.Sources.S3
   }
 }";
 
-        public override string EmptySinkConfig =>
+		public override string EmptySinkConfig =>
 @"{
     ""Conn"": {
         ""AccessKeyId"": ""0123456789abcdef"",
@@ -155,10 +154,10 @@ namespace Pansynchro.Sources.S3
     ""UploadPartSize"": 5
 }";
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource(new S3DataSourceFactory());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterSource(new S3DataSourceFactory());
+		}
+	}
 }

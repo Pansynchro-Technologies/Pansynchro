@@ -44,7 +44,7 @@ namespace Pansynchro.Core.Connectors
 		public static IEnumerable<string> DataSourceTypes => _sourceLoaders.Where(kv => kv.Value.HasSource).Select(kv => kv.Key);
 
 		public static IEnumerable<string> DataSinkTypes => _sourceLoaders.Where(kv => kv.Value.HasSink).Select(kv => kv.Key);
-	
+
 		public static void LoadConnectors(IEnumerable<ConnectorDescription> connectors)
 		{
 			foreach (var conn in connectors) {
@@ -241,8 +241,7 @@ namespace Pansynchro.Core.Connectors
 					RuntimeHelpers.RunModuleConstructor(module.ModuleHandle);
 				}
 				return LoadAssemblyResult.Success;
-			}
-			catch (FileNotFoundException) {
+			} catch (FileNotFoundException) {
 				return LoadAssemblyResult.Fail;
 			}
 		}
@@ -269,7 +268,7 @@ namespace Pansynchro.Core.Connectors
 
 		private static bool ProcessStringValue(ref string value)
 		{
-			if (!(value.StartsWith("=(") && value.EndsWith(')') && value.Contains(':'))) { 
+			if (!(value.StartsWith("=(") && value.EndsWith(')') && value.Contains(':'))) {
 				return false;
 			}
 

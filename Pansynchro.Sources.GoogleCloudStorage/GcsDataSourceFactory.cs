@@ -5,17 +5,17 @@ using Pansynchro.Core;
 
 namespace Pansynchro.Sources.GoogleCloudStorage
 {
-    public class GcsDataSourceFactory : DataSourceFactoryCore
-    {
-        public override string Name => "Google Cloud Storage";
+	public class GcsDataSourceFactory : DataSourceFactoryCore
+	{
+		public override string Name => "Google Cloud Storage";
 
-        public override SourceCapabilities Capabilities => SourceCapabilities.ALL;
+		public override SourceCapabilities Capabilities => SourceCapabilities.ALL;
 
-        public override IDataSource GetSource(string config) => new GcsDataSource(config);
+		public override IDataSource GetSource(string config) => new GcsDataSource(config);
 
-        public override IDataSink GetSink(string config) => new GcsDataSink(config);
+		public override IDataSink GetSink(string config) => new GcsDataSink(config);
 
-        public override string SourceConfigSchema =>
+		public override string SourceConfigSchema =>
 @"{
   ""title"": ""GCS Configuration"",
   ""type"": ""object"",
@@ -68,7 +68,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
   ""required"": [""Conn"", ""Bucket"", ""Files""]
 }";
 
-        public override string EmptySourceConfig =>
+		public override string EmptySourceConfig =>
 @"{
     ""Conn"": {
         ""AccessKeyId"": ""0123456789abcdef"",
@@ -84,7 +84,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
     ]
 }";
 
-        public override string SinkConfigSchema =>
+		public override string SinkConfigSchema =>
 @"{
   ""title"": ""S3WriteConfig"",
   ""definitions"": {
@@ -136,7 +136,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
   }
 }";
 
-        public override string EmptySinkConfig =>
+		public override string EmptySinkConfig =>
 @"{
     ""Conn"": {
         ""AccessKeyId"": ""0123456789abcdef"",
@@ -154,10 +154,10 @@ namespace Pansynchro.Sources.GoogleCloudStorage
     ""UploadPartSize"": 5
 }";
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource(new GcsDataSourceFactory());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterSource(new GcsDataSourceFactory());
+		}
+	}
 }

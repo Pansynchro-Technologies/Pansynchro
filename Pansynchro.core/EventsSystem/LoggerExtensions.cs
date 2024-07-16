@@ -1,10 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Pansynchro.Core.EventsSystem;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Pansynchro.Core.EventsSystem;
 
 namespace Microsoft.Extensions.Logging;
 
