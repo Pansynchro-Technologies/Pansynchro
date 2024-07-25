@@ -1,10 +1,10 @@
 ﻿namespace Pansynchro.Protocol
 {
-    enum StreamMode
-    {
-        InsertOnly,
-        InsertRcf,
-        InsertUpdate,
-        FullUpdate
-    }
+	enum StreamMode
+	{
+		InsertOnly,
+		InsertRcf,
+		InsertUpdate,
+		FullUpdate
+	}
 }

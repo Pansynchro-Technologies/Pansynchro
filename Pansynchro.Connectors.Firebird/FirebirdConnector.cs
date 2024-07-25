@@ -9,26 +9,26 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.Firebird
 {
-    public class FirebirdConnector : ConnectorCore
-    {
-        public override string Name => "Firebird";
+	public class FirebirdConnector : ConnectorCore
+	{
+		public override string Name => "Firebird";
 
-        public override Capabilities Capabilities => Capabilities.ALL;
+		public override Capabilities Capabilities => Capabilities.ALL;
 
-        public override NameStrategyType Strategy => NameStrategyType.NameOnly;
+		public override NameStrategyType Strategy => NameStrategyType.NameOnly;
 
-        public override ISchemaAnalyzer GetAnalyzer(string config) => new FirebirdSchemaAnalyzer(config);
+		public override ISchemaAnalyzer GetAnalyzer(string config) => new FirebirdSchemaAnalyzer(config);
 
-        public override DbConnectionStringBuilder GetConfig() => new FbConnectionStringBuilder();
+		public override DbConnectionStringBuilder GetConfig() => new FbConnectionStringBuilder();
 
-        public override IReader GetReader(string config) => new FirebirdReader(config);
+		public override IReader GetReader(string config) => new FirebirdReader(config);
 
-        public override IWriter GetWriter(string config) => new FirebirdWriter(config);
+		public override IWriter GetWriter(string config) => new FirebirdWriter(config);
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterConnector(new FirebirdConnector());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterConnector(new FirebirdConnector());
+		}
+	}
 }

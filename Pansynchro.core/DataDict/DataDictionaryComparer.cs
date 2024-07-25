@@ -217,7 +217,7 @@ namespace Pansynchro.Core.DataDict
 				return Impl;
 				IEnumerable<object[]> Impl(IDataReader source)
 				{
-					try { 
+					try {
 						var dest = new object[source.FieldCount];
 						while (source.Read()) {
 							source.GetValues(dest);

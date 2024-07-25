@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 using Antlr4.Runtime;
@@ -98,8 +97,7 @@ namespace Pansynchro.Core.Pansync
 		static int GetIndentationCount(string spaces)
 		{
 			int count = 0;
-			foreach (char ch in spaces.ToCharArray())
-			{
+			foreach (char ch in spaces.ToCharArray()) {
 				count += ch == '\t' ? 8 - (count % 8) : 1;
 			}
 			return count;
@@ -129,32 +127,23 @@ namespace Pansynchro.Core.Pansync
 			// satisfy the final newline needed by the single_put rule used by the REPL.
 			int next = InputStream.LA(1);
 			int nextnext = InputStream.LA(2);
-			if (Opened > 0 || (nextnext != -1 && (next == '\r' || next == '\n' || next == '#')))
-			{
+			if (Opened > 0 || (nextnext != -1 && (next == '\r' || next == '\n' || next == '#'))) {
 				// If we're inside a list or on a blank line, ignore all indents, 
 				// dedents and line breaks.
 				Skip();
-			}
-			else
-			{
+			} else {
 				Emit(CommonToken(PansyncLexer.NEWLINE, newLine));
 				int indent = GetIndentationCount(spaces);
 				int previous = Indents.Count == 0 ? 0 : Indents.Peek();
-				if (indent == previous)
-				{
+				if (indent == previous) {
 					// skip indents of the same size as the present indent-size
 					Skip();
-				}
-				else if (indent > previous)
-				{
+				} else if (indent > previous) {
 					Indents.Push(indent);
 					Emit(CommonToken(PansyncLexer.INDENT, spaces));
-				}
-				else
-				{
+				} else {
 					// Possibly emit more than 1 DEDENT token.
-					while (Indents.Count != 0 && Indents.Peek() > indent)
-					{
+					while (Indents.Count != 0 && Indents.Peek() > indent) {
 						this.Emit(CreateDedent());
 						Indents.Pop();
 					}

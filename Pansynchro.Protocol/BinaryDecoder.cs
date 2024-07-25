@@ -234,7 +234,7 @@ namespace Pansynchro.Protocol
 			var rcfReaders = new List<IRcfReader>();
 			var drs = new Dictionary<string, long>(schema.DomainReductions);
 			for (int i = 0; i < len; ++i) {
-				var field = schema.Fields[i]; 
+				var field = schema.Fields[i];
 				var type = field.Type;
 				drs.TryGetValue(field.Name, out var dr);
 				var isRcf = schema.RareChangeFields.Contains(field.Name);
@@ -426,21 +426,20 @@ namespace Pansynchro.Protocol
 		}
 
 		//Typing this as object[] is inefficient, but hopefully it will work!
-		private static Func<BinaryReader, object> MakeArrayReader(Func<BinaryReader, object> reader) => r =>
-			{
-				// there exists ambiguity as to whether a nullable array denotes an array that can be null, or an array of
-				// nullable values.  Playing it safe here.
-				var isNull = r.ReadBoolean();
-				if (isNull) {
-					return DBNull.Value;
-				}
-				var size = r.Read7BitEncodedInt();
-				var result = new object[size];
-				for (int i = 0; i < size; ++i) {
-					result[i] = reader(r);
-				}
-				return result;
-			};
+		private static Func<BinaryReader, object> MakeArrayReader(Func<BinaryReader, object> reader) => r => {
+			// there exists ambiguity as to whether a nullable array denotes an array that can be null, or an array of
+			// nullable values.  Playing it safe here.
+			var isNull = r.ReadBoolean();
+			if (isNull) {
+				return DBNull.Value;
+			}
+			var size = r.Read7BitEncodedInt();
+			var result = new object[size];
+			for (int i = 0; i < size; ++i) {
+				result[i] = reader(r);
+			}
+			return result;
+		};
 
 		private static Func<BinaryReader, object> GetCustomTypeReader(int i, FieldType type, long domainReduction, DataDictionary dict)
 		{
@@ -475,8 +474,7 @@ namespace Pansynchro.Protocol
 
 		private static Func<BinaryReader, object> MakeDateTimeReader(int i, long dr) => r => new DateTime(r.Read7BitEncodedInt64() + dr);
 
-		private static Func<BinaryReader, object> MakeDateTimeTZReader(int i, long dr) => r =>
-		{
+		private static Func<BinaryReader, object> MakeDateTimeTZReader(int i, long dr) => r => {
 			var dt = new DateTime(r.Read7BitEncodedInt64() + dr);
 			var o = TimeSpan.FromMinutes(r.ReadInt16());
 			return new DateTimeOffset(dt, o);
@@ -493,7 +491,7 @@ namespace Pansynchro.Protocol
 		private static object TimeSpanReader(BinaryReader r) => TimeSpan.FromTicks(r.Read7BitEncodedInt64());
 
 		private static object JsonReader(BinaryReader r) => JToken.Parse(r.ReadString());
-		
+
 		private static Func<BinaryReader, object> Unimplemented(FieldType type)
 		{
 			var customType = CustomTypeRegistry.GetType(type.Type);

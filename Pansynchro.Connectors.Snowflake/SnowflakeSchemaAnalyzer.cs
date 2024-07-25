@@ -12,11 +12,11 @@ using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Snowflake
 {
-    public class SnowflakeSchemaAnalyzer : SqlSchemaAnalyzer
-    {
-        public SnowflakeSchemaAnalyzer(string connectionString) 
-            : base(new SnowflakeDbConnection { ConnectionString = connectionString })
-        { }
+	public class SnowflakeSchemaAnalyzer : SqlSchemaAnalyzer
+	{
+		public SnowflakeSchemaAnalyzer(string connectionString)
+			: base(new SnowflakeDbConnection { ConnectionString = connectionString })
+		{ }
 
 		protected override ISqlFormatter Formatter => SnowflakeSqlFormatter.Instance;
 
@@ -41,7 +41,7 @@ where c.TABLE_CATALOG = '{DatabaseName}'
    and t.TABLE_TYPE = 'BASE TABLE'
 order by c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION;";
 
-        private const string PK_SETUP =
+		private const string PK_SETUP =
 @"create or replace function GET_PK_COLUMNS(DATABASE_DDL string)
 returns table (""SCHEMA_NAME"" string, ""TABLE_NAME"" string, PK_COLUMN string)
 language javascript
@@ -142,88 +142,85 @@ function getPKs(tableDDL)
 }
 $$; ";
 
-        protected override string PkQuery => $"select SCHEMA_NAME, TABLE_NAME, PK_COLUMN from table(get_pk_columns(get_ddl('database', '{DatabaseName}')));";
+		protected override string PkQuery => $"select SCHEMA_NAME, TABLE_NAME, PK_COLUMN from table(get_pk_columns(get_ddl('database', '{DatabaseName}')));";
 
-        private readonly Dictionary<StreamDescription, string> _identity = new();
+		private readonly Dictionary<StreamDescription, string> _identity = new();
 
-        protected override Task<ILookup<StreamDescription, string>> GetPKs(
-            IEnumerable<StreamDescription> tables)
-        {
-            _conn.Execute(PK_SETUP);
-            return base.GetPKs(tables);
-        }
+		protected override Task<ILookup<StreamDescription, string>> GetPKs(
+			IEnumerable<StreamDescription> tables)
+		{
+			_conn.Execute(PK_SETUP);
+			return base.GetPKs(tables);
+		}
 
-        protected override (StreamDescription table, FieldDefinition column) BuildFieldDefinition(IDataReader reader)
-        {
-            var table = new StreamDescription(reader.GetString(0), reader.GetString(1));
-            var column = new FieldDefinition(reader.GetString(2), GetFieldType(reader));
-            if (reader.GetString(5) == "YES") {
-                _identity.Add(table, reader.GetString(2));
-            }
-            return (table, column);
-        }
+		protected override (StreamDescription table, FieldDefinition column) BuildFieldDefinition(IDataReader reader)
+		{
+			var table = new StreamDescription(reader.GetString(0), reader.GetString(1));
+			var column = new FieldDefinition(reader.GetString(2), GetFieldType(reader));
+			if (reader.GetString(5) == "YES") {
+				_identity.Add(table, reader.GetString(2));
+			}
+			return (table, column);
+		}
 
-        protected override async Task<StreamDefinition[]> BuildStreamDefinitions()
-        {
-            _identity.Clear();
-            var result = await base.BuildStreamDefinitions();
-            foreach (var pair in _identity) {
-                var sd = result.First(d => d.Name == pair.Key);
-                var idx = Array.IndexOf(sd.NameList, pair.Value);
-                sd.SeqIdIndex = idx >= 0 ? idx : null;
-            }
-            return result;
-        }
+		protected override async Task<StreamDefinition[]> BuildStreamDefinitions()
+		{
+			_identity.Clear();
+			var result = await base.BuildStreamDefinitions();
+			foreach (var pair in _identity) {
+				var sd = result.First(d => d.Name == pair.Key);
+				var idx = Array.IndexOf(sd.NameList, pair.Value);
+				sd.SeqIdIndex = idx >= 0 ? idx : null;
+			}
+			return result;
+		}
 
-        private static readonly HashSet<TypeTag> _typesWithInfo = new()
-        {
-            TypeTag.Varbinary,
-            TypeTag.Varchar,
-            TypeTag.Char,
-            TypeTag.Binary,
-            TypeTag.Nvarchar,
-            TypeTag.Nchar,
-            TypeTag.Time,
-            TypeTag.DateTimeTZ,
-            TypeTag.VarDateTime,
-            TypeTag.Decimal,
-            TypeTag.Float,
-        };
+		private static readonly HashSet<TypeTag> _typesWithInfo = new()
+		{
+			TypeTag.Varbinary,
+			TypeTag.Varchar,
+			TypeTag.Char,
+			TypeTag.Binary,
+			TypeTag.Nvarchar,
+			TypeTag.Nchar,
+			TypeTag.Time,
+			TypeTag.DateTimeTZ,
+			TypeTag.VarDateTime,
+			TypeTag.Decimal,
+			TypeTag.Float,
+		};
 
-        private static FieldType GetFieldType(IDataReader reader)
-        {
-            var nullable = reader.GetString(3) == "YES";
-            var tag = GetTagType(reader.GetString(4));
-            if (tag == TypeTag.Unstructured) {
-                tag = reader.GetByte(8) > 0 ? TypeTag.Decimal : TypeTag.Long;
-            }
-            var info = _typesWithInfo.Contains(tag) ? GetInfo(tag, reader) : null;
-            if (tag == TypeTag.Decimal) {
-                if (info == "51,48") {
-                    tag = TypeTag.Int;
-                    info = null;
-                }
-                else
-                {
+		private static FieldType GetFieldType(IDataReader reader)
+		{
+			var nullable = reader.GetString(3) == "YES";
+			var tag = GetTagType(reader.GetString(4));
+			if (tag == TypeTag.Unstructured) {
+				tag = reader.GetByte(8) > 0 ? TypeTag.Decimal : TypeTag.Long;
+			}
+			var info = _typesWithInfo.Contains(tag) ? GetInfo(tag, reader) : null;
+			if (tag == TypeTag.Decimal) {
+				if (info == "51,48") {
+					tag = TypeTag.Int;
+					info = null;
+				} else {
 
-                }
-            }
-            return new FieldType(tag, nullable, CollectionType.None, info);
-        }
+				}
+			}
+			return new FieldType(tag, nullable, CollectionType.None, info);
+		}
 
-        private static string? GetInfo(TypeTag tag, IDataReader reader) => tag switch
-        {
-            TypeTag.Varbinary or TypeTag.Varchar or TypeTag.Char or TypeTag.Binary or TypeTag.Nvarchar or TypeTag.Nchar
-                => reader.GetInt16(6) < 0 ? null : reader.GetInt16(6).ToString(),
-            TypeTag.Time or TypeTag.DateTimeTZ or TypeTag.VarDateTime => reader.GetByte(9).ToString(),
-            TypeTag.Decimal or TypeTag.Float => $"{reader.GetByte(7)},{reader.GetByte(8)}",
-            _ => throw new ArgumentOutOfRangeException($"Type tag '{tag}' does not support extended info")
-        };
+		private static string? GetInfo(TypeTag tag, IDataReader reader) => tag switch {
+			TypeTag.Varbinary or TypeTag.Varchar or TypeTag.Char or TypeTag.Binary or TypeTag.Nvarchar or TypeTag.Nchar
+				=> reader.GetInt16(6) < 0 ? null : reader.GetInt16(6).ToString(),
+			TypeTag.Time or TypeTag.DateTimeTZ or TypeTag.VarDateTime => reader.GetByte(9).ToString(),
+			TypeTag.Decimal or TypeTag.Float => $"{reader.GetByte(7)},{reader.GetByte(8)}",
+			_ => throw new ArgumentOutOfRangeException($"Type tag '{tag}' does not support extended info")
+		};
 
-        protected override (StreamDescription table, string column) BuildPkDefintion(IDataReader reader)
-            => (new StreamDescription(reader.GetString(0), reader.GetString(1)), reader.GetString(2));
+		protected override (StreamDescription table, string column) BuildPkDefintion(IDataReader reader)
+			=> (new StreamDescription(reader.GetString(0), reader.GetString(1)), reader.GetString(2));
 
-        private string DepsQuery =>
+		private string DepsQuery =>
 $@"select fk_tco.table_schema as foreign_schema,
        fk_tco.table_name as foreign_table,
        pk_tco.table_schema as referenced_schema,
@@ -240,82 +237,81 @@ where fk_tco.table_catalog = '{DatabaseName}'
 order by fk_tco.table_schema,
          fk_tco.table_name; ";
 
-        private string TableQuery =>
+		private string TableQuery =>
 $@"select table_schema, table_name
 from INFORMATION_SCHEMA.TABLES
 where table_catalog = '{DatabaseName}'
   and table_type = 'BASE TABLE'";
 
-        protected override async Task<StreamDescription[][]> BuildStreamDependencies()
-        {
-            var deps = new List<KeyValuePair<StreamDescription, StreamDescription>>();
-            var names = await SqlHelper.ReadValuesAsync(_conn,
-                    TableQuery,
-                    r => new StreamDescription(r.GetString(0).Trim(), r.GetString(1).Trim()))
-                .ToListAsync();
-            await foreach (var pair in SqlHelper.ReadValuesAsync(_conn, DepsQuery,
-                r => KeyValuePair.Create(
-                    new StreamDescription(r.GetString(0).Trim(), r.GetString(1).Trim()),
-                    new StreamDescription(r.GetString(2).Trim(), r.GetString(3).Trim())))) 
-            {
-                deps.Add(pair);
-            }
-            return OrderDeps(names, deps).Reverse().ToArray();
-        }
+		protected override async Task<StreamDescription[][]> BuildStreamDependencies()
+		{
+			var deps = new List<KeyValuePair<StreamDescription, StreamDescription>>();
+			var names = await SqlHelper.ReadValuesAsync(_conn,
+					TableQuery,
+					r => new StreamDescription(r.GetString(0).Trim(), r.GetString(1).Trim()))
+				.ToListAsync();
+			await foreach (var pair in SqlHelper.ReadValuesAsync(_conn, DepsQuery,
+				r => KeyValuePair.Create(
+					new StreamDescription(r.GetString(0).Trim(), r.GetString(1).Trim()),
+					new StreamDescription(r.GetString(2).Trim(), r.GetString(3).Trim())))) {
+				deps.Add(pair);
+			}
+			return OrderDeps(names, deps).Reverse().ToArray();
+		}
 
-        protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
-            => $"select {fieldList} from (select * from {tableName} limit {threshold}) a;";
+		protected override string GetDistinctCountQuery(string fieldList, string tableName, long threshold)
+			=> $"select {fieldList} from (select * from {tableName} limit {threshold}) a;";
 
-        private static readonly Dictionary<string, TypeTag> TYPE_MAP = new()
-        {
-            { "NUMBER", TypeTag.Unstructured },
-            { "NUMERIC", TypeTag.Unstructured },
-            { "DECIMAL", TypeTag.Decimal },
-            { "INT", TypeTag.Int },
-            { "INTEGER", TypeTag.Int },
-            { "BIGINT", TypeTag.Long },
-            { "SMALLINT", TypeTag.Short },
-            { "TINYINT", TypeTag.SByte },
-            { "BYTEINT", TypeTag.Byte },
-            { "REAL", TypeTag.Double },
-            { "FLOAT", TypeTag.Double },
-            { "FLOAT4", TypeTag.Double },
-            { "FLOAT8", TypeTag.Double },
-            { "DOUBLE", TypeTag.Double },
-            { "DOUBLE PRECISION", TypeTag.Double },
-            { "TEXT", TypeTag.Ntext },
-            { "STRING", TypeTag.Ntext },
-            { "VARCHAR", TypeTag.Nvarchar },
-            { "CHAR", TypeTag.Nchar },
-            { "CHARACTER", TypeTag.Nchar },
-            { "BOOLEAN", TypeTag.Boolean },
-            { "BINARY", TypeTag.Blob },
-            { "VARBINARY", TypeTag.Blob },
-            { "DATE", TypeTag.DateTime },
-            { "DATETIME", TypeTag.DateTime },
-            { "TIME", TypeTag.DateTime },
-            { "TIMESTAMP", TypeTag.DateTime },
-            { "TIMESTAMP_NTZ", TypeTag.DateTime },
-            { "TIMESTAMP_LTZ", TypeTag.DateTimeTZ },
-            { "TIMESTAMP_TZ", TypeTag.DateTimeTZ },
-        };
+		private static readonly Dictionary<string, TypeTag> TYPE_MAP = new()
+		{
+			{ "NUMBER", TypeTag.Unstructured },
+			{ "NUMERIC", TypeTag.Unstructured },
+			{ "DECIMAL", TypeTag.Decimal },
+			{ "INT", TypeTag.Int },
+			{ "INTEGER", TypeTag.Int },
+			{ "BIGINT", TypeTag.Long },
+			{ "SMALLINT", TypeTag.Short },
+			{ "TINYINT", TypeTag.SByte },
+			{ "BYTEINT", TypeTag.Byte },
+			{ "REAL", TypeTag.Double },
+			{ "FLOAT", TypeTag.Double },
+			{ "FLOAT4", TypeTag.Double },
+			{ "FLOAT8", TypeTag.Double },
+			{ "DOUBLE", TypeTag.Double },
+			{ "DOUBLE PRECISION", TypeTag.Double },
+			{ "TEXT", TypeTag.Ntext },
+			{ "STRING", TypeTag.Ntext },
+			{ "VARCHAR", TypeTag.Nvarchar },
+			{ "CHAR", TypeTag.Nchar },
+			{ "CHARACTER", TypeTag.Nchar },
+			{ "BOOLEAN", TypeTag.Boolean },
+			{ "BINARY", TypeTag.Blob },
+			{ "VARBINARY", TypeTag.Blob },
+			{ "DATE", TypeTag.DateTime },
+			{ "DATETIME", TypeTag.DateTime },
+			{ "TIME", TypeTag.DateTime },
+			{ "TIMESTAMP", TypeTag.DateTime },
+			{ "TIMESTAMP_NTZ", TypeTag.DateTime },
+			{ "TIMESTAMP_LTZ", TypeTag.DateTimeTZ },
+			{ "TIMESTAMP_TZ", TypeTag.DateTimeTZ },
+		};
 
-        protected static TypeTag GetTagType(string v)
-        {
-            if (TYPE_MAP.TryGetValue(v, out var result)) {
-                return result;
-            }
-            throw new ArgumentException($"Unknown SQL data type '{v}'.");
-        }
+		protected static TypeTag GetTagType(string v)
+		{
+			if (TYPE_MAP.TryGetValue(v, out var result)) {
+				return result;
+			}
+			throw new ArgumentException($"Unknown SQL data type '{v}'.");
+		}
 
-        protected override string GetTableRowCount(StreamDescription name)
-            => @$"select t.row_count
+		protected override string GetTableRowCount(StreamDescription name)
+			=> @$"select t.row_count
 from information_schema.tables t
 where t.table_schema = '{name.Namespace}' and t.table_name = '{name.Name}'";
 
-        protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
-        {
-            throw new NotImplementedException();
-        }
-    }
+		protected override FieldDefinition[] AnalyzeCustomTableFields(IDataReader reader)
+		{
+			throw new NotImplementedException();
+		}
+	}
 }

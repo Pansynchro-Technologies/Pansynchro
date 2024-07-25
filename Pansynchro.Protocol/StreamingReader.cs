@@ -55,8 +55,7 @@ namespace Pansynchro.Protocol
 
 		public override bool Read()
 		{
-			if (!CheckForNewBlock())
-			{
+			if (!CheckForNewBlock()) {
 				Close();
 				_onComplete();
 				return false;

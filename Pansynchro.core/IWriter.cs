@@ -6,16 +6,16 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Core
 {
-    public interface IWriter : IDisposable
-    {
-        Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest);
-    }
+	public interface IWriter : IDisposable
+	{
+		Task Sync(IAsyncEnumerable<DataStream> streams, DataDictionary dest);
+	}
 
-    public interface IIncrementalWriter : IWriter
-    {
-        void SetSourceName(string name);
-        void MergeIncrementalData(Dictionary<StreamDescription, string>? data);
+	public interface IIncrementalWriter : IWriter
+	{
+		void SetSourceName(string name);
+		void MergeIncrementalData(Dictionary<StreamDescription, string>? data);
 
-        Dictionary<StreamDescription, string> IncrementalData { get; }
-    }
+		Dictionary<StreamDescription, string> IncrementalData { get; }
+	}
 }

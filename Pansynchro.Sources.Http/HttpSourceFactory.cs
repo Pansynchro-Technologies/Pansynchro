@@ -1,22 +1,21 @@
-﻿using System.Data.Common;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
 
 namespace Pansynchro.Sources.Http
 {
-    public class HttpSourceFactory : DataSourceFactoryCore
-    {
-        public override string Name => "Http";
+	public class HttpSourceFactory : DataSourceFactoryCore
+	{
+		public override string Name => "Http";
 
-        public override SourceCapabilities Capabilities => SourceCapabilities.Source;
+		public override SourceCapabilities Capabilities => SourceCapabilities.Source;
 
-        public override IDataSink GetSink(string config) => throw new System.NotImplementedException();
+		public override IDataSink GetSink(string config) => throw new System.NotImplementedException();
 
-        public override IDataSource GetSource(string config) => new HttpDataSource(config);
+		public override IDataSource GetSource(string config) => new HttpDataSource(config);
 
-        public override string SourceConfigSchema => @"{
+		public override string SourceConfigSchema => @"{
     ""type"": ""object"",
     ""properties"": {
         ""Urls"": {
@@ -42,7 +41,7 @@ namespace Pansynchro.Sources.Http
     ""required"": [""Urls""]
 }";
 
-        public override string EmptySourceConfig =>
+		public override string EmptySourceConfig =>
 @"{
   ""Urls"": [
     {
@@ -52,14 +51,14 @@ namespace Pansynchro.Sources.Http
   ]
 }";
 
-        public override string SinkConfigSchema => throw new System.NotImplementedException();
+		public override string SinkConfigSchema => throw new System.NotImplementedException();
 
-        public override string EmptySinkConfig => throw new System.NotImplementedException();
+		public override string EmptySinkConfig => throw new System.NotImplementedException();
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource(new HttpSourceFactory());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterSource(new HttpSourceFactory());
+		}
+	}
 }

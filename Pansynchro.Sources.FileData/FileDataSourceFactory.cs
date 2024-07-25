@@ -1,22 +1,21 @@
-﻿using System.Data.Common;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
 
 namespace Pansynchro.Sources.Files
 {
-    public class FileDataSourceFactory : DataSourceFactoryCore
-    {
-        public override string Name => "Files";
+	public class FileDataSourceFactory : DataSourceFactoryCore
+	{
+		public override string Name => "Files";
 
-        public override SourceCapabilities Capabilities => SourceCapabilities.Source;
+		public override SourceCapabilities Capabilities => SourceCapabilities.Source;
 
-        public override IDataSink GetSink(string config) => new FileDataSink(config);
+		public override IDataSink GetSink(string config) => new FileDataSink(config);
 
-        public override IDataSource GetSource(string config) => new FileDataSource(config);
+		public override IDataSource GetSource(string config) => new FileDataSource(config);
 
-        public override string SourceConfigSchema =>
+		public override string SourceConfigSchema =>
 @"{
     ""type"": ""object"",
     ""properties"": {
@@ -51,7 +50,7 @@ namespace Pansynchro.Sources.Files
     ""required"": [""Files""]
 }";
 
-        public override string EmptySourceConfig =>
+		public override string EmptySourceConfig =>
 @"{
   ""Files"": [
     {
@@ -61,7 +60,7 @@ namespace Pansynchro.Sources.Files
   ]
 }";
 
-        public override string SinkConfigSchema =>
+		public override string SinkConfigSchema =>
 @"{
   ""type"": ""object"",
   ""additionalProperties"": false,
@@ -108,7 +107,7 @@ namespace Pansynchro.Sources.Files
   }
 }";
 
-        public override string EmptySinkConfig =>
+		public override string EmptySinkConfig =>
 @"{
   ""Files"": [
     {
@@ -120,10 +119,10 @@ namespace Pansynchro.Sources.Files
   ""DuplicateFilenameAction"": 0
 }";
 
-        [ModuleInitializer]
-        public static void Register()
-        {
-            ConnectorRegistry.RegisterSource(new FileDataSourceFactory());
-        }
-    }
+		[ModuleInitializer]
+		public static void Register()
+		{
+			ConnectorRegistry.RegisterSource(new FileDataSourceFactory());
+		}
+	}
 }

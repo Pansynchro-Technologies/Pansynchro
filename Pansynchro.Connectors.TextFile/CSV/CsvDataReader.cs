@@ -236,28 +236,22 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 			for (int i = 0; i < line.Length; i++) // For each character
 			{
-				if (!inQuotes && line[i] == escapeChar && i + 1 < length && line[i + 1] == escapeChar)
-				{
+				if (!inQuotes && line[i] == escapeChar && i + 1 < length && line[i + 1] == escapeChar) {
 					currentStr.Append(line[i + 1]);
 					i++;
-				}
-				else if (!inQuotes && line[i] == escapeChar && i + 1 < length && line[i + 1] == cQuotes)
-				{
+				} else if (!inQuotes && line[i] == escapeChar && i + 1 < length && line[i + 1] == cQuotes) {
 					currentStr.Append(line[i + 1]);
 					i++;
-				}
-				else if (!inQuotes && line[i] == cQuotes)
-				{
+				} else if (!inQuotes && line[i] == cQuotes) {
 					//if (i == length - 1)
 					currentStr.Append(line[i]);
 					inQuotes = !inQuotes;
-				}
-				else if (inQuotes &&
-					(
-						((i + 1 < length && line[i + 1] == cSeparator) || (i + 1 == length))
-					)
-					) // Comma
-				{
+				} else if (inQuotes &&
+					  (
+						  ((i + 1 < length && line[i + 1] == cSeparator) || (i + 1 == length))
+					  )
+					  ) // Comma
+				  {
 					if (line[i] == cQuotes) // If not in quotes, end of current string, add it to result
 					{
 						currentStr.Append(line[i]);
@@ -266,42 +260,31 @@ namespace Pansynchro.Connectors.TextFile.CSV
 						result.Add(currentStr.ToString());
 						currentStr.Clear();
 						i++;
-					}
-					else
+					} else
 						currentStr.Append(line[i]); // If in quotes, just add it 
-				}
-				else if (inQuotes && line[i] == escapeChar && i + 1 < length && line[i + 1] == escapeChar)
-				{
+				} else if (inQuotes && line[i] == escapeChar && i + 1 < length && line[i + 1] == escapeChar) {
 					currentStr.Append(line[i + 1]);
 					i++;
-				}
-				else if (inQuotes &&
-					   ((line[i] == escapeChar && i + 1 < length && line[i + 1] == cQuotes))
-				   ) // Comma
-				{
+				} else if (inQuotes &&
+						 ((line[i] == escapeChar && i + 1 < length && line[i + 1] == cQuotes))
+					 ) // Comma
+				  {
 					i++;
 					//inQuotes = false;
 					currentStr.Append(line[i]);
-				}
-				else if (inQuotes && line[i] == cQuotes)
-				{
-					if (i + 1 < length && line[i + 1] == cQuotes)
-					{
+				} else if (inQuotes && line[i] == cQuotes) {
+					if (i + 1 < length && line[i + 1] == cQuotes) {
 						currentStr.Append(line[i]);
 						i++;
-					}
-					else
-					{
-						if (i + 1 < length && line[i + 1] != cSeparator)
-						{
+					} else {
+						if (i + 1 < length && line[i + 1] != cSeparator) {
 							currentStr.Append(line[i]);
 						}
 						//else
 						inQuotes = false;
 					}
-				}
-				else if (line[i] == cSeparator) // Comma
-				{
+				} else if (line[i] == cSeparator) // Comma
+				  {
 					if (!inQuotes) // If not in quotes, end of current string, add it to result
 					{
 						var value = currentStr.ToString();
@@ -310,15 +293,12 @@ namespace Pansynchro.Connectors.TextFile.CSV
 						else
 							result.Add(value);
 						currentStr.Clear();
-					}
-					else
+					} else
 						currentStr.Append(line[i]); // If in quotes, just add it 
-				}
-				else // Add any other character to current string
+				} else // Add any other character to current string
 					currentStr.Append(line[i]);
 			}
-			if (!lineEnded)
-			{
+			if (!lineEnded) {
 				result.Add(currentStr.ToString());
 			}
 			return result.ToArray(); // Return array of all strings
@@ -356,8 +336,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 					i++;
 				} else if ((text[i] == separator) &&
 					((quotes > 0 && quotes % 2 == 0) || (singleQuotes > 0 && singleQuotes % 2 == 0))
-					|| text[i] == separator && quotes == 0 && singleQuotes == 0)
-				{
+					|| text[i] == separator && quotes == 0 && singleQuotes == 0) {
 					if (hasChar) {
 						string subString = offset == 0 ? text.Substring(offset, i) : text.Substring(offset, i - offset);
 						word = NormalizeString(subString.Replace("\\", String.Empty), quoteChar);
@@ -375,7 +354,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			}
 
 			if (offset <= text.Length)
-				splitStrings.Add(hasChar 
+				splitStrings.Add(hasChar
 					? NormalizeString(text.Substring(offset).Replace("\\", String.Empty), quoteChar)!
 					: NormalizeString(text.Substring(offset), quoteChar)!);
 
@@ -504,7 +483,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 				++_index;
 			} else if (!_lineReader.MoveNext()) {
 				return false;
-			} else { 
+			} else {
 				line = _lineReader.Current;
 			}
 #if NET8_0_OR_GREATER
@@ -633,8 +612,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 			new public void Enqueue(T item)
 			{
-				if (_capacity > 0 && base.Count == _capacity)
-				{
+				if (_capacity > 0 && base.Count == _capacity) {
 					base.Dequeue();
 				}
 				base.Enqueue(item);
@@ -643,8 +621,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			public override string ToString()
 			{
 				StringBuilder items = new StringBuilder();
-				foreach (var x in this)
-				{
+				foreach (var x in this) {
 					items.Append(x);
 				};
 				return items.ToString();
@@ -660,8 +637,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 
 		public PipelinedCsvArrayProducer(TextReader reader, CsvConfigurator config) : base(reader, config)
 		{
-			var options = new BoundedChannelOptions(2)
-			  { AllowSynchronousContinuations = true, SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait };
+			var options = new BoundedChannelOptions(2) { AllowSynchronousContinuations = true, SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait };
 			var channel = Channel.CreateBounded<object[]?[]>(options);
 			_reader = channel.Reader;
 			_writer = channel.Writer;

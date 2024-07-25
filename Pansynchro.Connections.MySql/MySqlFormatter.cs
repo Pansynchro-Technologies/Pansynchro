@@ -2,15 +2,15 @@
 
 namespace Pansynchro.Connectors.MySQL
 {
-    public class MySqlFormatter : ISqlFormatter
-    {
-        public static MySqlFormatter Instance { get; } = new();
+	public class MySqlFormatter : ISqlFormatter
+	{
+		public static MySqlFormatter Instance { get; } = new();
 
-        private MySqlFormatter() { }
+		private MySqlFormatter() { }
 
-        public string QuoteName(string name)
-        {
-            return '`' + name + '`';
-        }
-    }
+		public string QuoteName(string name)
+		{
+			return '`' + name + '`';
+		}
+	}
 }
