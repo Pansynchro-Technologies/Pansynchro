@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -18,14 +20,12 @@ namespace Pansynchro.SQL
 		public DbConnection Conn => _conn;
 		protected DbTransaction? _tran;
 
-		protected IIncrementalStreamReader? _incrementalReader;
-		protected Func<StreamDefinition, Task<IDataReader>> _getReader;
+		protected ConcurrentDictionary<StreamDescription, IIncrementalStreamReader> _incrementalReaders = new();
 		private Dictionary<StreamDescription, string>? _incrementalPlan;
 
 		public SqlDbReader(string connectionString)
 		{
 			_conn = CreateConnection(connectionString);
-			_getReader = FullSyncReader;
 		}
 
 		protected abstract DbConnection CreateConnection(string connectionString);
@@ -76,25 +76,17 @@ namespace Pansynchro.SQL
 
 		private async Task<IDataReader> AuditReader(StreamDefinition stream)
 		{
-			var rcf = stream.RareChangeFields;
-			var columnList = rcf?.Length > 0
-				? stream.NameList.Except(rcf).Concat(rcf)
-				: stream.NameList;
 			var formatter = SqlFormatter;
 			var columns = (stream.Fields.Any(f => f.CustomRead != null))
-				? GetCustomColumnList(stream, columnList, formatter)
-				: string.Join(", ", columnList.Select(formatter.QuoteName));
-			var sql = stream.CustomQuery != null
+				? GetCustomColumnList(stream, stream.NameList, formatter)
+				: string.Join(", ", stream.NameList.Select(formatter.QuoteName));
+			var sql = stream.CustomQuery != null 
 				? $"select {columns} from ({stream.CustomQuery})"
 				: $"select {columns} from {formatter.QuoteName(stream.Name)}";
 			var bookmark = _incrementalPlan?.TryGetValue(stream.Name, out var av) == true ? av : null;
 			if (bookmark != null) {
 				var auditColumn = formatter.QuoteName(stream.Fields[stream.AuditFieldIndex!.Value].Name);
 				sql = $"{sql} where {auditColumn} > {bookmark}";
-			}
-			if (rcf?.Length > 0) {
-				var order = stream.Identity?.Length > 0 ? rcf.Concat(stream.Identity.Except(rcf)) : rcf;
-				sql = $"{sql} order by {string.Join(", ", order.Select(formatter.QuoteName))}";
 			}
 			using var query = _conn.CreateCommand();
 			query.CommandText = sql;
@@ -136,36 +128,46 @@ namespace Pansynchro.SQL
 				var streams = source.Streams.ToDictionary(s => s.Name);
 				foreach (var name in source.DependencyOrder.SelectMany(s => s)) {
 					var stream = streams[name];
-					var recordSize = PayloadSizeAnalyzer.AverageSize(_conn, stream, SqlFormatter, _tran);
-					EventLog.Instance.AddReadingStreamEvent(stream.Name, $"Average data size: {recordSize}");
-					_getReader = FullSyncReader;
-					var fullIncremental = false;
-					if (_incrementalPlan != null) {
-						_getReader = GetIncrementalStrategy(stream);
-						if (_getReader != FullSyncReader) {
-							if (_incrementalPlan.TryGetValue(name, out var bookmark)) {
-								_incrementalReader?.StartFrom(bookmark);
-							} else {
-								_getReader = FullSyncReader;
-								fullIncremental = true;
-							}
-						}
-					}
-					var settings = StreamSettings.None;
-					if (_getReader == FullSyncReader) {
-						if (stream.RareChangeFields?.Length > 0) {
-							settings |= StreamSettings.UseRcf;
-						}
-					}
-					yield return new DataStream(stream.Name, settings, await _getReader(stream));
-					if (fullIncremental && _incrementalReader != null) {
-						_incrementalPlan![name] = _incrementalReader.CurrentPoint(stream.Name);
-					}
+					yield return await ReadStream(stream);
 				}
 			} finally {
 				_tran.Dispose();
 				_tran = null;
 				await _conn.CloseAsync();
+			}
+		}
+
+		private async Task<DataStream> ReadStream(StreamDefinition stream)
+		{
+			Console.WriteLine($"{DateTime.Now}: Reading table '{stream.Name}'");
+			var recordSize = PayloadSizeAnalyzer.AverageSize(_conn, stream, SqlFormatter, _tran);
+			Console.WriteLine($"{DateTime.Now}: Average data size: {recordSize}");
+			Func<StreamDefinition, Task<IDataReader>> getReader = FullSyncReader;
+			if (_incrementalPlan != null) {
+				getReader = GetIncrementalStrategy(stream);
+				if (getReader != FullSyncReader) {
+					if (_incrementalPlan.TryGetValue(stream.Name, out var bookmark)) {
+						_incrementalReaders.TryGetValue(stream.Name, out var incr);
+						incr?.StartFrom(bookmark);
+					} else {
+						getReader = FullSyncReader;
+					}
+				}
+			}
+			var settings = StreamSettings.None;
+			if (getReader == FullSyncReader) {
+				if (stream.RareChangeFields?.Length > 0) {
+					settings |= StreamSettings.UseRcf;
+				}
+			}
+			return new DataStream(stream.Name, settings, await getReader(stream));
+		}
+
+		public void StreamDone(StreamDescription name)
+		{
+			_incrementalReaders.TryGetValue(name, out var incr);
+			if (incr != null) {
+				_incrementalPlan![name] = incr.CurrentPoint(name);
 			}
 		}
 

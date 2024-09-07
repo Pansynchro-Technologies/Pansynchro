@@ -3,8 +3,9 @@
 	public enum IncrementalStrategy
 	{
 		None,
-		Cdc,
+		CdcByTable,
 		Column,
-		ChangeTracking
+		ChangeTracking,
+		CdcFull,
 	}
 }

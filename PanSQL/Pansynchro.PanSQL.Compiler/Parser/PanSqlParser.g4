@@ -38,9 +38,11 @@ functionCall : id LPAREN argList? RPAREN;
 
 argList : expression (COMMA expression)*;
 
-varDeclaration : varType id AS compoundId;
+varDeclaration : varType id AS compoundId (WITH varOptions)?;
 
 varType : STREAM | TABLE;
+
+varOptions: id;
 
 mapStatement : MAP ((NAMESPACE nullableId TO nullableId) | (compoundId TO compoundId (WITH mappingList)?));
 
@@ -73,14 +75,14 @@ compoundId: IDENTIFIER (DOT IDENTIFIER)+;
 
 jsonExpression : jsonObject | jsonArray ;
 
-jsonObject : LBRACE jsonPair (COMMA jsonPair)* RBRACE
-	| LBRACE RBRACE
+jsonObject : LBRACE NEWLINE* jsonPair NEWLINE* (COMMA NEWLINE* jsonPair NEWLINE*)* RBRACE
+	| LBRACE NEWLINE* RBRACE
 	;
 
-jsonArray : LBRACK jsonValue (COMMA jsonValue)* RBRACK
-	| LBRACK RBRACK
+jsonArray : LBRACK NEWLINE* jsonValue NEWLINE* (COMMA NEWLINE* jsonValue NEWLINE*)* RBRACK
+	| LBRACK NEWLINE* RBRACK
 	;
 
-jsonPair : JSONSTRING COLON jsonValue;
+jsonPair : JSONSTRING NEWLINE* COLON NEWLINE* jsonValue;
 
 jsonValue : JSONSTRING | JSONNUMBER | NUMBER | jsonObject | jsonArray | TRUE | FALSE | NULL | scriptVarRef;

@@ -207,7 +207,7 @@ namespace Pansynchro.PanSQL.Core
 
 			public SumAggregateNullable() { }
 
-			public void Add(TKey key, TValue value)
+			public void Add(TKey? key, TValue value)
 			{
 				ref var old = ref _dictionary.GetValueRefOrAddDefault(key, out _);
 				old = old is null ? value : old + value;

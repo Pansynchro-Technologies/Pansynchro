@@ -47,7 +47,7 @@ namespace Pansynchro.Core.DataDict
 			return _streamDict!.ContainsKey(name);
 		}
 
-		public static DataDictionary LoadFromFile(string filename)
+		public static DataDictionary LoadFromFile(string filename) 
 			=> DataDictionaryWriter.Parse(File.ReadAllText(filename));
 
 		public void SaveToFile(string filename) => File.WriteAllText(filename, DataDictionaryWriter.Write(this));
@@ -82,6 +82,17 @@ namespace Pansynchro.Core.DataDict
 				.ToArray();
 			return this with { Fields = fixedFields, RareChangeFields = rcfFields, DomainReductions = domainShifts, SeqIdIndex = seqId };
 		}
+
+		bool IEquatable<StreamDefinition>.Equals(StreamDefinition? other) 
+			=> other != null 
+				&& Name == other.Name
+				&& Fields.SequenceEqual(other.Fields)
+				&& Identity.SequenceEqual(other.Identity)
+				&& CustomQuery == other.CustomQuery
+				&& RareChangeFields.SequenceEqual(other.RareChangeFields)
+				&& DomainReductions.SequenceEqual(other.DomainReductions)
+				&& SeqIdIndex == other.SeqIdIndex
+				&& AuditFieldIndex == other.AuditFieldIndex;
 	}
 
 	public record FieldDefinition(string Name, FieldType Type, string? CustomRead = null);

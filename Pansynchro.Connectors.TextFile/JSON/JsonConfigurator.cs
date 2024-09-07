@@ -61,12 +61,12 @@ namespace Pansynchro.Connectors.TextFile.JSON
 				if (keyword == "Streams") {
 					Streams = (ObservableCollection<JsonConf>)value!;
 				} else {
-					var existing = Streams.FirstOrDefault(s => s.Name.ToLowerInvariant() == keyword.ToLowerInvariant());
+					var existing = Streams.FirstOrDefault(s => s.Name.Equals(keyword, StringComparison.InvariantCultureIgnoreCase));
 					if (existing != null) {
 						Streams.Remove(existing);
 					}
 					var newStream = JsonConvert.DeserializeObject<JsonConf>((string)value!);
-					if (newStream?.Name.ToLowerInvariant() != keyword.ToLowerInvariant()) {
+					if (!keyword.Equals(newStream?.Name, StringComparison.InvariantCultureIgnoreCase)) {
 						throw new ArgumentException($"Invalid stream name: {keyword}");
 					}
 					Streams.Add(newStream);

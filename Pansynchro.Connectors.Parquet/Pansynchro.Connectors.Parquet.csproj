@@ -4,16 +4,18 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.0</AssemblyVersion>
-	<FileVersion>0.6.0</FileVersion>
-	<Version>0.6.0</Version>
+	<AssemblyVersion>0.6.34</AssemblyVersion>
+	<FileVersion>0.6.34</FileVersion>
+	<Version>0.6.34</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Parquet Connector</Product>
 	<Description>Pansynchro connector to read from Parquet files.</Description>
 	<Copyright>Copyright 2022, Pansynchro Technologies</Copyright>
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;parquet</PackageTags>
-	<PackageReleaseNotes>Updating Parquet core library.</PackageReleaseNotes>
+	<PackageReleaseNotes>
+		Implementing new logging system
+	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
 

@@ -33,7 +33,7 @@ namespace Pansynchro.Connectors.MSSQL.Incremental
 
 		private static byte[] ReadBytes(IDataReader r) => (byte[])r.GetValue(0);
 
-		public IncrementalStrategy Strategy => IncrementalStrategy.Cdc;
+		public IncrementalStrategy Strategy => IncrementalStrategy.CdcByTable;
 
 		private const string CDC_FIELD_MAPPING =
 @"SELECT column_name, column_ordinal - 1

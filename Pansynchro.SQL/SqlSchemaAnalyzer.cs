@@ -247,7 +247,9 @@ namespace Pansynchro.SQL
 
 		private async Task<string[]> ExtractRcfFields(StreamDefinition stream)
 		{
-			var fieldList = string.Join(", ", stream.Fields.Select(f => $"count(distinct {f.Name}) as {f.Name}"));
+			var fieldList = string.Join(", ", stream.Fields
+				.Where(f => f.Type.Type is not TypeTag.Text or TypeTag.Ntext or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob)
+				.Select(f => $"count(distinct {f.Name}) as {f.Name}"));
 			var query = GetDistinctCountQuery(fieldList, stream.Name.ToString(), LARGE_TABLE_THRESHOLD);
 			var results = await SqlHelper.ReadValuesAsync(_conn, query, DistinctQuerySelector).SingleAsync();
 			var winners = results.Where(kvp => kvp.Value < (LARGE_TABLE_THRESHOLD / 1000))

@@ -31,7 +31,7 @@ namespace Pansynchro.Core.DataDict
 			return result;
 		}
 
-		private static Statement SerializeCustomTypes(Dictionary<string, FieldType> types)
+		private static Command SerializeCustomTypes(Dictionary<string, FieldType> types)
 		{
 			var values = types.Select(
 				field => SerializeField(new FieldDefinition(field.Key, field.Value), "Type"));
@@ -86,7 +86,7 @@ namespace Pansynchro.Core.DataDict
 			return result;
 		}
 
-		private static Statement SerializeField(FieldDefinition field, string typeName)
+		private static Command SerializeField(FieldDefinition field, string typeName)
 		{
 			var name = new NameNode(field.Name);
 			Expression fieldTypeExpr = WriteName(field.Type.Type.ToString());

@@ -170,7 +170,7 @@ namespace Pansynchro.Core.Connectors
 			return conn;
 		}
 
-		private static Statement WriteSupports(Capabilities capabilities)
+		private static Command WriteSupports(Capabilities capabilities)
 		{
 			var exprs = new List<Expression>();
 			if (capabilities.HasFlag(Capabilities.Analyzer)) {
@@ -200,7 +200,7 @@ namespace Pansynchro.Core.Connectors
 			return new Command("Source", new[] { new NameNode(description.Name) }, body: body.ToArray());
 		}
 
-		private static Statement WriteSourceSupports(SourceCapabilities capabilities)
+		private static Command WriteSourceSupports(SourceCapabilities capabilities)
 		{
 			var exprs = new List<Expression>();
 			if (capabilities.HasFlag(SourceCapabilities.Source)) {

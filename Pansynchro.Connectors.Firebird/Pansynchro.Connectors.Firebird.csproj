@@ -4,9 +4,9 @@
 	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows;net8.0;net8.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.27</AssemblyVersion>
-	<FileVersion>0.6.27</FileVersion>
-	<Version>0.6.27</Version>
+	<AssemblyVersion>0.6.34</AssemblyVersion>
+	<FileVersion>0.6.34</FileVersion>
+	<Version>0.6.34</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Firebird Connector</Product>
 	<Description>Pansynchro connector to read from or write to Firebird databases.</Description>
@@ -14,7 +14,8 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;firebird</PackageTags>
 	<PackageReleaseNotes>
-		Rebuilding SQL packages with Pansynchro.SQL update
+		Implementing new logging system
+		Updating dependencies
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
@@ -24,7 +25,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="10.0.0" />
+    <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="10.3.1" />
   </ItemGroup>
 
   <ItemGroup>

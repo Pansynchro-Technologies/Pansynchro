@@ -81,7 +81,6 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				throw new CompilerError($"PanSQL only supports a maximum of {MAX_AGGS} aggregate functions in a single query.", node);
 			}
 			return builder.Model;
-
 		}
 
 		private DataModel BuildDataModel(SqlTransformStatement node) => BuildDataModel(node.SqlNode, node);

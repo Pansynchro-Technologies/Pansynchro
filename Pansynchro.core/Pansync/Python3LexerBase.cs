@@ -38,7 +38,7 @@ namespace Pansynchro.Core.Pansync
 			return new CommonToken(Tuple.Create((ITokenSource)this, (ICharStream)InputStream), type, DefaultTokenChannel, start, stop);
 		}
 
-		private IToken CreateDedent()
+		private CommonToken CreateDedent()
 		{
 			var dedent = CommonToken(PansyncLexer.DEDENT, "");
 			dedent.Line = LastToken!.Line;
