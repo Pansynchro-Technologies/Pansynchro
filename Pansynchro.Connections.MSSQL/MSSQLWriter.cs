@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 
@@ -6,6 +7,7 @@ using Microsoft.Data.SqlClient;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
 using Pansynchro.Core.EventsSystem;
 using Pansynchro.SQL;
 
@@ -41,10 +43,16 @@ namespace Pansynchro.Connectors.MSSQL
 		{
 			using var conn = new SqlConnection(_connectionString);
 			conn.Open();
-			EventLog.Instance.AddMergingStreamEvent(table);
-			MetadataHelper.MergeTable(conn, table);
-			EventLog.Instance.AddTruncatingStreamEvent(table);
-			MetadataHelper.TruncateTable(conn, table);
+			try {
+				EventLog.Instance.AddMergingStreamEvent(table);
+				MetadataHelper.MergeTable(conn, table);
+				EventLog.Instance.AddTruncatingStreamEvent(table);
+				MetadataHelper.TruncateTable(conn, table);
+			} catch (Exception ex) {
+				EventLog.Instance.AddErrorEvent(ex, table);
+				if (!ErrorManager.ContinueOnError)
+					throw;
+			}
 		}
 
 		const SqlBulkCopyOptions COPY_OPTIONS = SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.KeepNulls | SqlBulkCopyOptions.TableLock | SqlBulkCopyOptions.UseInternalTransaction;

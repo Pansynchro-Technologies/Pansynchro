@@ -9,6 +9,7 @@ using NpgsqlTypes;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.Errors;
 using Pansynchro.Core.EventsSystem;
 using Pansynchro.SQL;
 
@@ -46,14 +47,28 @@ namespace Pansynchro.Connectors.Postgres
 		protected override Task Finish()
 		{
 			var conn = (NpgsqlConnection)_conn;
+			var noTruncateList = new List<StreamDescription>();
 			foreach (var table in _dict!.DependencyOrder.SelectMany(sd => sd).Reverse()) {
-				EventLog.Instance.AddMergingStreamEvent(table);
-				MetadataHelper.MergeTable(conn, table.Name, table.Namespace!);
+				try {
+					EventLog.Instance.AddMergingStreamEvent(table);
+					MetadataHelper.MergeTable(conn, table.Name, table.Namespace!);
+				} catch (Exception ex) {
+					EventLog.Instance.AddErrorEvent(ex, table);
+					if (!ErrorManager.ContinueOnError)
+						throw;
+					noTruncateList.Add(table);
+				}
 			}
 
-			foreach (var table in _dict.DependencyOrder.SelectMany(sd => sd)) {
-				EventLog.Instance.AddTruncatingStreamEvent(table);
-				MetadataHelper.TruncateTable(conn, table.Name);
+			foreach (var table in _dict.DependencyOrder.SelectMany(sd => sd).Where(sd => !noTruncateList.Any(no => sd.ToString() == no.ToString()))) {
+				try {
+					EventLog.Instance.AddTruncatingStreamEvent(new StreamDescription("Pansynchro", table.Name));
+					MetadataHelper.TruncateTable(conn, table.Name);
+				} catch (Exception ex) {
+					EventLog.Instance.AddErrorEvent(ex, table);
+					if (!ErrorManager.ContinueOnError)
+						throw;
+				}
 			}
 			return Task.CompletedTask;
 		}
