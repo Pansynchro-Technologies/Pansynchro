@@ -106,9 +106,9 @@ jobs:
       PANSQL: 'PanSQL/Pansynchro.PanSQL.sln'
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: linux
           - os: macos-latest
             platform: osx
@@ -128,7 +128,7 @@ jobs:
           dotnet-version: '8.0.x'
   
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v1.2.0
+        uses: NuGet/setup-nuget@v2
         with:
           nuget-version: 'latest'
   
