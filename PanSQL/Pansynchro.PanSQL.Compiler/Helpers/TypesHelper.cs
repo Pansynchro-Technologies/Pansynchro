@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 using Pansynchro.Core.DataDict;
@@ -15,12 +14,14 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		internal static FieldType NullType = new(TypeTag.Custom, true, CollectionType.None, "NULL");
 		internal static FieldType ObjType = new(TypeTag.Unstructured, false, CollectionType.None, null);
 
+		internal static FieldType BoolType = new(TypeTag.Boolean, false, CollectionType.None, null);
 		internal static FieldType IntType = new(TypeTag.Int, false, CollectionType.None, null);
 		internal static FieldType FloatType = new(TypeTag.Float, false, CollectionType.None, null);
 		internal static FieldType DoubleType = new(TypeTag.Double, false, CollectionType.None, null);
 		internal static FieldType TextType = new(TypeTag.Ntext, false, CollectionType.None, null);
 		internal static FieldType DateTimeType = new(TypeTag.DateTime, false, CollectionType.None, null);
 		internal static FieldType JsonType = new(TypeTag.Json, false, CollectionType.None, null);
+		internal static FieldType NvarcharType = new(TypeTag.Nvarchar, false, CollectionType.None, null);
 
 		internal static FieldType MakeStringType(string value) => new(TypeTag.Nchar, false, CollectionType.None, value.Length.ToString());
 
@@ -103,6 +104,44 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 				_ => throw new NotImplementedException(),
 			};
 			return typeName;
+		}
+
+		private static Type TypeTagToDotNetType(TypeTag type) => type switch {
+			TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext => typeof(string),
+			TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob => typeof(byte[]),
+			TypeTag.Boolean => typeof(bool),
+			TypeTag.Byte => typeof(byte),
+			TypeTag.Short => typeof(short),
+			TypeTag.Int => typeof(int),
+			TypeTag.Long => typeof(long),
+			TypeTag.Decimal or TypeTag.Numeric => typeof(decimal),
+			TypeTag.Float or TypeTag.Single => typeof(float),
+			TypeTag.Double => typeof(double),
+			TypeTag.Date or TypeTag.DateTime => typeof(DateTime),
+			TypeTag.DateTimeTZ => typeof(DateTimeOffset),
+			TypeTag.Guid => typeof(Guid),
+			TypeTag.Xml or TypeTag.Json => typeof(string),
+			TypeTag.Money or TypeTag.SmallMoney => typeof(decimal),
+			TypeTag.SmallDateTime => typeof(DateTime),
+			TypeTag.SByte => typeof(sbyte),
+			TypeTag.UShort => typeof(ushort),
+			TypeTag.UInt => typeof(uint),
+			TypeTag.ULong => typeof(ulong),
+			_ => throw new NotImplementedException(),
+		};
+
+		internal static Type FieldTypeToDotNetType(FieldType type)
+		{
+			var result = TypeTagToDotNetType(type.Type);
+			if (type.Nullable && result.IsValueType) {
+				result = typeof(Nullable<>).MakeGenericType(result);
+			}
+			result = type.CollectionType switch {
+				CollectionType.None => result,
+				CollectionType.Array => result.MakeArrayType(),
+				_ => throw new NotImplementedException(),
+			};
+			return result;
 		}
 
 		internal static string FieldTypeToGetter(FieldType type, int idx)

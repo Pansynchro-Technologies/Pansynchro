@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using Microsoft.SqlServer.Management.SqlParser.SqlCodeDom;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.Ast;
-using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
+
+using TableReference = Microsoft.SqlServer.TransactSql.ScriptDom.TableReference;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
@@ -125,10 +126,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var grouped = false;
 			var oneAgg = false;
 			switch (stmt) {
-				case SqlSelectStatement sel:
+				case SelectStatement sel:
 					node.Tables.AddRange(VerifySelect(sel, node));
 					node.Output = VerifyTableName(node.Dest.Name, false, node)[0];
-					var spec = (SqlQuerySpecification)sel.SelectSpecification.QueryExpression;
+					var spec = (QuerySpecification)sel.QueryExpression;
 					grouped = spec.GroupByClause != null;
 					if (!grouped) {
 						oneAgg = new OneAggVisitor().Check(spec);
@@ -148,38 +149,24 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (grouped || oneAgg) {
 				tt |= TransactionType.Grouped;
 			}
-			if (((SqlSelectStatement)node.SqlNode).QueryWithClause != null) {
+			if (((SelectStatement)node.SqlNode).WithCtesAndXmlNamespaces?.CommonTableExpressions?.Count > 0) {
 				tt |= TransactionType.WithCte;
 			}
 			node.TransactionType = tt;
 		}
 
-		private static bool CheckForInnerJoin(SqlJoinTableExpression j)
+		private IEnumerable<Variable> VerifySelect(SelectStatement sel, SqlTransformStatement node)
 		{
-			if (j.JoinOperator == SqlJoinOperatorType.InnerJoin) {
-				return true;
-			}
-			if (j.Left is SqlJoinTableExpression j2 && CheckForInnerJoin(j2)) {
-				return true;
-			}
-			if (j.Right is SqlJoinTableExpression j3 && CheckForInnerJoin(j3)) {
-				return true;
-			}
-			return false;
-		}
-
-		private IEnumerable<Variable> VerifySelect(SqlSelectStatement sel, SqlTransformStatement node)
-		{
-			if (sel.QueryWithClause != null) {
-				foreach (var cte in sel.QueryWithClause.CommonTableExpressions) {
-					foreach (var result in VerifyQuerySpec((SqlQuerySpecification)cte.QueryExpression, node))
+			if (sel.WithCtesAndXmlNamespaces?.CommonTableExpressions?.Count > 0) {
+				foreach (var cte in sel.WithCtesAndXmlNamespaces.CommonTableExpressions) {
+					foreach (var result in VerifyQuerySpec((QuerySpecification)cte.QueryExpression, node))
 					{ }
 					AddCte(cte, node);
 				}
 			}
-			var from = ((SqlQuerySpecification)sel.SelectSpecification.QueryExpression).FromClause;
+			var from = ((QuerySpecification)sel.QueryExpression).FromClause;
 			var tableRequired = false;
-			foreach (var table in from.TableExpressions) {
+			foreach (var table in from.TableReferences) {
 				foreach (var result in VerifyTable(table, tableRequired, node)) {
 					yield return result;
 				}
@@ -187,9 +174,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private void AddCte(SqlCommonTableExpression cte, SqlTransformStatement node)
+		private void AddCte(CommonTableExpression cte, SqlTransformStatement node)
 		{
-			var name = cte.Name.Value.ToPropertyName();
+			var name = cte.ExpressionName.Value.ToPropertyName();
 			if (_file.Vars.ContainsKey(name)) {
 				throw new CompilerError($"CTE name '{name}' must not be used elsewhere in the script.", node);
 			}
@@ -197,12 +184,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_file.AddVar(result, node);
 		}
 
-		private IEnumerable<Variable> VerifyQuerySpec(SqlQuerySpecification spec, SqlTransformStatement node) 
+		private IEnumerable<Variable> VerifyQuerySpec(QuerySpecification spec, SqlTransformStatement node) 
 			=> VerifyQueryFromClause(spec.FromClause, node);
 
-		private IEnumerable<Variable> VerifyQueryFromClause(SqlFromClause from, SqlTransformStatement node)
+		private IEnumerable<Variable> VerifyQueryFromClause(FromClause from, SqlTransformStatement node)
 		{
-			foreach (var table in from.TableExpressions) {
+			foreach (var table in from.TableReferences) {
 				foreach (var result in VerifyTable(table, false, node)) {
 					yield return result;
 				}
@@ -210,17 +197,17 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		}
 
-		private IEnumerable<Variable> VerifyTable(SqlTableExpression table, bool tableRequired, Ast.SqlTransformStatement node)
+		private IEnumerable<Variable> VerifyTable(TableReference table, bool tableRequired, Ast.SqlTransformStatement node)
 		{
 			switch (table) {
-				case SqlTableRefExpression tRef:
-					var name = tRef.ObjectIdentifier.ObjectName.Value;
+				case NamedTableReference tRef:
+					var name = tRef.SchemaObject.BaseIdentifier.Value;
 					foreach (var result in VerifyTableName(name, tableRequired, node)) {
 						yield return result;
 					}
 					break;
-				case SqlJoinTableExpression join:
-					foreach (var result in VerifyTable(join.Left, tableRequired, node).Concat(VerifyTable(join.Right, true, node))) {
+				case JoinTableReference join:
+					foreach (var result in VerifyTable(join.FirstTableReference, tableRequired, node).Concat(VerifyTable(join.SecondTableReference, true, node))) {
 						yield return result;
 					}
 					break;
@@ -312,26 +299,22 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private class OneAggVisitor: Microsoft.SqlServer.Management.SqlParser.SqlCodeDom.SqlCodeObjectRecursiveVisitor
+		private class OneAggVisitor: TSqlFragmentVisitor
 		{
 			private bool _found = false;
 
-			public override void Visit(SqlAggregateFunctionCallExpression codeObject)
+			public override void Visit(FunctionCall fragment)
 			{
-				_found = true;
-			}
-
-			public override void Visit(SqlBuiltinScalarFunctionCallExpression codeObject)
-			{
-				if (codeObject.FunctionName.ToUpper() == "STRING_AGG") {
+				var name = fragment.FunctionName.Value.ToLower().ToPropertyName();
+				if (SqlAnalysis.AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(name)) {
 					_found = true;
 				}
-				base.Visit(codeObject);
+				base.Visit(fragment);
 			}
 
-			internal bool Check(SqlQuerySpecification queryExpression)
+			internal bool Check(QuerySpecification queryExpression)
 			{
-				foreach (var expr in queryExpression.SelectClause.SelectExpressions)
+				foreach (var expr in queryExpression.SelectElements)
 				{
 					expr.Accept(this);
 					if (_found) {

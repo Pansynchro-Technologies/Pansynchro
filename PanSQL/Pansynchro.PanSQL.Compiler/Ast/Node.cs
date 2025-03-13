@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-using Microsoft.SqlServer.Management.SqlParser.SqlCodeDom;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.DataModels;
@@ -133,9 +133,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 	internal record CteData(string Name, SqlModel Model, StreamDefinition Stream);
 
-	public class SqlTransformStatement(SqlStatement sqlNode, Identifier dest) : Statement
+	public class SqlTransformStatement(TSqlStatement sqlNode, Identifier dest) : Statement
 	{
-		public SqlStatement SqlNode { get; } = sqlNode;
+		public TSqlStatement SqlNode { get; } = sqlNode;
 		public Identifier Dest { get; } = dest;
 
 		internal List<Variable> Tables { get; } = [];

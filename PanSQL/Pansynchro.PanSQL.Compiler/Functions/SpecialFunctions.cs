@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
 
 namespace Pansynchro.PanSQL.Compiler.Functions
 {
-	internal struct SpecialFunc(string name, Func<FieldType[], string?> verifyArgs, Func<FieldType[], FieldType> returnType, Func<DbExpression[], Func<DbExpression, string>?, string> codegen)
-	{
-		public string Name { get; } = name;
-		public Func<FieldType[], string?> VerifyArgs { get; } = verifyArgs;
-		public Func<FieldType[], FieldType> ReturnType { get; } = returnType;
-		public Func<DbExpression[], Func<DbExpression, string>?, string> Codegen { get; } = codegen;
-	}
+	internal record struct SpecialFunc(
+		string Name,
+		Func<FieldType[], string?> VerifyArgs,
+		Func<FieldType[], FieldType> ReturnType,
+		Func<DbExpression[], Func<DbExpression, string>?, string> Codegen);
 
 	internal static class SpecialFunctions
 	{
@@ -22,7 +21,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return [AbsFunction(), AcosFunction(), AsinFunction(), AtanFunction(), Atan2Function(), CeilFunction(),
 					CosFunction(), DegFunction(), RadFunction(), ExpFunction(), FloorFunction(), LogFunction(),
 					Log10Function(), PowFunction(), RandFunction(), RoundFunction(), SignFunction(),
-					SinFunction(), SqrtFunction(), SquareFunction(), TanFunction()];
+					SinFunction(), SqrtFunction(), SquareFunction(), TanFunction(), TrimFunction(), ReplaceFunction()];
 		}
 
 		private static SpecialFunc AbsFunction() => new("ABS", AnyNumeric(1), IdentityTypeFirst,
@@ -159,6 +158,28 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
 				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Tan({arg})" : $"Math.Tan({arg})";
 			});
+		
+		private static SpecialFunc ReplaceFunction() => new("Replace", AnyString(3),
+			IdentityTypeFirst,
+			(exprs, reader) => {
+				var value = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
+				var pattern = reader?.Invoke(exprs[1]) ?? exprs[1].ToString();
+				var replace = reader?.Invoke(exprs[2]) ?? exprs[2].ToString();
+				return $"{value}?.Replace({pattern}, {replace})";
+			});
+
+		private static SpecialFunc TrimFunction() => new("TRIM", TrimArgs,
+			IdentityTypeSecond,
+			(exprs, reader) => {
+				var value = reader?.Invoke(exprs[1]) ?? exprs[1].ToString();
+				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
+				var call = ((IntegerLiteralExpression)exprs[2]).Value switch {
+					0 => "Trim",
+					1 => "TrimStart",
+					2 => "TrimEnd"
+				};
+				return $"{value}?.{call}(({arg}).ToCharArray())";
+			});
 
 		private static string? NoArgs(FieldType[] types) 
 			=> (types.Length != 0) ? $"Function {{0}} does not take any argument(s)." : null;
@@ -191,6 +212,19 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 			if (count > 1 && types.Distinct().Count() > 1) {
 				return $"All arguments for function {{0}} must be of the same type.";
+			}
+			return null;
+		};
+
+		private static Func<FieldType[], string?> AnyString(int count) => types => {
+			if (types.Length != count) {
+				return $"Function {{0}} requires {count} argument(s).";
+			}
+			for (int i = 0; i < count; i++) {
+				var typ = types[i];
+				if (TypesHelper.FieldTypeToDotNetType(typ) != typeof(string)) {
+					return $"'{typ}' is not a string type.";
+				}
 			}
 			return null;
 		};
@@ -243,6 +277,19 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
+		private static string? TrimArgs(FieldType[] types) 
+		{
+			if (types.Length != 3
+					|| TypesHelper.FieldTypeToDotNetType(types[0]) != typeof(string)
+					|| TypesHelper.FieldTypeToDotNetType(types[1]) != typeof(string)
+					|| TypesHelper.FieldTypeToDotNetType(types[2]) != typeof(int)) {
+				return "Invalid Trim() arguments";
+			}
+			return null;
+		}
+
 		private static FieldType IdentityTypeFirst(FieldType[] types) => types[0];
+
+		private static FieldType IdentityTypeSecond(FieldType[] types) => types[1];
 	}
 }

@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 
 using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
-using Pansynchro.PanSQL.Compiler.Steps;
 
 namespace Pansynchro.PanSQL.Compiler.Functions
 {
@@ -19,8 +19,8 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		static FunctionBinder()
 		{
 			_methods.Add("format", typeof(string).GetMethod("Format", [typeof(string), typeof(object[])])!);
-			_props.Add("current_timestamp", typeof(DateTime).GetProperty("Now")!);
-			_props.Add("getdate", _props["current_timestamp"]);
+			_props.Add("CurrentTimestamp", typeof(DateTime).GetProperty("Now")!);
+			_props.Add("getdate", _props["CurrentTimestamp"]);
 			_props.Add("getutcdate", typeof(DateTime).GetProperty("UtcNow")!);
 			_props.Add("pi", typeof(Math).GetProperty("PI")!);
 		}
@@ -53,7 +53,14 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 					BindProp(call, prop, parent);
 					return;
 				}
-				throw new CompilerError($"No function named '{call.Function}' is available", parent);
+				var func = SpecialFunctions.ListSpecialFunctions()
+					.FirstOrDefault(f =>
+						f.Name.Equals(call.Function.Name, StringComparison.InvariantCultureIgnoreCase));
+				if (func == default) {
+					throw new CompilerError($"No function named '{call.Function}' is available", parent);
+				}
+				BindSpecialFunction(call, func, parent);
+				return;
 			}
 			var parameters = info.GetParameters();
 			ParameterInfo? paramsArg = null;
@@ -72,6 +79,17 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 			call.Function = new($"{info.DeclaringType!.Name}.{info.Name}");
 			call.Type = TypesHelper.CSharpTypeToFieldType(info.ReturnType);
+		}
+
+		private static void BindSpecialFunction(CallExpression call, in SpecialFunc func, Node parent)
+		{
+			var argTypes = call.Args.Select(a => a.Type!).ToArray();
+			var typeError = func.VerifyArgs(argTypes);
+			if (typeError != null) {
+				throw new CompilerError(string.Format(typeError, func.Name), parent);
+			}
+			call.Type = func.ReturnType(argTypes);
+			call.SpecialCodegen = func.Codegen;
 		}
 
 		private static void BindProp(CallExpression call, PropertyInfo prop, Node parent)

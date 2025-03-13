@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -7,14 +8,15 @@ using System.Text.Json.Nodes;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 
-using Pansynchro.Core.DataDict;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
+
 using Pansynchro.Core.Helpers;
 using Pansynchro.PanSQL.Compiler.Ast;
 
+using Identifier = Pansynchro.PanSQL.Compiler.Ast.Identifier;
+
 namespace Pansynchro.PanSQL.Compiler.Parser
 {
-	using Microsoft.SqlServer.Management.SqlParser.Parser;
-
 	internal class PanSqlParserVisitor : PanSqlParserBaseVisitor<Node>, IPanSqlParserVisitor<Node>
 	{
 		public override Node VisitId([NotNull] PanSqlParser.IdContext context)
@@ -153,9 +155,14 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var start = context.WITH() != null ? "with" : "select";
 			var sql = start + ' ' + string.Join(' ', context.sqlToken().Select(t => t.GetText())).Replace(" . ", ".").Replace(" , ", ", ").Replace(" @ ", " @");
 			var id = context.id().GetText();
-			var sqlNode = Parser.Parse(sql);
-			var batches = sqlNode.Script.Batches;
-			if (batches.Count > 1 || batches[0].Statements.Count > 1) {
+			var parser = new TSql170Parser(false, SqlEngineType.All);
+			var altSqlNode = parser.Parse(new StringReader(sql), out IList<ParseError> list) as TSqlScript;
+			var batches = altSqlNode?.Batches;
+			if (list.Count > 0) {
+				throw new Exception("Error(s) found parsing SQL script:" + Environment.NewLine +
+				                    string.Join(Environment.NewLine, list.Select(e => e.Message)));
+			}
+			if (batches == null || batches.Count > 1 || batches[0].Statements.Count > 1) {
 				throw new Exception("SQL scripts should only contain one statement at a time");
 			}
 			var stmt = batches[0].Statements[0];

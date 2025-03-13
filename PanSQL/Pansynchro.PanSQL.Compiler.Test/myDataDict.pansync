@@ -22,6 +22,10 @@ DataDictionary StackOverflow2013:
 		Field Vendor(Int)
 		Field Price(Decimal)
 		Identity Id
+	Stream Guids:
+		Field Id(Int)
+		Field UniqueId(Char(36))
+		Identity Id
 	DependencyOrder :
 		[UserTypes], [Users, Products], [Orders]
 	CustomTypes 

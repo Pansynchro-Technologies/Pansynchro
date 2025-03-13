@@ -98,6 +98,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public DbExpression[] Args { get; } = args;
 
 		public bool IsProp { get; internal set; }
+		public Func<DbExpression[], Func<DbExpression, string>?, string>? SpecialCodegen { get; internal set; }
 
 		internal override bool Match(DbExpression other)
 			=> other is CallExpression ce
@@ -137,6 +138,38 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			=> other is BooleanExpression be && be.Op == Op && be.Left.Match(Left) && be.Right.Match(Right);
 
 		public override string ToString() => $"{Left} {OpString} {Right}";
+	}
+
+	class IsNullExpression(DbExpression value) : DbExpression
+	{
+		public DbExpression Value { get; } = value;
+
+		internal override bool Match(DbExpression other) => other is IsNullExpression i && i.Value.Match(Value);
+	}
+
+	enum UnaryExpressionType
+	{
+		Plus,
+		Minus,
+		Not,
+	}
+
+	class UnaryExpression(UnaryExpressionType type, DbExpression value) : DbExpression
+	{
+		public UnaryExpressionType Op { get; } = type;
+		public DbExpression Value { get; } = value;
+
+		public string OpString => Op switch {
+			UnaryExpressionType.Plus => "+",
+			UnaryExpressionType.Minus => "-",
+			UnaryExpressionType.Not => "!",
+			_ => throw new NotImplementedException(),
+		};
+
+		internal override bool Match(DbExpression other)
+			=> other is UnaryExpression ue && ue.Op == Op && ue.Value.Match(Value);
+
+		public override string ToString() => $"{OpString}({Value})";
 	}
 
 	enum BinExpressionType
@@ -221,6 +254,44 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		internal override bool Match(DbExpression other) => other is CountExpression;
 	}
 
+	class CastExpression : DbExpression
+	{
+		public CastExpression(DbExpression value, FieldType type)
+		{
+			Value = value;
+			Type = type;
+		}
+
+		public DbExpression Value { get; }
+
+		internal override bool Match(DbExpression other)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
+	class IfThenExpression(DbExpression cond, DbExpression result) : DbExpression
+	{
+		public DbExpression Cond { get; } = cond;
+		public DbExpression Result { get; } = result;
+
+		internal override bool Match(DbExpression other)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
+	class IfExpression(IfThenExpression[] cases, DbExpression? elseCase) : DbExpression
+	{
+		public IfThenExpression[] Cases { get; } = cases;
+		public DbExpression? ElseCase { get; } = elseCase;
+
+		internal override bool Match(DbExpression other)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
 	abstract class LiteralExpression : DbExpression
 	{
 		public override bool IsLiteral => true;
@@ -231,6 +302,14 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public int Value { get; } = value;
 
 		internal override bool Match(DbExpression other) => other is IntegerLiteralExpression il && il.Value == Value;
+		public override string ToString() => Value.ToString();
+	}
+
+	class FloatLiteralExpression(double value) : LiteralExpression
+	{
+		public double Value { get; } = value;
+
+		internal override bool Match(DbExpression other) => other is FloatLiteralExpression dl && dl.Value == Value;
 		public override string ToString() => Value.ToString();
 	}
 
@@ -341,11 +420,11 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			return $"from {FromIter}{joins}{filter}{order} select {fieldCode}";
 		}
 
-		private static string GetOutputName(DbExpression expression) => expression switch {
+		internal static string GetOutputName(DbExpression expression) => expression switch {
 			MemberReferenceExpression mre => mre.ToString(),
 			AliasedExpression ae => $"{ae.Alias} = {GetOutputName(ae.Expr)}",
 			BinaryExpression bin => $"{GetOutputName(bin.Left)} {bin.OpString} {GetOutputName(bin.Right)}",
-			CallExpression ce => $"{ce.Function}({string.Join(", ", ce.Args.Select(GetOutputName))})",
+			CallExpression ce => ce.SpecialCodegen != null ? ce.SpecialCodegen(ce.Args, GetOutputName) : $"{ce.Function}({string.Join(", ", ce.Args.Select(GetOutputName))})",
 			LiteralExpression => expression.ToString()!,
 			_ => throw new NotImplementedException()
 		};

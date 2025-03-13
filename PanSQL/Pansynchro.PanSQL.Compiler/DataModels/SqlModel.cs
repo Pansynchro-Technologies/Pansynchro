@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
+using System.Text;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Helpers;
 using Pansynchro.PanSQL.Compiler.Helpers;
@@ -116,18 +116,59 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		protected override string GetInput(DbExpression expr) => expr switch {
 			MemberReferenceExpression mre => GetMreInput(mre),
 			AliasedExpression ae => GetInput(ae.Expr),
+			IsNullExpression isn => $"({GetInput(isn.Value)} == System.DBNull.Value)",
 			BooleanExpression be => $"{GetInput(be.Left)} {be.OpString} {GetInput(be.Right)}",
 			BinaryExpression b2 => $"{GetInput(b2.Left)} {b2.OpString} {GetInput(b2.Right)}",
 			CollectionExpression col => $"[{string.Join(", ", col.Values.Select(GetInput))}]",
 			ContainsExpression con => $"{GetInput(con.Collection)}.Contains({GetInput(con.Value)})",
 			LiteralExpression => expr.ToString()!,
 			AggregateExpression ag => GetInput(ag.Args),
-			CallExpression call => call.IsProp ? call.Function.ToString() : $"{call.Function}({GetInput(call.Args)})",
+			CallExpression call => call.SpecialCodegen != null ? SpecialCodegen(call) : call.IsProp ? call.Function.ToString() : $"{call.Function}({GetInput(call.Args)})",
+			CastExpression cast => GetInput(cast),
+			IfExpression ie => GetInput(ie),
 			VariableReferenceExpression => expr.ToString()!,
 			_ => throw new NotImplementedException()
 		};
 
+		private string SpecialCodegen(CallExpression call)
+		{
+			var result = call.SpecialCodegen!(call.Args, GetInput);
+			if (result.Contains("System.DBNull.Value")) {
+				result = result.Replace("System.DBNull.Value", "null");
+			}
+			if (result.Contains("?.")) {
+				result = $"((object)({result.Replace(" ?? null", "").Replace("(object)", "")}) ?? System.DBNull.Value)";
+			}
+			return result;
+		}
+
 		protected string GetInput(DbExpression[] args) => string.Join(", ", args.Select(GetInput));
+
+		protected string GetInput(CastExpression cast)
+		{
+			var type = TypesHelper.FieldTypeToDotNetType(cast.Type!);
+			var fromType = TypesHelper.FieldTypeToDotNetType(cast.Value.Type!);
+			var fromValue = GetInput(cast.Value);
+			if (fromType == type) {
+				return fromValue;
+			}
+			if (type.IsArray && type.GetElementType() == fromType) {
+				return '[' + fromValue + ']';
+			}
+			if (fromType == typeof(string)) {
+				if (type.GetInterfaces()?.Any(i => i.Name.StartsWith("IParsable")) == true) {
+					return $"{TypesHelper.FieldTypeToCSharpType(cast.Type!)}.Parse({fromValue})";
+				}
+			}
+			return $"({TypesHelper.FieldTypeToCSharpType(cast.Type!)}){fromValue}";
+		}
+
+		protected string GetInput(IfExpression expr)
+		{
+			var result = string.Concat(expr.Cases.Select(c => $"{GetInput(c.Cond)} ? {GetInput(c.Result)} : "));
+			result += expr.ElseCase == null ? "System.DBNull.Value" : GetInput(expr.ElseCase);
+			return result;
+		}
 
 		protected static MemberReferenceExpression GetInputField(DbExpression expr) => expr switch {
 			MemberReferenceExpression mre => mre,

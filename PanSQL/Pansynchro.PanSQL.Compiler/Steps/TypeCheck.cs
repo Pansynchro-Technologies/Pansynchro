@@ -118,13 +118,15 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				throw new CompilerError($"Unable to insert NULL literal into non-nullable column '{field.Name}'", node);
 			}
 			var typeResult = DataDictionaryComparer.TypeCheckField(inType, outType, value.ToString()!, false);
-			if (typeResult is null or PromotionLine) {
-				return;
+			switch (typeResult)
+			{
+				case null or PromotionLine:
+					return;
+				case ComparisonError ce:
+					throw new CompilerError(ce.Message, node);
+				default:
+					throw new NotImplementedException();
 			}
-			if (typeResult is ComparisonError ce) {
-				throw new CompilerError(ce.Message, node);
-			}
-			throw new NotImplementedException();
 		}
 
 		private void DoTypeCheck(DbExpression? filter, SqlTransformStatement node)

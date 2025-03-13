@@ -1,18 +1,26 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 
-using Microsoft.SqlServer.Management.SqlParser.SqlCodeDom;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
+using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
 
+using BinaryExpression = Pansynchro.PanSQL.Compiler.DataModels.BinaryExpression;
+using BooleanExpression = Pansynchro.PanSQL.Compiler.DataModels.BooleanExpression;
+using Identifier = Microsoft.SqlServer.TransactSql.ScriptDom.Identifier;
+using TableReference = Pansynchro.PanSQL.Compiler.DataModels.TableReference;
+using UnaryExpression = Pansynchro.PanSQL.Compiler.DataModels.UnaryExpression;
+using UnaryExpressionType = Pansynchro.PanSQL.Compiler.DataModels.UnaryExpressionType;
+
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
-	using StringLiteralExpression = DataModels.StringLiteralExpression;
 	using IntegerLiteralExpression = DataModels.IntegerLiteralExpression;
+	using ScriptBinaryExpression = Microsoft.SqlServer.TransactSql.ScriptDom.BinaryExpression;
+	using StringLiteralExpression = DataModels.StringLiteralExpression;
 
 	internal class SqlAnalysis : VisitorCompileStep
 	{
@@ -20,8 +28,8 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			var tt = node.TransactionType;
 			if (tt.HasFlag(TransactionType.WithCte)) {
-				foreach (var cte in ((SqlSelectStatement)node.SqlNode).QueryWithClause.CommonTableExpressions) {
-					var name = cte.Name.Value.ToPropertyName();
+				foreach (var cte in ((SelectStatement)node.SqlNode).WithCtesAndXmlNamespaces.CommonTableExpressions) {
+					var name = cte.ExpressionName.Value.ToPropertyName();
 					var cteModel = BuildDataModel(cte, node);
 					var tt2 = cteModel.Inputs.Any(i => i.Type == TableType.Stream) ? TransactionType.Streamed : TransactionType.PureMemory;
 					if (cteModel.AggOutputs?.Length > 0) {
@@ -69,7 +77,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private const int MAX_AGGS = 7;
 
-		private DataModel BuildDataModel(SqlCodeObject obj, SqlTransformStatement node)
+		private DataModel BuildDataModel(TSqlFragment obj, SqlTransformStatement node)
 		{
 			var builder = new DataModelBuilder(_file);
 			try { 
@@ -87,7 +95,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies() => [Dependency<DefineVars>()];
 
-		private class DataModelBuilder : AbstractSqlCodeVisitor
+		private class DataModelBuilder : TSqlFragmentVisitor
 		{
 			protected PanSqlFile _file;
 			private readonly List<TableReference> _tables = [];
@@ -111,28 +119,28 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_expressionVisitor = new(_file, _aliases, _scriptVars);
 			}
 
-			public override void Visit(SqlCommonTableExpression cte)
+
+			public override void ExplicitVisit(CommonTableExpression cte)
 			{
 				cte.QueryExpression.Accept(this);
-				_outputTable = cte.Name.Value.ToPropertyName();
+				_outputTable = cte.ExpressionName.Value.ToPropertyName();
 			}
 
-			public override void Visit(SqlSelectStatement statement)
+			public override void ExplicitVisit(SelectStatement statement)
 			{
-				statement.SelectSpecification.QueryExpression.Accept(this);
-
-				//apparently SelectSpecification.QueryExpression does not contain the ORDER BY clause, so we have to do it here
-				statement.SelectSpecification.OrderByClause?.Accept(this);
-			}
-
-			public override void Visit(SqlQuerySpecification codeObject)
-			{
-				foreach (var table in codeObject.FromClause.TableExpressions) { 
-					table.Accept(this);
-				}
-				if (codeObject.IntoClause != null) {
+				statement.QueryExpression.Accept(this);
+				if (statement.Into != null) {
 					throw new Exception("Should not see an INTO here");
 				}
+				_expressionVisitor.Finish();
+			}
+
+			public override void ExplicitVisit(QuerySpecification codeObject)
+			{
+				foreach (var table in codeObject.FromClause.TableReferences) { 
+					table.Accept(this);
+				}
+				_expressionVisitor.Tables = [.. _tables];
 				if (codeObject.ForClause != null) {
 					throw new CompilerError("FOR clauses are not supported in SQL scripts", _file);
 				}
@@ -141,50 +149,44 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				codeObject.HavingClause?.Accept(this);
 				codeObject.WindowClause?.Accept(this);
 				codeObject.OrderByClause?.Accept(this);
-				codeObject.SelectClause.Accept(this);
+				foreach (var se in codeObject.SelectElements) {
+					var expr = _expressionVisitor.VisitValue(se);
+					_selects.Add(expr);
+					_aggs.AddRange(FindAggregateExpressions(expr));
+				}
+				codeObject.TopRowFilter?.Accept(this);
 			}
 
-			public override void Visit(SqlQualifiedJoinTableExpression codeObject)
+			public override void ExplicitVisit(QualifiedJoin codeObject)
 			{
-				codeObject.Left.Accept(this);
-				codeObject.Right.Accept(this);
+				codeObject.FirstTableReference.Accept(this);
+				codeObject.SecondTableReference.Accept(this);
 				_expressionVisitor.Reset();
 				_expressionVisitor.Tables = [.. _tables];
-				var expr = (BooleanExpression)codeObject.OnClause.Expression.Accept(_expressionVisitor);
-				var op = codeObject.JoinOperator switch {
-					SqlJoinOperatorType.InnerJoin => JoinType.Inner,
-					SqlJoinOperatorType.LeftOuterJoin => JoinType.Left,
+				var expr = (BooleanExpression)_expressionVisitor.VisitValue(codeObject.SearchCondition);
+				var op = codeObject.QualifiedJoinType switch {
+					QualifiedJoinType.Inner => JoinType.Inner,
+					QualifiedJoinType.LeftOuter => JoinType.Left,
 					_ => throw new NotImplementedException()
 				};
-				if (codeObject.Right is SqlTableRefExpression tr) {
-					var table = new TableReference(_file.Vars[tr.ObjectIdentifier.ObjectName.Value]);
+				if (codeObject.SecondTableReference is NamedTableReference tr) {
+					var table = new TableReference(_file.Vars[tr.SchemaObject.BaseIdentifier.Value]);
 					_joins.Add(new JoinSpec(op, table, _expressionVisitor.TargetFields, expr));
 				} else {
 					throw new NotImplementedException();
 				}
 			}
 
-			public override void Visit(SqlTableRefExpression codeObject)
+			public override void ExplicitVisit(NamedTableReference codeObject)
 			{
-				var vbl = _file.Vars[codeObject.ObjectIdentifier.ObjectName.Value];
+				var vbl = _file.Vars[codeObject.SchemaObject.BaseIdentifier.Value];
 				if (codeObject.Alias != null) {
 					_aliases.Add(codeObject.Alias.Value, vbl);
 				}
 				_tables.Add(new(vbl));
 			}
 
-			public override void Visit(SqlSelectClause codeObject)
-			{
-				codeObject.Top?.Accept(this);
-				_expressionVisitor.Tables = [.. _tables];
-				foreach (var se in codeObject.SelectExpressions) {
-					var expr = se.Accept(_expressionVisitor);
-					_selects.Add(expr);
-					_aggs.AddRange(FindAggregateExpressions(expr));
-				}
-			}
-
-			private IEnumerable<AggregateExpression> FindAggregateExpressions(DbExpression expr)
+			private static IEnumerable<AggregateExpression> FindAggregateExpressions(DbExpression expr)
 			{
 				switch (expr) {
 					case AggregateExpression agg:
@@ -235,48 +237,63 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				}
 			}
 
-			public override void Visit(SqlWhereClause codeObject)
+			public override void ExplicitVisit(WhereClause codeObject)
 			{
 				_expressionVisitor.Tables = [.. _tables];
-				_where = codeObject.Expression.Accept(_expressionVisitor);
+				_where = _expressionVisitor.VisitValue(codeObject.SearchCondition);
 			}
 
-			public override void Visit(SqlGroupByClause codeObject)
+			public override void ExplicitVisit(GroupByClause codeObject)
 			{
 				_expressionVisitor.Tables = [.. _tables];
-				_groupKey = codeObject.Items.Select(x => (MemberReferenceExpression)x.Accept(_expressionVisitor)).ToArray();
+				_groupKey = codeObject.GroupingSpecifications.Select(x => (MemberReferenceExpression)_expressionVisitor.VisitValue(x)).ToArray();
 			}
 
-			public override void Visit(SqlHavingClause codeObject)
+			public override void ExplicitVisit(HavingClause codeObject)
 			{
 				_expressionVisitor.Tables = [.. _tables];
-				_having = (BooleanExpression)codeObject.Expression.Accept(_expressionVisitor);
+				_having = (BooleanExpression)_expressionVisitor.VisitValue(codeObject.SearchCondition);
 			}
 
-			public override void Visit(SqlOrderByClause codeObject)
+			public override void ExplicitVisit(OrderByClause codeObject)
 			{
 				_expressionVisitor.Tables = [.. _tables];
-				_orderBy = codeObject.Items.Select(i => (OrderingExpression)i.Accept(_expressionVisitor)).ToArray();
+				_orderBy = codeObject.OrderByElements.Select(i => (OrderingExpression)_expressionVisitor.VisitValue(i)).ToArray();
 			}
 		}
 
-		private class DataExpressionVisitor(PanSqlFile file, Dictionary<string, Variable> aliases, HashSet<string> scriptVars) : AbstractSqlCodeVisitor<DbExpression>
+		internal static readonly Dictionary<string, int> AGGREGATE_FUNCTIONS_SUPPORTED = new()
+			{ {"Avg", 1}, {"Sum", 1}, {"Count", 1}, {"Min", 1}, {"Max", 1}, {"String_agg", 2} };
+
+		private class DataExpressionVisitor(PanSqlFile file, Dictionary<string, Variable> aliases, HashSet<string> scriptVars) : TSqlFragmentVisitor
 		{
 			private readonly PanSqlFile _file = file;
 			private readonly Dictionary<string, Variable> _aliases = aliases;
 			private readonly List<MemberReferenceExpression> _targetFields = [];
 			private readonly HashSet<string> _scriptVars = scriptVars;
 
+			private readonly Stack<DbExpression> _stack = [];
+
 			internal TableReference[] Tables { get; set; } = [];
 
-			private static readonly Dictionary<string, int> AGGREGATE_FUNCTIONS_SUPPORTED = new()
-			{ {"Avg", 1}, {"Sum", 1}, {"Count", 1}, {"Min", 1}, {"Max", 1}, {"String_agg", 2} };
-
-			public override DbExpression Visit(SqlAggregateFunctionCallExpression codeObject)
+			public DbExpression VisitValue(TSqlFragment value)
 			{
-				var name = codeObject.FunctionName;
-				var args = codeObject.Arguments?.Select(a => a.Accept(this)).ToArray();
-				return CheckAggExpression(name, args);
+#if DEBUG
+				try {
+					value.Accept(this);
+					return _stack.Pop();
+				} finally {
+					Finish();
+				}
+#else
+				value.Accept(this);
+				return _stack.Pop();
+#endif
+			}
+
+			public void Finish()
+			{
+				if (_stack.Count > 0) throw new NotImplementedException("Unimplemented SQL operation detected");
 			}
 
 			private static AggregateExpression CheckAggExpression(string name, DbExpression[]? args)
@@ -294,131 +311,189 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				return new AggregateExpression(name, args);
 			}
 
-			public override DbExpression Visit(SqlComparisonBooleanExpression codeObject)
+			public override void ExplicitVisit(BooleanComparisonExpression codeObject)
 			{
-				var l = codeObject.Left.Accept(this);
-				var r = codeObject.Right.Accept(this);
-				var op = codeObject.ComparisonOperator switch {
-					SqlComparisonBooleanExpressionType.Equals => BoolExpressionType.Equals,
-					SqlComparisonBooleanExpressionType.LessThan => BoolExpressionType.LessThan,
-					SqlComparisonBooleanExpressionType.NotEqual => BoolExpressionType.NotEquals,
-					SqlComparisonBooleanExpressionType.GreaterThan => BoolExpressionType.GreaterThan,
-					SqlComparisonBooleanExpressionType.GreaterThanOrEqual => BoolExpressionType.GreaterThanOrEqual,
-					SqlComparisonBooleanExpressionType.LessThanOrEqual => BoolExpressionType.LessThanOrEqual,
-					_ => throw new NotImplementedException($"Unsupported operator type: {codeObject.ComparisonOperator}"),
+				var l = VisitValue(codeObject.FirstExpression);
+				var r = VisitValue(codeObject.SecondExpression);
+				var op = codeObject.ComparisonType switch {
+					BooleanComparisonType.Equals => BoolExpressionType.Equals,
+					BooleanComparisonType.LessThan => BoolExpressionType.LessThan,
+					BooleanComparisonType.NotEqualToBrackets or BooleanComparisonType.NotEqualToExclamation => BoolExpressionType.NotEquals,
+					BooleanComparisonType.GreaterThan => BoolExpressionType.GreaterThan,
+					BooleanComparisonType.GreaterThanOrEqualTo => BoolExpressionType.GreaterThanOrEqual,
+					BooleanComparisonType.LessThanOrEqualTo => BoolExpressionType.LessThanOrEqual,
+					_ => throw new NotImplementedException($"Unsupported operator type: {codeObject.ComparisonType}"),
 				};
 				if (r is MemberReferenceExpression mr) {
 					_targetFields.Add(mr);
 				}
-				return new BooleanExpression(op, l, r);
+				_stack.Push(new BooleanExpression(op, l, r));
 			}
 
-			public override DbExpression Visit(SqlScalarRefExpression codeObject) => codeObject.MultipartIdentifier.Accept(this);
+			public override void ExplicitVisit(StringLiteral codeObject) => _stack.Push(new StringLiteralExpression(codeObject.Value));
 
-			public override DbExpression Visit(SqlLiteralExpression codeObject) => codeObject.Type switch {
-				LiteralValueType.Integer => new IntegerLiteralExpression(int.Parse(codeObject.Value)),
-				LiteralValueType.String => new StringLiteralExpression(codeObject.Value),
-				LiteralValueType.Null => new NullLiteralExpression(),
-				_ => throw new NotImplementedException(),
-			};
+			public override void ExplicitVisit(IntegerLiteral codeObject) => _stack.Push(new IntegerLiteralExpression(int.Parse(codeObject.Value)));
 
-			public override DbExpression Visit(SqlObjectIdentifier codeObject)
+			public override void ExplicitVisit(NumericLiteral codeObject) => _stack.Push(new FloatLiteralExpression(double.Parse(codeObject.Value)));
+
+			public override void ExplicitVisit(NullLiteral codeObject) => _stack.Push(new NullLiteralExpression());
+
+			public override void ExplicitVisit(MultiPartIdentifier codeObject)
 			{
-				var names = codeObject.Sql.Split('.');
-				if (!(names.Length is 1 or 2)) {
-					throw new Exception($"The name '{codeObject.Sql}' is not a valid reference");
+				var names = codeObject.Identifiers;
+				if (names.Count is not (1 or 2)) {
+					throw new Exception($"The name '{string.Join(".", names.Select(i => i.Value))}' is not a valid reference");
 				}
 				ReferenceExpression? result = null;
-				foreach ( var name in names ) {
-					result = result == null ? new ReferenceExpression(LookupAliasedName(name)) : new MemberReferenceExpression(result, name);
+				foreach (var name in names) {
+					result = result == null ? new ReferenceExpression(LookupAliasedName(name.Value)) : new MemberReferenceExpression(result, name.Value);
 				}
-				return result!;
+				_stack.Push(result!);
 			}
 
-			public override DbExpression Visit(SqlIdentifier codeObject)
+			public override void ExplicitVisit(Identifier codeObject)
 			{
 				var fieldName = codeObject.Value;
 				var match = TypesHelper.LookupField(Tables, fieldName);
-				return new MemberReferenceExpression(new(match.Key), match.Value.Name);
+				_stack.Push(new MemberReferenceExpression(new(match.Key), match.Value.Name));
 			}
 
-			public override DbExpression Visit(SqlColumnRefExpression codeObject) => Visit(codeObject.ColumnName);
-			
-			public override DbExpression Visit(SqlSelectScalarExpression codeObject)
+			public override void ExplicitVisit(ColumnReferenceExpression codeObject)
 			{
-				var result = codeObject.Expression.Accept(this);
-				return codeObject.Alias == null ? result : new AliasedExpression(result, codeObject.Alias.Value);
+				var id = codeObject.MultiPartIdentifier;
+				if (id == null) {
+					if (codeObject.ColumnType != ColumnType.Wildcard) {
+						throw new Exception("Unknown column reference type");
+					}
+					_stack.Push(new CountExpression());
+				} else if (id.Identifiers.Count == 1) {
+					id.Identifiers[0].Accept(this);
+				} else {
+					id.Accept(this);
+				}
 			}
 
-			public override DbExpression Visit(SqlScalarVariableRefExpression codeObject)
+			public override void ExplicitVisit(SelectScalarExpression codeObject)
 			{
-				var varName = codeObject.VariableName[1..];
+				var result = VisitValue(codeObject.Expression);
+				_stack.Push(codeObject.ColumnName == null ? result : new AliasedExpression(result, codeObject.ColumnName.Value));
+			}
+
+			public override void ExplicitVisit(VariableReference codeObject)
+			{
+				var varName = codeObject.Name[1..];
 				if (!(_file.Vars.TryGetValue(varName, out var value) && value.Declaration is ScriptVarDeclarationStatement)) {
-					throw new Exception($"No script variable named '{codeObject.VariableName}' is declared in this script.");
+					throw new Exception($"No script variable named '{codeObject.Name}' is declared in this script.");
 				}
 				var refName = '_' + varName;
 				_scriptVars.Add(refName);
-				return new VariableReferenceExpression(refName);
+				_stack.Push(new VariableReferenceExpression(refName));
 			}
 
-			public override DbExpression Visit(SqlScalarExpression codeObject) => codeObject switch {
-				SqlColumnRefExpression cr => Visit(cr.ColumnName),
-				_ => throw new NotImplementedException()
+			public override void ExplicitVisit(CastCall codeObject)
+			{
+				var value = VisitValue(codeObject.Parameter);
+				var typeName = codeObject.DataType.Name.BaseIdentifier.Value;
+				if (!Enum.TryParse<TypeTag>(typeName, out var type)) {
+					throw new Exception("Unknown data type: " + typeName);
+				}
+				_stack.Push(new CastExpression(value, new FieldType(type, false, CollectionType.None, null)));
+			}
+
+			private static Dictionary<BinaryExpressionType, BinExpressionType> BIN_OPS = new()
+			{   { BinaryExpressionType.Add, BinExpressionType.Add }, { BinaryExpressionType.Subtract, BinExpressionType.Subtract },
+				{ BinaryExpressionType.Multiply, BinExpressionType.Multiply }, { BinaryExpressionType.Divide, BinExpressionType.Divide },
+				{ BinaryExpressionType.Modulo, BinExpressionType.Mod }, { BinaryExpressionType.BitwiseAnd, BinExpressionType.BitAnd },
+				{ BinaryExpressionType.BitwiseOr, BinExpressionType.BitOr }, { BinaryExpressionType.BitwiseXor, BinExpressionType.BitXor },
 			};
 
-			private static Dictionary<SqlBinaryScalarOperatorType, BinExpressionType> BIN_OPS = new()
-			{   { SqlBinaryScalarOperatorType.Add, BinExpressionType.Add }, { SqlBinaryScalarOperatorType.Subtract, BinExpressionType.Subtract },
-				{ SqlBinaryScalarOperatorType.Multiply, BinExpressionType.Multiply }, { SqlBinaryScalarOperatorType.Divide, BinExpressionType.Divide },
-				{ SqlBinaryScalarOperatorType.Modulus, BinExpressionType.Mod }, { SqlBinaryScalarOperatorType.BitwiseAnd, BinExpressionType.BitAnd },
-				{ SqlBinaryScalarOperatorType.BitwiseOr, BinExpressionType.BitOr }, { SqlBinaryScalarOperatorType.BitwiseXor, BinExpressionType.BitXor },
-			};
-
-			public override DbExpression Visit(SqlBinaryScalarExpression codeObject)
+			public override void ExplicitVisit(ScriptBinaryExpression codeObject)
 			{
-				var l = codeObject.Left.Accept(this);
-				var r = codeObject.Right.Accept(this);
-				if (!BIN_OPS.TryGetValue(codeObject.Operator, out var type)) {
-					throw new Exception($"SQL operator '{codeObject.Operator}' is not currently supported by PanSQL");
+				var l = VisitValue(codeObject.FirstExpression);
+				var r = VisitValue(codeObject.SecondExpression);
+				if (!BIN_OPS.TryGetValue(codeObject.BinaryExpressionType, out var type)) {
+					throw new Exception($"SQL operator '{codeObject.BinaryExpressionType}' is not currently supported by PanSQL");
 				}
-				return new BinaryExpression(type, l, r);
+				_stack.Push(new BinaryExpression(type, l, r));
 			}
 
-			public override DbExpression Visit(SqlBinaryBooleanExpression codeObject)
+			public override void ExplicitVisit(ParameterlessCall codeObject)
 			{
-				var l = codeObject.Left.Accept(this);
-				var r = codeObject.Right.Accept(this);
-				var type = (BinExpressionType)codeObject.Operator;
-				return new BinaryExpression(type, l, r);
+				var name = codeObject.ParameterlessCallType.ToString();
+				_stack.Push(new CallExpression(new ReferenceExpression(name), []));
 			}
 
-			public override DbExpression Visit(SqlInBooleanExpression codeObject)
+			public override void ExplicitVisit(FunctionCall codeObject)
 			{
-				var value = codeObject.InExpression.Accept(this);
-				var coll = codeObject.ComparisonValue.Accept(this);
-				return new ContainsExpression(coll, value);
-			}
-
-			public override DbExpression Visit(SqlInBooleanExpressionCollectionValue codeObject)
-			{
-				var values = codeObject.Values.Select(v => v.Accept(this)).ToArray();
-				return new CollectionExpression(values);
-			}
-
-			public override DbExpression Visit(SqlBuiltinScalarFunctionCallExpression codeObject)
-			{
-				var args = codeObject.Arguments?.Select(a => a.Accept(this)).ToArray() ?? Array.Empty<DbExpression>();
-				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(codeObject.FunctionName.ToLower().ToPropertyName())) {
-					return CheckAggExpression(codeObject.FunctionName, args);
+				var args = codeObject.Parameters?.Select(VisitValue).ToArray() ?? [];
+				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(codeObject.FunctionName.Value.ToLower().ToPropertyName())) {
+					_stack.Push(CheckAggExpression(codeObject.FunctionName.Value, args));
+					return;
 				}
-				return new CallExpression(new ReferenceExpression(codeObject.FunctionName), args);
+				var name = codeObject.FunctionName.Value;
+				if (name.Equals("trim", StringComparison.InvariantCultureIgnoreCase)) {
+					var type = new IntegerLiteralExpression(codeObject.TrimOptions?.Value.ToLowerInvariant() switch {
+						"leading" => 1,
+						"trailing" => 2,
+						_ => 0
+					});
+					args = args.Length == 1 ? [args[0], new NullLiteralExpression(), type] : [..args, type];
+				}
+				_stack.Push(new CallExpression(new ReferenceExpression(name), args));
 			}
 
-			public override DbExpression Visit(SqlSimpleGroupByItem codeObject) => Visit(codeObject.Expression);
-
-			public override DbExpression Visit(SqlOrderByItem codeObject)
+			public override void ExplicitVisit(InPredicate codeObject)
 			{
-				var expr = codeObject.Expression.Accept(this);
-				return new OrderingExpression(expr, codeObject.SortOrder == SqlSortOrder.Descending);
+				var value = VisitValue(codeObject.Expression);
+				DbExpression coll;
+				coll = codeObject.Subquery != null 
+					? VisitValue(codeObject.Subquery)
+					: new CollectionExpression(codeObject.Values.Select(VisitValue).ToArray());
+				DbExpression result = new ContainsExpression(coll, value);
+				if (codeObject.NotDefined) {
+					result = new UnaryExpression(UnaryExpressionType.Not, result);
+				}
+				_stack.Push(result);
+			}
+
+			public override void ExplicitVisit(BooleanBinaryExpression codeObject)
+			{
+				var l = VisitValue(codeObject.FirstExpression);
+				var r = VisitValue(codeObject.SecondExpression);
+				var type = (BinExpressionType)codeObject.BinaryExpressionType;
+				_stack.Push(new BinaryExpression(type, l, r));
+			}
+
+			public override void ExplicitVisit(BooleanIsNullExpression codeObject)
+			{
+				var value = VisitValue(codeObject.Expression);
+				DbExpression result = new IsNullExpression(value);
+				if (codeObject.IsNot) {
+					result = new UnaryExpression(UnaryExpressionType.Not, result);
+				}
+				_stack.Push(result);
+			}
+
+			public override void ExplicitVisit(ExpressionGroupingSpecification codeObject) => codeObject.Expression.Accept(this);
+
+			public override void ExplicitVisit(ExpressionWithSortOrder codeObject)
+			{
+				var expr = VisitValue(codeObject.Expression);
+				_stack.Push(new OrderingExpression(expr, codeObject.SortOrder == SortOrder.Descending));
+			}
+
+			public override void ExplicitVisit(SearchedWhenClause codeObject)
+			{
+				var when = VisitValue(codeObject.WhenExpression);
+				var result = VisitValue(codeObject.ThenExpression);
+				_stack.Push(new IfThenExpression(when, result));
+			}
+
+			public override void ExplicitVisit(SearchedCaseExpression codeObject)
+			{
+				var when = codeObject.WhenClauses.Select(VisitValue).Cast<IfThenExpression>().ToArray();
+				var elseVal = codeObject.ElseExpression == null ? null : VisitValue(codeObject.ElseExpression);
+				_stack.Push(new IfExpression(when, elseVal));
 			}
 
 			internal void Reset()

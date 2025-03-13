@@ -91,9 +91,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private void LookupField(DbExpression field, List<Variable> tables, SqlTransformStatement node)
+		private void LookupField(DbExpression? field, List<Variable> tables, SqlTransformStatement node)
 		{
 			switch (field) {
+				case null: break;
 				case AliasedExpression a:
 					LookupField(a.Expr, tables, node);
 					a.Type = a.Expr.Type;
@@ -114,6 +115,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					}
 					col.Type = col.Values.Length == 0 ? TypesHelper.NullType : col.Values[0].Type! with { CollectionType = CollectionType.Array };
 					break;
+				case IsNullExpression isn:
+					LookupField(isn.Value, tables, node);
+					isn.Type = TypesHelper.BoolType;
+					break;
 				case BinaryExpression b:
 					LookupField(b.Left, tables, node);
 					LookupField(b.Right, tables, node);
@@ -125,9 +130,27 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					}
 					FunctionBinder.Bind(call, node);
 					break;
+				case CastExpression cast:
+					LookupField(cast.Value, tables, node);
+					break;
+				case IfThenExpression it:
+					LookupField(it.Cond, tables, node);
+					LookupField(it.Result, tables, node);
+					it.Type = it.Result.Type;
+					break;
+				case IfExpression ie:
+					foreach (var c in ie.Cases) {
+						LookupField(c, tables, node);
+					}
+					LookupField(ie.ElseCase, tables, node);
+					ie.Type = ie.Cases[0].Type;
+					break;
 				case CountExpression:
 				case IntegerLiteralExpression:
 					field.Type = TypesHelper.IntType;
+					break;
+				case FloatLiteralExpression:
+					field.Type = TypesHelper.DoubleType;
 					break;
 				case StringLiteralExpression sl:
 					field.Type = TypesHelper.MakeStringType(sl.Value);
