@@ -34,7 +34,7 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Setup NuGet
-      uses: NuGet/setup-nuget@v1.2.0
+      uses: NuGet/setup-nuget@v2
       with:
         nuget-version: 'latest'
 
