@@ -157,12 +157,22 @@ namespace Pansynchro.Core.DataDict
 
 		private static readonly Dictionary<TypeTag, TypeTag[]> _promotables = new() {
 			{ TypeTag.Boolean, new[] { TypeTag.Bits } },
-			{ TypeTag.Byte, new[] { TypeTag.Short, TypeTag.Int, TypeTag.Long } },
-			{ TypeTag.Short, new[] { TypeTag.Int, TypeTag.Long } },
-			{ TypeTag.Int, new[] { TypeTag.Long } },
-			{ TypeTag.SmallMoney, new[] { TypeTag.Money, TypeTag.Numeric, TypeTag.Double } },
-			{ TypeTag.Money, new[] { TypeTag.Numeric, TypeTag.Double } },
-			{ TypeTag.Decimal, new[] { TypeTag.Numeric } },
+			{ TypeTag.Byte, new[] { TypeTag.Short, TypeTag.Int, TypeTag.Long, TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.SByte, new[] { TypeTag.Short, TypeTag.Int, TypeTag.Long, TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Short, new[] { TypeTag.Int, TypeTag.Long, TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.UShort, new[] { TypeTag.Int, TypeTag.Long, TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Int, new[] { TypeTag.Long, TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.UInt, new[] { TypeTag.Long, TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Long, new[] { TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.ULong, new[] { TypeTag.Float, TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Float, new[] { TypeTag.Single, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Single, new[] { TypeTag.Float, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Double, new[] { TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.SmallMoney, new[] { TypeTag.Money, TypeTag.Numeric, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Money, new[] { TypeTag.Numeric, TypeTag.Double, TypeTag.Numeric, TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Decimal, new[] { TypeTag.Numeric, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Numeric, new[] { TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
+			{ TypeTag.Decimal64, new[] { TypeTag.Numeric, TypeTag.Decimal128 } },
 		};
 
 		private static readonly TypeTag[] _stringTypes = new[] { TypeTag.Varchar, TypeTag.Nvarchar, TypeTag.Text, TypeTag.Ntext, TypeTag.Unstructured };
