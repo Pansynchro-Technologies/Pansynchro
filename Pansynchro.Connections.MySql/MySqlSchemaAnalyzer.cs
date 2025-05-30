@@ -9,6 +9,7 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.SQL;
 
 using MySqlConnector;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.MySQL
 {
@@ -39,12 +40,12 @@ order by TABLE_NAME, COLUMN_NAME";
 			return (new StreamDescription(null, reader.GetString(0)), reader.GetString(1));
 		}
 
-		private static FieldType GetFieldType(IDataReader reader)
+		private static BasicField GetFieldType(IDataReader reader)
 		{
 			var nullable = reader.GetString(2) == "YES";
 			var tag = GetTagType(reader.GetString(3));
 			var info = _typesWithInfo.Contains(tag) ? GetInfo(tag, reader) : null;
-			return new FieldType(tag, nullable, CollectionType.None, info);
+			return new BasicField(tag, nullable, info, false);
 		}
 
 		private static readonly Dictionary<string, TypeTag> TYPE_MAP = new()
@@ -152,13 +153,13 @@ WHERE t.constraint_type='PRIMARY KEY'
 			return new FieldDefinition(name, BuildFieldType(row));
 		}
 
-		private static FieldType BuildFieldType(DataRow row)
+		private static BasicField BuildFieldType(DataRow row)
 		{
 			var msType = (MySqlDbType)row["ProviderType"];
 			var info = HasInfo(msType) ? TypeInfo(msType, row) : null;
 			var type = GetTypeTag(msType);
 			var nullable = (bool)row["AllowDBNull"];
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new BasicField(type, nullable, info, false);
 		}
 
 		private static TypeTag GetTypeTag(MySqlDbType type) => type switch {

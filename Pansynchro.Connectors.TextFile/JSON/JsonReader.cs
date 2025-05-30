@@ -43,7 +43,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			}
 		}
 
-		private async IAsyncEnumerable<DataStream> LoadData(
+		private static async IAsyncEnumerable<DataStream> LoadData(
 			JsonConfigurator conf, DataDictionary source, string name, TextReader reader
 		)
 		{
@@ -74,7 +74,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			var streamName = streamNameParser.Namespace ?? streamNameParser.Name;
 			var conf = new JsonConfigurator(_config);
 			var readers = _source.GetTextAsync(streamName)
-				.SelectMany(reader => LoadData(conf, source, name, reader))
+				.SelectMany(reader => JsonReader.LoadData(conf, source, name, reader))
 				.Where(ds => ds.Name.Equals(streamNameParser))
 				.Select(ds => ds.Reader);
 			return Task.FromResult<IDataReader>(new GroupingReader(readers.ToEnumerable()));

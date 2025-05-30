@@ -5,9 +5,11 @@ using System.Linq;
 using System.Reflection;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
+using Pansynchro.PanSQL.Core;
 
 namespace Pansynchro.PanSQL.Compiler.Functions
 {
@@ -19,6 +21,8 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		static FunctionBinder()
 		{
 			_methods.Add("format", typeof(string).GetMethod("Format", [typeof(string), typeof(object[])])!);
+			_methods.Add("HttpQuery", typeof(SqlFunctions).GetMethod("HttpQuery")!);
+			_methods.Add("HttpQueryJson", typeof(SqlFunctions).GetMethod("HttpQueryJson")!);
 			_props.Add("CurrentTimestamp", typeof(DateTime).GetProperty("Now")!);
 			_props.Add("getdate", _props["CurrentTimestamp"]);
 			_props.Add("getutcdate", typeof(DateTime).GetProperty("UtcNow")!);
@@ -140,12 +144,12 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 		}
 
-		private static void TypeCheck(Expression arg, ParameterInfo parameter, FieldType expectedType, FieldType? argType)
+		private static void TypeCheck(Expression arg, ParameterInfo parameter, IFieldType expectedType, IFieldType? argType)
 		{
 			if (argType == null) {
 				throw new CompilerError($"'{arg}' is not a valid function argument.", arg);
 			}
-			if (expectedType.Type == TypeTag.Unstructured) {
+			if (expectedType is BasicField { Type: TypeTag.Unstructured }) {
 				return;
 			}
 			if (DataDictionaryComparer.TypeCheckField(argType, expectedType, parameter.Name!, false) != null) {
@@ -153,17 +157,34 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 		}
 
-		private static void TypeCheck(DbExpression arg, ParameterInfo parameter, FieldType expectedType, FieldType? argType)
+		private static void TypeCheck(DbExpression arg, ParameterInfo parameter, IFieldType expectedType, IFieldType? argType)
 		{
 			if (argType == null) {
 				throw new Exception($"'{arg}' is not a valid function argument.");
 			}
-			if (expectedType.Type == TypeTag.Unstructured) {
+			if (expectedType is BasicField { Type: TypeTag.Unstructured }) {
 				return;
 			}
 			if (DataDictionaryComparer.TypeCheckField(argType, expectedType, parameter.Name!, false) != null) {
 				throw new Exception($"'{arg}' cannot be passed to a function parameter of type '{expectedType}'.");
 			}
+		}
+
+		internal static IFieldType GetCallType(CallExpression call)
+		{
+			if (!_methods.TryGetValue(call.Function.Name, out var info)) {
+				if (_props.TryGetValue(call.Function.Name, out var prop)) {
+					return TypesHelper.CSharpTypeToFieldType(prop.PropertyType);
+				}
+				var func = SpecialFunctions.ListSpecialFunctions()
+					.FirstOrDefault(f =>
+						f.Name.Equals(call.Function.Name, StringComparison.InvariantCultureIgnoreCase));
+				if (func == default) {
+					throw new CompilerError($"No function named '{call.Function}' is available", null!);
+				}
+				return TypesHelper.NullType;
+			}
+			return TypesHelper.CSharpTypeToFieldType(info.ReturnType);
 		}
 	}
 }

@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
 using Pansynchro.PanSQL.Compiler.Steps;
@@ -111,7 +112,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	internal enum TransactionType
 	{
 		PureMemory = 0,
-		Streamed = 1,
+		FromStream = 1,
 		ToStream = 1 << 1,
 		Joined = 1 << 2,
 		Grouped = 1 << 3,
@@ -123,6 +124,8 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public Identifier Conn { get; } = conn;
 		public Identifier Dict { get; } = dict;
 		public AnalyzeOption[]? Options { get; } = options;
+
+		internal DataDictionary Result { get; set; } = null!;
 
 		public bool Optimize => Options?.Any(o => o.Type == AnalyzeOptionType.Optimize) == true;
 		public Expression[]? IncludeList => Options?.FirstOrDefault(o => o.Type == AnalyzeOptionType.Include)?.Values;
@@ -173,7 +176,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public TypeReferenceExpression Type { get; } = type;
 		public Expression? Expr { get; } = expr;
 
-		internal FieldType FieldType { get; set; } = null!;
+		internal IFieldType FieldType { get; set; } = null!;
 		internal Identifier ScriptName { get; set; } = null!;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarDeclarationStatement(this);
@@ -183,7 +186,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 	public abstract class TypedExpression : Expression
 	{
-		internal abstract FieldType ExpressionType { get; }
+		internal abstract IFieldType ExpressionType { get; }
 	}
 
 	public class Identifier(string name) : Expression
@@ -199,9 +202,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	{
 		public string Name { get; internal set; } = name;
 
-		internal FieldType VarType { get; set; } = null!;
+		internal IFieldType VarType { get; set; } = null!;
 
-		internal override FieldType ExpressionType => VarType;
+		internal override IFieldType ExpressionType => VarType;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarExpression(this);
 
@@ -233,9 +236,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public string Method { get; } = method;
 		public Expression[] Args { get; } = args;
 
-		internal FieldType? ReturnType { get; set; }
+		internal IFieldType? ReturnType { get; set; }
 
-		internal override FieldType ExpressionType => ReturnType ?? throw new CompilerError($"No return type has been bound", this);
+		internal override IFieldType ExpressionType => ReturnType ?? throw new CompilerError($"No return type has been bound", this);
 
 		public string? CodeName { get; internal set; }
 		public string? Namespace { get; internal set; }
@@ -290,7 +293,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	{
 		public string Value { get; } = value;
 
-		internal override FieldType ExpressionType => TypesHelper.TextType;
+		internal override IFieldType ExpressionType => TypesHelper.TextType;
 
 		public override string ToString() => Value.ToLiteral();
 
@@ -301,7 +304,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	{
 		public int Value { get; } = value;
 
-		internal override FieldType ExpressionType => TypesHelper.TextType;
+		internal override IFieldType ExpressionType => TypesHelper.TextType;
 
 		public override string ToString() => Value.ToString();
 
@@ -314,7 +317,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 		public JsonNode Value { get; } = value;
 
-		internal override FieldType ExpressionType => TypesHelper.JsonType;
+		internal override IFieldType ExpressionType => TypesHelper.JsonType;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnJsonLiteralExpression(this);
 
@@ -328,7 +331,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 		internal string? VarName { get; set; }
 
-		internal override FieldType ExpressionType => TypesHelper.JsonType;
+		internal override IFieldType ExpressionType => TypesHelper.JsonType;
 		internal override void Accept(IVisitor visitor) => visitor.OnJsonInterpolatedExpression(this);
 		internal string JsonString => Value.ToJsonString(JsonLiteralExpression._options).ToLiteral();
 		public override string ToString() => (VarName ?? throw new Exception("Interpolated string has not been processed")) + ".ToJsonString()";

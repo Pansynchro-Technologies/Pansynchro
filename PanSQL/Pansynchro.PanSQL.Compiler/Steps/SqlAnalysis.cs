@@ -1,14 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using Microsoft.SqlServer.TransactSql.ScriptDom;
-
+﻿using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
-
+using System;
+using System.CodeDom;
+using System.Collections.Generic;
+using System.Linq;
 using BinaryExpression = Pansynchro.PanSQL.Compiler.DataModels.BinaryExpression;
 using BooleanExpression = Pansynchro.PanSQL.Compiler.DataModels.BooleanExpression;
 using Identifier = Microsoft.SqlServer.TransactSql.ScriptDom.Identifier;
@@ -31,7 +30,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				foreach (var cte in ((SelectStatement)node.SqlNode).WithCtesAndXmlNamespaces.CommonTableExpressions) {
 					var name = cte.ExpressionName.Value.ToPropertyName();
 					var cteModel = BuildDataModel(cte, node);
-					var tt2 = cteModel.Inputs.Any(i => i.Type == TableType.Stream) ? TransactionType.Streamed : TransactionType.PureMemory;
+					var tt2 = cteModel.Inputs.Any(i => i.Type == TableType.Stream) ? TransactionType.FromStream : TransactionType.PureMemory;
 					if (cteModel.AggOutputs?.Length > 0) {
 						tt2 |= TransactionType.Grouped;
 					}
@@ -40,7 +39,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				}
 			}
 			var model = BuildDataModel(node);
-			var modelGen = tt.HasFlag(TransactionType.ToStream) ? BuildStreamedModel(model, tt) : BuildMemoryModel(model, tt);
+			var modelGen = tt.HasFlag(TransactionType.ToStream) ? BuildToStreamModel(model, tt) : BuildMemoryModel(model, tt);
 			node.DataModel = modelGen;
 			node.Indices = BuildIndexData(node);
 		}
@@ -60,20 +59,21 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			return new IndexData(indices.ToDictionary(i => i.Name), lookups);
 		}
 
-		private static SqlModel BuildStreamedModel(DataModel model, TransactionType tt) 
-			=> tt.HasFlag(TransactionType.Streamed) ? BuildTransformerModel(model, tt) : BuildStreamGeneratorModel(model, tt);
-
-		private static SqlModel BuildTransformerModel(DataModel model, TransactionType tt)
-			=> tt.HasFlag(TransactionType.Grouped) ? new AggregateStreamModel(model) : new IterateStreamModel(model);
-
-		private static MemorySqlModel BuildStreamGeneratorModel(DataModel model, TransactionType tt) 
-			=> tt.HasFlag(TransactionType.Grouped) ? new AggregateStreamGeneratorModel(model) : new StreamGeneratorModel(model);
+		private static SqlModel BuildToStreamModel(DataModel model, TransactionType tt)
+			=> (tt.HasFlag(TransactionType.FromStream), tt.HasFlag(TransactionType.Grouped)) switch {
+				(true, true) => new AggregateStreamModel(model),
+				(true, false) => new IterateStreamModel(model),
+				(false, true) => new AggregateStreamGeneratorModel(model),
+				(false, false) => new StreamGeneratorModel(model),
+			};
 
 		private static SqlModel BuildMemoryModel(DataModel model, TransactionType tt)
-			=> tt.HasFlag(TransactionType.Streamed) ? BuildStreamedToMemoryModel(model, tt) : throw new NotImplementedException();
-
-		private static SqlModel BuildStreamedToMemoryModel(DataModel model, TransactionType tt)
-			=> tt.HasFlag(TransactionType.Grouped) ? new StreamToAggregateMemoryModel(model) : throw new NotImplementedException();
+			=> (tt.HasFlag(TransactionType.FromStream), tt.HasFlag(TransactionType.Grouped)) switch {
+				(true, true) => new StreamToAggregateMemoryModel(model),
+				(true, false) => throw new NotImplementedException(),
+				(false, true) => throw new NotImplementedException(),
+				(false, false) => new PureMemoryModel(model),
+			};
 
 		private const int MAX_AGGS = 7;
 
@@ -379,6 +379,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_stack.Push(codeObject.ColumnName == null ? result : new AliasedExpression(result, codeObject.ColumnName.Value));
 			}
 
+			public override void ExplicitVisit(SelectStarExpression node)
+			{
+				ReferenceExpression? table = node.Qualifier == null ? null : (ReferenceExpression)VisitValue(node.Qualifier);
+				_stack.Push(new StarExpression(table));
+			}
+
 			public override void ExplicitVisit(VariableReference codeObject)
 			{
 				var varName = codeObject.Name[1..];
@@ -397,7 +403,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				if (!Enum.TryParse<TypeTag>(typeName, out var type)) {
 					throw new Exception("Unknown data type: " + typeName);
 				}
-				_stack.Push(new CastExpression(value, new FieldType(type, false, CollectionType.None, null)));
+				_stack.Push(new CastExpression(value, new BasicField(type, false, null, false)));
 			}
 
 			private static Dictionary<BinaryExpressionType, BinExpressionType> BIN_OPS = new()
@@ -454,6 +460,21 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					result = new UnaryExpression(UnaryExpressionType.Not, result);
 				}
 				_stack.Push(result);
+			}
+
+			public override void ExplicitVisit(LikePredicate codeObject)
+			{
+				var l = VisitValue(codeObject.FirstExpression);
+				var r = VisitValue(codeObject.SecondExpression);
+				if (codeObject.EscapeExpression != null) {
+					throw new NotImplementedException();
+				}
+				DbExpression result = new LikeExpression(l, r);
+				if (codeObject.NotDefined) {
+					result = new UnaryExpression(UnaryExpressionType.Not, result);
+				}
+				_stack.Push(result);
+
 			}
 
 			public override void ExplicitVisit(BooleanBinaryExpression codeObject)

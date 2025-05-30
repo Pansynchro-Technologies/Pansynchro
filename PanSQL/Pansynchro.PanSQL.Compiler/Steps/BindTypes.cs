@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Functions;
@@ -26,6 +27,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private void BindModelTypes(DataModel model, SqlTransformStatement node)
 		{
 			var fields = model.Outputs;
+			if (fields.OfType<StarExpression>().Any()) {
+				fields = ExpandStarExpressions(fields, model, node);
+				node.DataModel.Model = model with { Outputs = fields };
+			}
 			var tables = node.Ctes.Count > 0 
 				? node.Tables.Concat(node.Ctes.SelectMany(c => c.Model.Model.Inputs).Select(i => _file.Vars[i.Name])).Distinct().ToList()
 				: node.Tables;
@@ -35,6 +40,34 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			DoBindTypes(model.Joins, tables, node);
 			if (model.GroupKey != null) {
 				DoBindTypes(model.GroupKey, tables, node);
+			}
+		}
+
+		private static DbExpression[] ExpandStarExpressions(DbExpression[] fields, DataModel model, SqlTransformStatement node)
+		{
+			return [.. Impl()];
+			
+			IEnumerable<DbExpression> Impl()
+			{
+				foreach (var field in fields) {
+					if (field is StarExpression se) {
+						if (se.Table != null) {
+							var table = model.Inputs.FirstOrDefault(t => t.Name.Equals(se.Table.Name, StringComparison.InvariantCultureIgnoreCase));
+							if (table == null) {
+								throw new CompilerError($"Table '{se.Table.Name}' not found.", node);
+							}
+							foreach (var column in table.Stream.Fields) {
+								yield return new MemberReferenceExpression(new ReferenceExpression(table.Name), column.Name);
+							}
+						} else {
+							foreach (var (table, column) in model.Inputs.SelectMany(i => i.Stream.Fields, KeyValuePair.Create)) {
+								yield return new MemberReferenceExpression(new ReferenceExpression(table.Name), column.Name);
+							}
+						}
+					} else {
+						yield return field;
+					}
+				}
 			}
 		}
 
@@ -113,16 +146,34 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					foreach (var value in col.Values) {
 						LookupField(value, tables, node);
 					}
-					col.Type = col.Values.Length == 0 ? TypesHelper.NullType : col.Values[0].Type! with { CollectionType = CollectionType.Array };
+					col.Type = col.Values.Length == 0 
+						? TypesHelper.NullType 
+						: col.Values[0].Type is CollectionField 
+							? col.Values[0].Type 
+							: new CollectionField(col.Values[0].Type!, CollectionType.Array, false);
+					break;
+				case ContainsExpression cont:
+					LookupField(cont.Value, tables, node);
+					LookupField(cont.Collection, tables, node);
+					cont.Type = TypesHelper.BoolType;
 					break;
 				case IsNullExpression isn:
 					LookupField(isn.Value, tables, node);
 					isn.Type = TypesHelper.BoolType;
 					break;
+				case UnaryExpression ue:
+					LookupField(ue.Value, tables, node);
+					ue.Type = ue.Value.Type;
+					break;
 				case BinaryExpression b:
 					LookupField(b.Left, tables, node);
 					LookupField(b.Right, tables, node);
 					b.Type = b.Left.Type;
+					break;
+				case LikeExpression lk:
+					LookupField(lk.Left, tables, node);
+					LookupField(lk.Right, tables, node);
+					lk.Type = TypesHelper.BoolType;
 					break;
 				case CallExpression call:
 					foreach (var value in call.Args) {

@@ -1,5 +1,5 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
-
+using Pansynchro.Core;
 using Pansynchro.PanSQL.Compiler.DataModels;
 
 namespace Pansynchro.PanSQL.Compiler.Helpers
@@ -15,6 +15,8 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		};
 
 		public static string ToIndexName(this MemberReferenceExpression field) => field.ToString().Replace(".", "__");
+
+		public static string ToTableName(this StreamDescription name) => name.ToString().ToPropertyName().Replace('.', '_');
 
 		public static string UpTo(this string value, char marker)
 		{

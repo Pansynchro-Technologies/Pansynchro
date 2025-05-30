@@ -41,7 +41,14 @@ namespace Pansynchro.PanSQL
 					multiple = true;
 					break;
 			}
-			return multiple ? CompileMultiple(files, args.OptNobuild, args.OptVerbose) : CompileSingle(files[0], Path.GetDirectoryName(files[0])!, args.OptNobuild, args.OptVerbose);
+			try {
+				return multiple 
+					? CompileMultiple(files, args.OptNobuild, args.OptVerbose)
+					: CompileSingle(files[0], Path.GetDirectoryName(files[0])!, args.OptNobuild, args.OptVerbose);
+			} catch (CompilerError ce) {
+				Console.WriteLine("Compile error: " + ce.Message);
+				return -1;
+			}
 		}
 
 		private static int CompileSingle(string filename, string baseFolder, bool noBuild, bool verbose)

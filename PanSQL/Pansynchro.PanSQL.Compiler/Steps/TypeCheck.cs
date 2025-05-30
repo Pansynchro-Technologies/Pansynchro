@@ -238,7 +238,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnCredentialExpression(CredentialExpression node)
 		{
 			base.OnCredentialExpression(node);
-			if (TypesHelper.FieldTypeToCSharpType(node.Value.ExpressionType) != "string") {
+			if (TypesHelper.FieldTypeToCSharpType(node.Value.ExpressionType) is not ("string" or "System.Text.Json.Nodes.JsonNode")) {
 				throw new CompilerError($"'{node.Value}' is not a string type", node);
 			}
 		}

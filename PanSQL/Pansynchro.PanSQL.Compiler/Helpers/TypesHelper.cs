@@ -1,29 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using System.Text.Json.Nodes;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.Helpers;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
+using Pansynchro.PanSQL.Compiler.Functions;
 
 namespace Pansynchro.PanSQL.Compiler.Helpers
 {
 	internal static class TypesHelper
 	{
-		internal static FieldType NullType = new(TypeTag.Custom, true, CollectionType.None, "NULL");
-		internal static FieldType ObjType = new(TypeTag.Unstructured, false, CollectionType.None, null);
+		internal static BasicField NullType = new(TypeTag.None, true, null, false);
+		internal static BasicField ObjType = new(TypeTag.Unstructured, false, null, false);
 
-		internal static FieldType BoolType = new(TypeTag.Boolean, false, CollectionType.None, null);
-		internal static FieldType IntType = new(TypeTag.Int, false, CollectionType.None, null);
-		internal static FieldType FloatType = new(TypeTag.Float, false, CollectionType.None, null);
-		internal static FieldType DoubleType = new(TypeTag.Double, false, CollectionType.None, null);
-		internal static FieldType TextType = new(TypeTag.Ntext, false, CollectionType.None, null);
-		internal static FieldType DateTimeType = new(TypeTag.DateTime, false, CollectionType.None, null);
-		internal static FieldType JsonType = new(TypeTag.Json, false, CollectionType.None, null);
-		internal static FieldType NvarcharType = new(TypeTag.Nvarchar, false, CollectionType.None, null);
+		internal static BasicField BoolType = new(TypeTag.Boolean, false, null, false);
+		internal static BasicField IntType = new(TypeTag.Int, false, null, false);
+		internal static BasicField FloatType = new(TypeTag.Float, false, null, false);
+		internal static BasicField DoubleType = new(TypeTag.Double, false, null, false);
+		internal static BasicField TextType = new(TypeTag.Ntext, false, null, false);
+		internal static BasicField DateTimeType = new(TypeTag.DateTime, false, null, false);
+		internal static BasicField JsonType = new(TypeTag.Json, false, null, false);
+		internal static BasicField NvarcharType = new(TypeTag.Nvarchar, false, null, false);
 
-		internal static FieldType MakeStringType(string value) => new(TypeTag.Nchar, false, CollectionType.None, value.Length.ToString());
+		internal static BasicField MakeStringType(string value) => new(TypeTag.Nchar, false, value.Length.ToString(), false);
 
 		internal static DataClassModel BuildDataClass(TypeDefinition stream)
 		{
@@ -36,7 +38,7 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		{
 			var fields = stream.Fields.Select(f => BuildDataField(f, fieldConstructor)).ToArray();
 			var pk = stream.Identity.Select(n => stream.Fields.IndexWhere(f => f.Name == n).First()).ToArray();
-			return new(stream.Name.ToString().ToPropertyName().Replace('.', '_') + '_', fields, pk) { FieldConstructor = fieldConstructor };
+			return new(stream.Name.ToTableName() + '_', fields, pk) { FieldConstructor = fieldConstructor };
 		}
 
 		private static DataFieldModel BuildDataField(FieldDefinition field, bool fieldConstructor)
@@ -69,9 +71,18 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 			return isNullable ? $"r.IsDBNull({{0}}) ? null : {getter}" : getter;
 		}
 
-		public static string FieldTypeToCSharpType(FieldType type)
+		private struct TypePrinter : IFieldTypeVisitor<string>
 		{
-			var baseType = type.Type switch {
+			public string Visit(IFieldType type)
+			{
+				var result = type.Accept(this);
+				if (type.Nullable) {
+					result += '?';
+				}
+				return result;
+			}
+
+			public string VisitBasicField(BasicField type) => type.Type switch {
 				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext => "string",
 				TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob => "byte[]",
 				TypeTag.Boolean => "bool",
@@ -85,7 +96,8 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 				TypeTag.Date or TypeTag.DateTime => "DateTime",
 				TypeTag.DateTimeTZ => "DateTimeOffset",
 				TypeTag.Guid => "Guid",
-				TypeTag.Xml or TypeTag.Json => "string",
+				TypeTag.Xml => "string",
+				TypeTag.Json => "System.Text.Json.Nodes.JsonNode",
 				TypeTag.Money or TypeTag.SmallMoney => "decimal",
 				TypeTag.SmallDateTime => "DateTime",
 				TypeTag.SByte => "sbyte",
@@ -94,59 +106,91 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 				TypeTag.ULong => "ulong",
 				_ => throw new NotImplementedException(),
 			};
-			if (type.Nullable) {
-				baseType += '?';
+
+			public string VisitCollection(CollectionField type)
+			{
+				var baseType = Visit(type.BaseType);
+				return type.CollectionType switch {
+					CollectionType.Array => baseType + "[]",
+					CollectionType.Multiset => throw new NotImplementedException(),
+					_ => throw new NotImplementedException(),
+				};
 			}
-			var typeName = type.CollectionType switch {
-				CollectionType.None => baseType,
-				CollectionType.Array => baseType + "[]",
-				CollectionType.Multiset => throw new NotImplementedException(),
-				_ => throw new NotImplementedException(),
-			};
-			return typeName;
+
+			public string VisitCustomField(CustomField type)
+			{
+				throw new NotImplementedException();
+			}
+
+			public string VisitTupleField(TupleField type)
+			{
+				throw new NotImplementedException();
+			}
 		}
 
-		private static Type TypeTagToDotNetType(TypeTag type) => type switch {
-			TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext => typeof(string),
-			TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob => typeof(byte[]),
-			TypeTag.Boolean => typeof(bool),
-			TypeTag.Byte => typeof(byte),
-			TypeTag.Short => typeof(short),
-			TypeTag.Int => typeof(int),
-			TypeTag.Long => typeof(long),
-			TypeTag.Decimal or TypeTag.Numeric => typeof(decimal),
-			TypeTag.Float or TypeTag.Single => typeof(float),
-			TypeTag.Double => typeof(double),
-			TypeTag.Date or TypeTag.DateTime => typeof(DateTime),
-			TypeTag.DateTimeTZ => typeof(DateTimeOffset),
-			TypeTag.Guid => typeof(Guid),
-			TypeTag.Xml or TypeTag.Json => typeof(string),
-			TypeTag.Money or TypeTag.SmallMoney => typeof(decimal),
-			TypeTag.SmallDateTime => typeof(DateTime),
-			TypeTag.SByte => typeof(sbyte),
-			TypeTag.UShort => typeof(ushort),
-			TypeTag.UInt => typeof(uint),
-			TypeTag.ULong => typeof(ulong),
-			_ => throw new NotImplementedException(),
-		};
+		public static string FieldTypeToCSharpType(IFieldType type) => new TypePrinter().Visit(type);
 
-		internal static Type FieldTypeToDotNetType(FieldType type)
+		private struct DotNetTyper : IFieldTypeVisitor<Type>
 		{
-			var result = TypeTagToDotNetType(type.Type);
-			if (type.Nullable && result.IsValueType) {
-				result = typeof(Nullable<>).MakeGenericType(result);
+			public Type Visit(IFieldType type)
+			{
+				var result = type.Accept(this);
+				if (type.Nullable && result.IsValueType) {
+					result = typeof(Nullable<>).MakeGenericType(result);
+				}
+				return result;
 			}
-			result = type.CollectionType switch {
-				CollectionType.None => result,
-				CollectionType.Array => result.MakeArrayType(),
+
+			public Type VisitBasicField(BasicField type) => type.Type switch {
+				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext => typeof(string),
+				TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob => typeof(byte[]),
+				TypeTag.Boolean => typeof(bool),
+				TypeTag.Byte => typeof(byte),
+				TypeTag.Short => typeof(short),
+				TypeTag.Int => typeof(int),
+				TypeTag.Long => typeof(long),
+				TypeTag.Decimal or TypeTag.Numeric => typeof(decimal),
+				TypeTag.Float or TypeTag.Single => typeof(float),
+				TypeTag.Double => typeof(double),
+				TypeTag.Date or TypeTag.DateTime => typeof(DateTime),
+				TypeTag.DateTimeTZ => typeof(DateTimeOffset),
+				TypeTag.Guid => typeof(Guid),
+				TypeTag.Xml or TypeTag.Json => typeof(string),
+				TypeTag.Money or TypeTag.SmallMoney => typeof(decimal),
+				TypeTag.SmallDateTime => typeof(DateTime),
+				TypeTag.SByte => typeof(sbyte),
+				TypeTag.UShort => typeof(ushort),
+				TypeTag.UInt => typeof(uint),
+				TypeTag.ULong => typeof(ulong),
 				_ => throw new NotImplementedException(),
 			};
-			return result;
+
+			public Type VisitCollection(CollectionField type)
+			{
+				var result = Visit(type.BaseType);
+				return type.CollectionType switch {
+					CollectionType.Array => result.MakeArrayType(),
+					_ => throw new NotImplementedException(),
+				};
+			}
+
+			public Type VisitCustomField(CustomField type)
+			{
+				throw new NotImplementedException();
+			}
+
+			public Type VisitTupleField(TupleField type)
+			{
+				throw new NotImplementedException();
+			}
 		}
 
-		internal static string FieldTypeToGetter(FieldType type, int idx)
+		internal static Type FieldTypeToDotNetType(IFieldType type) => new DotNetTyper().Visit(type);
+
+		internal static string FieldTypeToGetter(IFieldType type, int idx)
 		{
-			var getter = type.Type switch {
+			var typ = type as BasicField ?? throw new NotImplementedException();
+			var getter = typ.Type switch {
 				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext => "r.GetString",
 				TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob => "r.GetBytes",
 				TypeTag.Boolean => "r.GetBoolean",
@@ -168,7 +212,7 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 			return type.Nullable ? $"(r.IsDBNull({idx}) ? System.DBNull.Value : {getter})" : getter;
 		}
 
-		internal static FieldType CSharpTypeToFieldType(Type returnType)
+		internal static IFieldType CSharpTypeToFieldType(Type returnType)
 		{
 			if (returnType == typeof(string)) {
 				return TextType;
@@ -182,15 +226,19 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 			if (returnType == typeof(object)) {
 				return ObjType;
 			}
+			if (returnType == typeof(JsonNode)) {
+				return JsonType;
+			}
 			throw new NotImplementedException();
 		}
 
-		internal static FieldType GetFieldType(this TypeReferenceExpression type)
+		internal static IFieldType GetFieldType(this TypeReferenceExpression type)
 		{
 			if (!Enum.TryParse<TypeTag>(type.Name, true, out var tag)) {
 				throw new CompilerError($"'{type.Name}' is not a valid variable type name.", type);
 			}
-			return new FieldType(tag, false, type.IsArray ? CollectionType.Array : CollectionType.None, type.Magnitude?.ToString());
+			var result = new BasicField(tag, false, type.Magnitude?.ToString(), false);
+			return type.IsArray ? new CollectionField(result, CollectionType.Array, false) : result;
 		}
 
 		internal static string ModelIdentityType(DataClassModel model)
@@ -208,7 +256,7 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		internal static string ModelIdentityFields(DataClassModel model, string prefix)
 		{
 			var key = PrimaryKey(model);
-			return key.Length == 1 ? $"{prefix}.{key[0].Name}" : $"({string.Join(", ", key.Select(k => $"{prefix}.{k.Name}"))})";
+			return key.Length == 1 ? $"{prefix}.{key[0].Name}" : $"ValueTuple.Create({string.Join(", ", key.Select(k => $"{prefix}.{k.Name}"))})";
 		}
 
 		private static DataFieldModel[] PrimaryKey(DataClassModel model) => model.PkIndex.Select(i => model.Fields[i]).ToArray();
@@ -225,13 +273,22 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 			return expr switch {
 				AliasedExpression ae => BuildFieldDefFromDataModel(ae.Expr, tables) with { Name = ae.Alias.ToPropertyName()},
 				AggregateExpression agg => BuildFieldDefFromDataModel(agg.Args[0], tables),
+				CallExpression call => BuildFieldDefFromCall(call, tables),
 				MemberReferenceExpression mre => tables
-					.FirstOrDefault(t => t.Name.Equals(mre.Parent.Name, StringComparison.InvariantCultureIgnoreCase))?
-					.Stream.Fields.FirstOrDefault(f => f.Name.Equals(mre.Name, StringComparison.InvariantCultureIgnoreCase))
+					.FirstOrDefault(t => t.Name.Equals(mre.Parent.Name, StringComparison.InvariantCultureIgnoreCase))
+						?.Stream.Fields.FirstOrDefault(f => f.Name.Equals(mre.Name, StringComparison.InvariantCultureIgnoreCase))
 					?? throw new Exception($"No field named '{mre}' is available"),
 				_ => throw new NotImplementedException()
 			};
 		}
+
+		private static FieldDefinition BuildFieldDefFromCall(CallExpression call, TableReference[] tables)
+			=> tables.SelectMany(t => t.Stream.Fields)
+				.FirstOrDefault(f => f.Name.Equals(call.Function.Name, StringComparison.OrdinalIgnoreCase))
+			?? BuildDefaultFieldDefFromCall(call);
+
+		private static FieldDefinition BuildDefaultFieldDefFromCall(CallExpression call)
+			=> new FieldDefinition(call.Function.Name, FunctionBinder.GetCallType(call));
 
 		internal static KeyValuePair<string, FieldDefinition> LookupField(TableReference[] tables, string fieldName)
 		{

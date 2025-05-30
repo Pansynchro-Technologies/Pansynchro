@@ -10,6 +10,7 @@ using PReader = Parquet.ParquetReader;
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Helpers;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.Parquet
 {
@@ -68,8 +69,11 @@ namespace Pansynchro.Connectors.Parquet
 				DataType.TimeSpan => TypeTag.Interval,
 				_ => throw new NotSupportedException($"Parquet field data type '{field.DataType}' is not supported")
 			};
-			var cType = field.IsArray ? CollectionType.Array : CollectionType.None;
-			return new FieldDefinition(field.Name, new FieldType(type, field.HasNulls, cType, null));
+			IFieldType fType = new BasicField(type, field.HasNulls, null, false);
+			if (field.IsArray) {
+				fType = new CollectionField(fType, CollectionType.Array, false);
+			}
+			return new FieldDefinition(field.Name, fType);
 		}
 
 		public void SetDataSource(IDataSource source)

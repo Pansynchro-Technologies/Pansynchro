@@ -13,7 +13,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 		public override string Name => "JSON";
 
 		public override Capabilities Capabilities
-			=> Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator | Capabilities.RandomAccessReader;
+			=> Capabilities.Reader | Capabilities.Writer | Capabilities.Analyzer | Capabilities.Configurator | Capabilities.RandomAccessReader;
 
 		public override NameStrategyType Strategy => NameStrategyType.Identity;
 
@@ -23,10 +23,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 
 		public override IReader GetReader(string config) => new JsonReader(config);
 
-		public override IWriter GetWriter(string config)
-		{
-			throw new NotImplementedException();
-		}
+		public override IWriter GetWriter(string config) => new JsonWriter(config);
 
 		[ModuleInitializer]
 		public static void Run()

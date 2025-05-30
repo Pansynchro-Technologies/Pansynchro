@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.TextFile
 {
 	internal static class AnalyzerHelper
 	{
-		internal static StreamDefinition Analyze(string streamName, CSV.CsvArrayProducer reader)
+		internal static StreamDefinition Analyze(string streamName, CSV.AnalyzerArrayProducer reader)
 		{
 			var fields = new List<FieldDefinition>();
 			for (int i = 0; i < reader.FieldTypes.Length; ++i) {
@@ -32,7 +33,7 @@ namespace Pansynchro.Connectors.TextFile
 		private static FieldDefinition MakeField(string typ, bool nullable, string name)
 		{
 			var tag = _matches[typ];
-			return new FieldDefinition(name, new FieldType(tag, nullable, CollectionType.None, null));
+			return new FieldDefinition(name, new BasicField(tag, nullable, null, false));
 		}
 	}
 }

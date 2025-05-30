@@ -9,6 +9,7 @@ using Tortuga.Data.Snowflake;
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.SQL;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.Snowflake
 {
@@ -190,7 +191,7 @@ $$; ";
 			TypeTag.Float,
 		};
 
-		private static FieldType GetFieldType(IDataReader reader)
+		private static BasicField GetFieldType(IDataReader reader)
 		{
 			var nullable = reader.GetString(3) == "YES";
 			var tag = GetTagType(reader.GetString(4));
@@ -206,7 +207,7 @@ $$; ";
 
 				}
 			}
-			return new FieldType(tag, nullable, CollectionType.None, info);
+			return new BasicField(tag, nullable, info, false);
 		}
 
 		private static string? GetInfo(TypeTag tag, IDataReader reader) => tag switch {

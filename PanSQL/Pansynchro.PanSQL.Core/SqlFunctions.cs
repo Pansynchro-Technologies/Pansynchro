@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Net.Http;
+using System.Text.Json.Nodes;
 
 namespace Pansynchro.PanSQL.Core
 {
@@ -28,5 +30,13 @@ namespace Pansynchro.PanSQL.Core
 		public static double Rand() => _rng.NextDouble();
 
 		public static T Square<T>(T arg) where T: System.Numerics.INumber<T> => arg * arg;
+
+		public static string HttpQuery(string url)
+		{
+			using var client = new HttpClient();
+			return client.GetStringAsync(url).GetAwaiter().GetResult();
+		}
+
+		public static JsonNode HttpQueryJson(string url) => JsonNode.Parse(HttpQuery(url))!;
 	}
 }

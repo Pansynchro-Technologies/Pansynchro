@@ -6,6 +6,7 @@ using Pansynchro.PanSQL.Compiler.Helpers;
 
 namespace Pansynchro.PanSQL.Compiler.DataModels
 {
+	// Generates an aggregated stream from an in-memory table
 	internal class AggregateStreamGeneratorModel(DataModel model) : MemorySqlModel(model)
 	{
 		public override Method GetScript(CodeBuilder cb, IndexData indices, List<ImportModel> imports, Dictionary<string, string> ctes)

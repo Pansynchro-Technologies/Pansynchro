@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Pansynchro.Core.DataDict.TypeSystem;
+using Pansynchro.Core.Pansync;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Pansynchro.Core.Pansync;
 
 namespace Pansynchro.Core.DataDict
 {
@@ -31,7 +32,7 @@ namespace Pansynchro.Core.DataDict
 			return result;
 		}
 
-		private static Command SerializeCustomTypes(Dictionary<string, FieldType> types)
+		private static Command SerializeCustomTypes(Dictionary<string, IFieldType> types)
 		{
 			var values = types.Select(
 				field => SerializeField(new FieldDefinition(field.Key, field.Value), "Type"));
@@ -89,15 +90,7 @@ namespace Pansynchro.Core.DataDict
 		private static Command SerializeField(FieldDefinition field, string typeName)
 		{
 			var name = new NameNode(field.Name);
-			Expression fieldTypeExpr = WriteName(field.Type.Type.ToString());
-			if (field.Type.Info != null) {
-				fieldTypeExpr = SerializeExtendedType((NameNode)fieldTypeExpr, field.Type.Info);
-			}
-			var flArgs = new List<Expression>();
-			flArgs.Add(fieldTypeExpr);
-			if (field.Type.Nullable) {
-				flArgs.Add(NULL_EXPR);
-			}
+			var flArgs = new TypeSerializer().Serialize(field.Type);
 			if (field.Type.Incompressible) {
 				flArgs.Add(INCOMPRESSIBLE_EXPR);
 			}
@@ -245,26 +238,45 @@ namespace Pansynchro.Core.DataDict
 			}
 			var fieldArgs = (NamedListNode)ast.Arguments[0];
 			var name = fieldArgs.Name.ToString();
-			var nullable = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments[1].Matches(NULL_EXPR);
-			var incompressible = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments.Any(a => a.Matches(INCOMPRESSIBLE_EXPR));
-			var hasCustom = fieldArgs.Arguments.Length >= 2 && fieldArgs.Arguments[^1] is StringNode;
-			var custom = hasCustom ? fieldArgs.Arguments[^1].ToString() : null;
-			var fieldType = ParseType(fieldArgs.Arguments[0], nullable);
-			fieldType.Incompressible = incompressible;
+			var (fieldType, custom) = ParseType(fieldArgs.Arguments);
 			return new FieldDefinition(name, fieldType, custom);
 		}
 
-		private static FieldType ParseType(Expression typeExpr, bool nullable)
+		private static (IFieldType, string?) ParseType(Expression[] list)
 		{
-			return typeExpr switch {
-				NamedListNode nln =>
-					new FieldType(
-						Enum.Parse<TypeTag>(nln.Name.ToString()),
-						nullable,
-						CollectionType.None,
-						string.Join<Expression>(", ", nln.Arguments)),
-				_ => new FieldType(Enum.Parse<TypeTag>(typeExpr.ToString()), nullable, CollectionType.None, null)
-			};
+			var nullable = list.Length >= 2 && list[1].Matches(NULL_EXPR);
+			var incompressible = list.Length >= 2 && list.Any(a => a.Matches(INCOMPRESSIBLE_EXPR));
+			var hasCustom = list.Length >= 2 && list[^1] is StringNode;
+			var custom = hasCustom ? list[^1].ToString() : null;
+			var fieldType = ParseType(list[0], nullable, incompressible);
+			return (fieldType, custom);
+		}
+
+		private static IFieldType ParseType(Expression typeExpr, bool nullable, bool incompressible) => typeExpr switch {
+			NamedListNode nln =>
+				new BasicField(
+					Enum.Parse<TypeTag>(nln.Name.ToString()),
+					nullable,
+					string.Join<Expression>(", ", nln.Arguments),
+					incompressible),
+			NameNode nn => new BasicField(Enum.Parse<TypeTag>(nn.ToString()), nullable, null, incompressible),
+			ModifiedNode mn => ParseModifiedType(mn, nullable, incompressible),
+			_ => throw new NotImplementedException()
+		};
+
+		private static IFieldType ParseModifiedType(ModifiedNode mn, bool nullable, bool incompressible)
+		{
+			var name = mn.Name.Name;
+			if (Enum.TryParse<CollectionType>(name, out var collType)) {
+				var (type, _) = ParseType(mn.Values);
+				return new CollectionField(type, collType, nullable);
+			}
+			if (name == "CUSTOM") {
+				var customName = (NameNode)mn.Values[0];
+				var (type, _) = ParseType(mn.Values[1..]);
+				return new CustomField(customName.Name, type, nullable);
+			}
+			throw new NotImplementedException();
 		}
 
 		private static StreamDescription[][] ParseDeps(Command deps)
@@ -281,5 +293,73 @@ namespace Pansynchro.Core.DataDict
 					((IntegerNode)p.Value).Value
 				))
 				.ToArray();
+
+		private class TypeSerializer : IFieldTypeVisitor<List<Expression>>
+		{
+			private List<Expression> Visit(IFieldType type) => type.Accept(this);
+
+			public List<Expression> Serialize(IFieldType type)
+			{
+				var list = Visit(type);
+				if (type.Incompressible && !list.Contains(INCOMPRESSIBLE_EXPR)) {
+					list.Add(INCOMPRESSIBLE_EXPR);
+				}
+				return list;
+			}
+
+			public List<Expression> VisitBasicField(BasicField type)
+			{
+				var result = new List<Expression>();
+				var name = WriteName(type.Type.ToString());
+				if (type.Info != null) {
+					name = SerializeExtendedType((NameNode)name, type.Info);
+				}
+				result.Add(name);
+				if (type.Nullable) {
+					result.Add(NULL_EXPR);
+				}
+				if (type.Incompressible) {
+					result.Add(INCOMPRESSIBLE_EXPR);
+				}
+				return result;
+			}
+
+			public List<Expression> VisitCollection(CollectionField type)
+			{
+				var baseList = Visit(type.BaseType);
+				var coll = new ModifiedNode(new NameNode(type.CollectionType.ToString()), baseList.ToArray());
+				var result = new List<Expression>();
+				result.Add(coll);
+				if (type.Nullable) {
+					result.Add(NULL_EXPR);
+				}
+				return result;
+			}
+
+			public List<Expression> VisitCustomField(CustomField type)
+			{
+				var baseList = Visit(type.BaseType);
+				baseList.Insert(0, new NameNode(type.Name));
+				var coll = new ModifiedNode(new NameNode("CUSTOM"), baseList.ToArray());
+				var result = new List<Expression>();
+				result.Add(coll);
+				if (type.Nullable) {
+					result.Add(NULL_EXPR);
+				}
+				return result;
+			}
+
+			public List<Expression> VisitTupleField(TupleField type)
+			{
+				var fields = type.Fields.Select(f => new NamedListNode(new NameNode(f.Key), Visit(f.Value).ToArray()));
+				var tuple = new ModifiedNode(new NameNode("TUPLE"), fields.ToArray());
+				var result = new List<Expression>();
+				result.Add(tuple);
+				if (type.Nullable) {
+					result.Add(NULL_EXPR);
+				}
+				return result;
+			}
+		}
 	}
 }

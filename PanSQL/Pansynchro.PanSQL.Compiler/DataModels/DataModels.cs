@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.Helpers;
 
@@ -48,7 +49,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 	abstract class DbExpression
 	{
-		internal FieldType? Type { get; set; }
+		internal IFieldType? Type { get; set; }
 
 		internal abstract bool Match(DbExpression other);
 
@@ -80,6 +81,13 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 	class VariableReferenceExpression(string name) : ReferenceExpression(name)
 	{ }
+
+	class StarExpression(ReferenceExpression? table) : DbExpression
+	{
+		public ReferenceExpression? Table { get; } = table;
+		internal override bool Match(DbExpression other)
+			=> other is StarExpression s && ((s.Table == null && Table == null) || ((s.Table != null && Table != null && s.Table.Match(Table))));
+	}
 
 	class AliasedExpression(DbExpression expr, string alias) : DbExpression
 	{
@@ -212,6 +220,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public override string ToString() => $"{Left} {OpString} {Right}";
 	}
 
+	class LikeExpression(DbExpression left, DbExpression right) : DbExpression
+	{
+		public DbExpression Left { get; } = left;
+		public DbExpression Right { get; } = right;
+
+		internal override bool Match(DbExpression other)
+			=> other is LikeExpression l && l.Left.Match(Left) && l.Right.Match(Right);
+
+		public override string ToString() => $@"LikeImpl.Like({Left}, {Right}, '\\')";
+	}
+
 	class AggregateExpression(string name, params DbExpression[] args) : DbExpression
 	{
 		public string Name { get; } = name;
@@ -232,10 +251,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		internal override bool Match(DbExpression other) =>
 			other is CollectionExpression c && c.Values.Length == Values.Length && c.Values.Zip(Values).All(pair => pair.First.Match(pair.Second));
 
-		public override string ToString()
-		{
-			return $"[{string.Join<DbExpression>(", ", Values)}]";
-		}
+		public override string ToString() => $"new[]{{{string.Join<DbExpression>(", ", Values)}}}";
 	}
 
 	class ContainsExpression(DbExpression collection, DbExpression value) : DbExpression
@@ -243,6 +259,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public DbExpression Collection { get; } = collection;
 		public DbExpression Value { get; } = value;
 
+		public override bool IsLiteral => Collection.IsLiteral && Value.IsLiteral;
 		internal override bool Match(DbExpression other) =>
 			other is ContainsExpression ce && ce.Collection.Match(Collection) && ce.Value.Match(Value);
 
@@ -256,7 +273,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 	class CastExpression : DbExpression
 	{
-		public CastExpression(DbExpression value, FieldType type)
+		public CastExpression(DbExpression value, IFieldType type)
 		{
 			Value = value;
 			Type = type;

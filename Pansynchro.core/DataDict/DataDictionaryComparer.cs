@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 
+using Pansynchro.Core.DataDict.TypeSystem;
+
 namespace Pansynchro.Core.DataDict
 {
 	public record HarmonizedDictionary(
@@ -71,8 +73,8 @@ namespace Pansynchro.Core.DataDict
 			foreach (var stream in dict.Streams) {
 				for (int i = 0; i < stream.Fields.Length; ++i) {
 					var field = stream.Fields[i];
-					if (field.Type.Type == TypeTag.Custom) {
-						stream.Fields[i] = field with { Type = dict.CustomTypes[field.Type.Info!] with { Nullable = field.Type.Nullable } };
+					if (field.Type is CustomField cf) {
+						stream.Fields[i] = field with { Type = cf.BaseType };
 					}
 				}
 			}
@@ -101,46 +103,53 @@ namespace Pansynchro.Core.DataDict
 			}
 		}
 
-		public static ComparisonResult? TypeCheckField(FieldType srcField, FieldType destField, string fieldName, bool toStringValid = true)
+		public static ComparisonResult? TypeCheckField(IFieldType srcField, IFieldType destField, string fieldName, bool toStringValid = true)
 		{
-			if (srcField == destField || srcField.CanAssignNotNullToNull(destField) || srcField.CanAssignSpecificToGeneral(destField)) {
+			if (srcField.Equals(destField) || srcField.CanAssignNotNullToNull(destField) || srcField.CanAssignSpecificToGeneral(destField)) {
 				return null;
 			}
 			if (srcField.Nullable && !destField.Nullable) {
 				return new ComparisonError($"{fieldName}: Can't sync nullable source ({srcField}) to NOT NULL destination ({destField}).");
 			}
-			if (srcField.CollectionType != destField.CollectionType) {
-				return new ComparisonError($"{fieldName}: Can't sync collection type {srcField.CollectionType} to destination collection type {destField.CollectionType}.");
+			if (GetCollectionType(srcField) != GetCollectionType(destField)) {
+				return new ComparisonError($"{fieldName}: Can't sync collection type {GetCollectionType(srcField)} to destination collection type {GetCollectionType(destField)}.");
 			}
 			var result = CheckTypeConvertible(srcField, destField, fieldName);
 			if (result != null) {
 				return result;
 			}
-			if (_implicits.TryGetValue(srcField.Type, out var candidates) && candidates.Contains(destField.Type)) {
-				return null;
-			}
-			if (srcField.Type != destField.Type && (srcField.Info == destField.Info || destField.Info == null || _stringTypes.Contains(destField.Type))) {
-				return CheckTypePromotable(srcField.Type, destField.Type, fieldName, toStringValid);
+			if (srcField is BasicField bf1 && destField is BasicField bf2) {
+				if (_implicits.TryGetValue(bf1.Type, out var candidates) && candidates.Contains(bf2.Type)) {
+					return null;
+				}
+				if (bf1.Type != bf2.Type && (bf1.Info == bf2.Info || bf1.Info == null || _stringTypes.Contains(bf2.Type))) {
+					return CheckTypePromotable(bf1.Type, bf2.Type, fieldName, toStringValid);
+				}
 			}
 			return new ComparisonError($"{fieldName}: '{srcField}' is different from '{destField}'.");
 		}
 
-		private static ConversionLine? CheckTypeConvertible(FieldType source, FieldType dest, string name)
+		private static CollectionType? GetCollectionType(IFieldType field)
+			=> field is CollectionField cf ? cf.CollectionType : null;
+
+		private static ConversionLine? CheckTypeConvertible(IFieldType source, IFieldType dest, string name)
 		{
-			if (source.Type == TypeTag.Guid
-				&& dest.Type is TypeTag.Binary or TypeTag.Varbinary
-				&& (dest.Info == null || int.Parse(dest.Info, CultureInfo.InvariantCulture) >= 16)) {
-				return new NamedConversionLine(name, "GuidToBinary");
-			}
-			if (source.Type == TypeTag.Boolean
-				&& dest.Type == TypeTag.Bits
-				&& dest.Info == "1") {
-				return new PromotionLine(name, TypeTag.Byte);
-			}
-			if (source.Type == TypeTag.HierarchyID
-				&& dest.Type is TypeTag.Varchar or TypeTag.Nvarchar
-				&& dest.Info is not null && int.Parse(dest.Info) >= 16) {
-				return new PromotionLine(name, dest.Type);
+			if (source is BasicField bf1 && dest is BasicField bf2) {
+				if (bf1.Type == TypeTag.Guid
+				&& bf2.Type is TypeTag.Binary or TypeTag.Varbinary
+				&& (bf2.Info == null || int.Parse(bf2.Info, CultureInfo.InvariantCulture) >= 16)) {
+					return new NamedConversionLine(name, "GuidToBinary");
+				}
+				if (bf1.Type == TypeTag.Boolean
+					&& bf2.Type == TypeTag.Bits
+					&& bf2.Info == "1") {
+					return new PromotionLine(name, TypeTag.Byte);
+				}
+				if (bf1.Type == TypeTag.HierarchyID
+					&& bf2.Type is TypeTag.Varchar or TypeTag.Nvarchar
+					&& bf2.Info is not null && int.Parse(bf2.Info) >= 16) {
+					return new PromotionLine(name, bf2.Type);
+				}
 			}
 			return null;
 		}
@@ -271,7 +280,7 @@ namespace Pansynchro.Core.DataDict
 			{
 				var idx = Array.IndexOf(schema.NameList, line.Field);
 				var srcField = schema.Fields[idx];
-				var conversion = GetPromotion(srcField.Type.Type, line.NewType);
+				var conversion = GetPromotion(((BasicField)srcField.Type).Type, line.NewType);
 				return a => a[idx] = conversion(a[idx]);
 			}
 		}

@@ -39,6 +39,11 @@ Connectors:
 		assembly Pansynchro.Connectors.TextFile
 
 	Connector JSON:
+		supports Analyzer, Reader, Writer, Configurator
+		requires DataSource
+		assembly Pansynchro.Connectors.TextFile
+
+	Connector HTML:
 		supports Analyzer, Reader, Configurator
 		requires DataSource
 		assembly Pansynchro.Connectors.TextFile

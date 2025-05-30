@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.TextFile.Lines
 {
@@ -41,9 +42,9 @@ namespace Pansynchro.Connectors.TextFile.Lines
 		private static StreamDefinition AnalyzeFile(string sName)
 		{
 			var fields = new FieldDefinition[] {
-				new FieldDefinition("Name", new FieldType(TypeTag.Nvarchar, false, CollectionType.None, "255")),
-				new FieldDefinition("Line", new FieldType(TypeTag.Int, false, CollectionType.None, null)),
-				new FieldDefinition("Value", new FieldType(TypeTag.Ntext, false, CollectionType.None, null)),
+				new FieldDefinition("Name", new BasicField(TypeTag.Nvarchar, false, "255", false)),
+				new FieldDefinition("Line", new BasicField(TypeTag.Int, false, null, false)),
+				new FieldDefinition("Value", new BasicField(TypeTag.Ntext, false, null, false)),
 			};
 			return new StreamDefinition(new StreamDescription(null, sName), fields, Array.Empty<string>());
 		}

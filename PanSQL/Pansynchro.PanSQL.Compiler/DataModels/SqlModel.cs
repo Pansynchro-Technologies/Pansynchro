@@ -18,11 +18,11 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 		abstract protected string GetInput(DbExpression expr);
 
-		protected IEnumerable<CSharpStatement> InvokeCtes(Dictionary<string, string> ctes)
+		protected IEnumerable<CSharpStatement> InvokeCtes(Dictionary<string, string> ctes, bool streamInput = true)
 		{
 			foreach (var input in Model.Inputs) {
 				if (input.Type == TableType.Cte) {
-					yield return new ExpressionStatement(new CallExpression(new(ctes[input.Name]), [new ReferenceExpression("r")]));
+					yield return new ExpressionStatement(new CallExpression(new(ctes[input.Name]), streamInput ? [new ReferenceExpression("r")] : []));
 				}
 			}
 		}
@@ -81,10 +81,93 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			}
 			throw new Exception($"HAVING aggregate '{agg}' does not match any aggregate declared in the SELECT clause");
 		}
+
+		protected LinqJoin GetLinqJoin(JoinSpec spec)
+		{
+			var iter = GetIteration(spec.Target);
+			if (spec.Condition is BooleanExpression { Op: BoolExpressionType.Equals, Left: MemberReferenceExpression l, Right: MemberReferenceExpression r }) {
+				return new LinqJoin(iter, GetField(l), GetField(r));
+			}
+			throw new NotImplementedException();
+		}
+
+		protected static Iteration GetIteration(TableReference table) => new(new("__" + table.Name), new MemberReferenceExpression(new("__db"), table.Stream.Name.ToTableName()));
+
+		protected DbExpression GetField(DbExpression expr) => expr switch {
+			MemberReferenceExpression mre => GetField(mre),
+			CollectionExpression coll => new CollectionExpression([.. coll.Values.Select(GetField)]),
+			AliasedExpression ae => new AliasedExpression(GetField(ae.Expr), ae.Alias),
+			UnaryExpression ue => new UnaryExpression(ue.Op, GetField(ue.Value)),
+			BinaryExpression bin => new BinaryExpression(bin.Op, GetField(bin.Left), GetField(bin.Right)),
+			BooleanExpression be => new BooleanExpression(be.Op, GetField(be.Left), GetField(be.Right)),
+			LikeExpression lk => new LikeExpression(GetField(lk.Left), GetField(lk.Right)),
+			ContainsExpression cont => new ContainsExpression(GetField(cont.Collection), GetField(cont.Value)),
+			CallExpression ce => new CallExpression(ce.Function, ce.Args.Select(GetField).ToArray()),
+			AggregateExpression agg => GetField(agg.Args[0]),
+			OrderingExpression ord => new OrderingExpression(GetField(ord.Expr), ord.Desc),
+			CountExpression => new MemberReferenceExpression(new("__agg__"), "__Count__"),
+			LiteralExpression => expr,
+			_ => throw new NotImplementedException()
+		};
+
+		protected MemberReferenceExpression GetField(MemberReferenceExpression r)
+		{
+			var table = r.Parent;
+			var stream = Model.Inputs.First(i => i.Name.Equals(table.Name, StringComparison.InvariantCultureIgnoreCase));
+			var field = stream.Stream.Fields.First(f => f.Name.Equals(r.Name, StringComparison.InvariantCultureIgnoreCase));
+			return new MemberReferenceExpression(new("__" + stream.Name), field.Name);
+		}
+
+		protected void GetFields(DbExpression expr, HashSet<DbExpression> fields)
+		{
+			switch (expr) {
+				case MemberReferenceExpression mre: fields.Add(GetField(mre)); break;
+				case AliasedExpression ae: fields.Add(GetField(ae)); break;
+				case BinaryExpression bin:
+					GetFields(bin.Left, fields);
+					GetFields(bin.Right, fields);
+					break;
+				case BooleanExpression be:
+					GetFields(be.Left, fields);
+					GetFields(be.Right, fields);
+					break;
+				case CallExpression ce:
+					foreach (var arg in ce.Args) {
+						GetFields(arg, fields);
+					}
+					break;
+				case AggregateExpression agg: GetFields(agg.Args[0], fields); break;
+				case OrderingExpression ord: GetFields(ord.Expr, fields); break;
+				case CountExpression: fields.Add(new MemberReferenceExpression(new("__agg__"), "__Count__")); break;
+				case LiteralExpression: break;
+				default: throw new NotImplementedException();
+			}
+		}
+
+		protected static bool IsPassThrough(FieldDefinition[] inFields, HashSet<DbExpression> outFields)
+		{
+			if (outFields.Any(f => f is not MemberReferenceExpression)) {
+				return false;
+			}
+			var outMres = outFields.Cast<MemberReferenceExpression>().ToArray();
+			var tableRefs = outMres.Select(m => m.Parent.Name).Distinct().ToArray();
+			if (tableRefs.Length != 1) {
+				return false;
+			}
+			foreach (var mre in outMres) {
+				var fieldName = mre.Name;
+				if (!inFields.Any(f => f.Name == fieldName)) {
+					return false;
+				}
+			}
+			return true;
+		}
 	}
 
 	abstract class StreamedSqlModel(DataModel model) : SqlModel(model)
 	{
+		protected bool HasCtes { get; set; }
+
 		public override string? Validate()
 		{
 			if (Model.Ordering?.Length > 0 && Model.Inputs.Any(t => t.Type == TableType.Stream)) {
@@ -117,6 +200,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			MemberReferenceExpression mre => GetMreInput(mre),
 			AliasedExpression ae => GetInput(ae.Expr),
 			IsNullExpression isn => $"({GetInput(isn.Value)} == System.DBNull.Value)",
+			UnaryExpression ue => $"{ue.OpString}({GetInput(ue.Value)})",
 			BooleanExpression be => $"{GetInput(be.Left)} {be.OpString} {GetInput(be.Right)}",
 			BinaryExpression b2 => $"{GetInput(b2.Left)} {b2.OpString} {GetInput(b2.Right)}",
 			CollectionExpression col => $"[{string.Join(", ", col.Values.Select(GetInput))}]",
@@ -179,6 +263,10 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		};
 
 		private string GetMreInput(MemberReferenceExpression mre) {
+			if (HasCtes) {
+				var name = GetField(mre).Name;
+				return new MemberReferenceExpression(new("__item"), name).ToString();
+			}
 			if (mre.Parent.Name == Model.Inputs[0].Name && Model.Inputs[0].Type == TableType.Stream) {
 				var fields = Model.Inputs[0].Stream.Fields;
 				var idx = fields.IndexWhere(f => f.Name.Equals(mre.Name, StringComparison.InvariantCultureIgnoreCase)).First();
@@ -210,6 +298,24 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			var idx = Model.Outputs.IndexWhere(e => GetInputField(e).Match(field)).First();
 			return $"result[{idx}]";
 		}
+		protected DbExpression BuildLinqExpression(DataModel model)
+		{
+			var start = model.Inputs[0];
+			var iter = GetIteration(start);
+			var joins = model.Joins.Length > 0 ? model.Joins.Select(GetLinqJoin).ToArray() : null;
+			var filter = model.Filter == null ? null : GetField(model.Filter);
+			var ordering = model.Ordering != null ? model.Ordering.Select(GetField).Cast<OrderingExpression>().ToArray() : null;
+			var hasQuery = (filter != null || joins != null || ordering != null);
+			if (hasQuery) {
+				var fields = new HashSet<DbExpression>(EqualityComparer<DbExpression>.Create((l, r) => l?.ToString() == r?.ToString(), expr => expr.ToString()!.GetHashCode()));
+				foreach (var o in model.Outputs) {
+					GetFields(o, fields);
+				}
+				return new LinqQuery(iter, joins, filter, ordering, IsPassThrough(start.Stream.Fields, fields) ? null : fields.ToArray());
+			}
+			return iter.Collection;
+		}
+
 	}
 
 	abstract class MemorySqlModel(DataModel model) : SqlModel(model)
@@ -231,83 +337,6 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			}
 			return iter.Collection;
 		}
-
-		private static bool IsPassThrough(FieldDefinition[] inFields, HashSet<DbExpression> outFields)
-		{
-			if (outFields.Any(f => f is not MemberReferenceExpression)) {
-				return false;
-			}
-			var outMres = outFields.Cast<MemberReferenceExpression>().ToArray();
-			var tableRefs = outMres.Select(m => m.Parent.Name).Distinct().ToArray();
-			if (tableRefs.Length != 1) {
-				return false;
-			}
-			foreach (var mre in outMres) {
-				var fieldName = mre.Name;
-				if (!inFields.Any(f => f.Name == fieldName)) {
-					return false;
-				}
-			}
-			return true;
-		}
-
-		private LinqJoin GetLinqJoin(JoinSpec spec)
-		{
-			var iter = GetIteration(spec.Target);
-			if (spec.Condition is BooleanExpression { Op: BoolExpressionType.Equals, Left: MemberReferenceExpression l, Right: MemberReferenceExpression r}) {
-				return new LinqJoin(iter, GetField(l), GetField(r));
-			}
-			throw new NotImplementedException();
-		}
-
-		private void GetFields(DbExpression expr, HashSet<DbExpression> fields)
-		{
-			switch (expr) {
-				case MemberReferenceExpression mre: fields.Add(GetField(mre)); break;
-				case AliasedExpression ae: fields.Add(GetField(ae)); break;
-				case BinaryExpression bin:
-					GetFields(bin.Left, fields);
-					GetFields(bin.Right, fields);
-					break;
-				case BooleanExpression be:
-					GetFields(be.Left, fields);
-					GetFields(be.Right, fields);
-					break;
-				case CallExpression ce:
-					foreach (var arg in ce.Args) {
-						GetFields(arg, fields);
-					}
-					break;
-				case AggregateExpression agg: GetFields(agg.Args[0], fields); break;
-				case OrderingExpression ord: GetFields(ord.Expr, fields); break;
-				case CountExpression: fields.Add(new MemberReferenceExpression(new("__agg__"), "__Count__")); break;
-				case LiteralExpression: break;
-				default: throw new NotImplementedException();
-			}
-		}
-
-		private DbExpression GetField(DbExpression expr) => expr switch {
-			MemberReferenceExpression mre => GetField(mre),
-			AliasedExpression ae => new AliasedExpression(GetField(ae.Expr), ae.Alias),
-			BinaryExpression bin => new BinaryExpression(bin.Op, GetField(bin.Left), GetField(bin.Right)),
-			BooleanExpression be => new BooleanExpression(be.Op, GetField(be.Left), GetField(be.Right)),
-			CallExpression ce => new CallExpression(ce.Function, ce.Args.Select(GetField).ToArray()),
-			AggregateExpression agg => GetField(agg.Args[0]),
-			OrderingExpression ord => new OrderingExpression(GetField(ord.Expr), ord.Desc),
-			CountExpression => new MemberReferenceExpression(new("__agg__"), "__Count__"),
-			LiteralExpression => expr,
-			_ => throw new NotImplementedException()
-		};
-
-		private MemberReferenceExpression GetField(MemberReferenceExpression r)
-		{
-			var table = r.Parent;
-			var stream = Model.Inputs.First(i => i.Name.Equals(table.Name, StringComparison.InvariantCultureIgnoreCase));
-			var field = stream.Stream.Fields.First(f => f.Name.Equals(r.Name, StringComparison.InvariantCultureIgnoreCase));
-			return new MemberReferenceExpression(new("__" + stream.Name), field.Name);
-		}
-
-		private static Iteration GetIteration(TableReference table) => new(new("__" + table.Name), new MemberReferenceExpression(new("__db"), table.Stream.Name.Name));
 
 		protected string GetInput(DbExpression[] args) => string.Join(", ", args.Select(GetInput));
 

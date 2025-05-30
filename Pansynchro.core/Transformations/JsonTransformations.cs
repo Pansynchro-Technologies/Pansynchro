@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Core.Transformations
 {
@@ -94,43 +95,73 @@ namespace Pansynchro.Core.Transformations
 		private static Func<JsonNode?, object> BuildExtractor(FieldDefinition field)
 		{
 			var type = field.Type;
-			Func<JsonNode, object> resultBase = type.Type switch {
-				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar 
-					or TypeTag.Ntext => j => j.GetValue<string>(),
-				TypeTag.Boolean => j => j.GetValue<bool>(),
-				TypeTag.Byte => j => j.GetValue<byte>(),
-				TypeTag.Short => j => j.GetValue<short>(),
-				TypeTag.Int => j => j.GetValue<int>(),
-				TypeTag.Long => j => j.GetValue<long>(),
-				TypeTag.UShort => j => j.GetValue<ushort>(),
-				TypeTag.UInt => j => j.GetValue<uint>(),
-				TypeTag.ULong => j => j.GetValue<ulong>(),
-				TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney => j => j.GetValue<decimal>(),
-				TypeTag.Float or TypeTag.Single => j => j.GetValue<float>(),
-				TypeTag.Double => j => j.GetValue<double>(),
-				TypeTag.Date or TypeTag.Time or TypeTag.DateTime or TypeTag.SmallDateTime => j => j.GetValue<DateTime>(),
-				TypeTag.TimeTZ or TypeTag.DateTimeTZ => j => j.GetValue<DateTimeOffset>(),
-				TypeTag.Guid => j => j.GetValue<Guid>(),
-				TypeTag.Json => j => j,
-				_ => throw new NotImplementedException($"No JSON extractor implemented for '{type.Type}'.")
-			};
-			var resultColl = type.CollectionType switch {
-				CollectionType.None => resultBase,
-				CollectionType.Array => MakeArrayExtractor(resultBase!),
-				CollectionType.Multiset => throw new NotImplementedException(),
-				_ => throw new NotImplementedException($"Invalid collection type '{type.CollectionType}.'"),
-			};
-			Func<JsonNode?, object> result = type.Nullable
-				? (j => j == null ? DBNull.Value : resultColl(j))
-				: (j => j == null ? throw new ArgumentNullException($"Null/missing JSON values are not allowed for field '${field.Name}.'") : resultColl(j));
-			return result;
+			var fieldName = field.Name;
+			return new ExtractorBuilder(fieldName).Visit(type);
 		}
 
-		private static Func<JsonNode?, object> MakeArrayExtractor(Func<JsonNode?, object> processor) =>
-			j => { 
-				return j is JsonArray arr
-					? arr.Select(processor).ToArray()
-					: throw new DataException($"Provided JSON value is not an array");
+		private readonly struct ExtractorBuilder : IFieldTypeVisitor<Func<JsonNode?, object>>
+		{
+			private readonly string _fieldName;
+
+			public ExtractorBuilder(string fieldName)
+			{
+				_fieldName = fieldName;
+			}
+
+			public Func<JsonNode?, object> Visit(IFieldType type)
+			{
+				var result = type.Accept(this);
+				if (type.Nullable) {
+					return (j => j == null ? DBNull.Value : result(j));
+				} else {
+					var fn = _fieldName;
+					return (j => j == null ? throw new ArgumentNullException($"Null/missing JSON values are not allowed for field '${fn}.'") : result(j));
+				}
+			}
+
+			public Func<JsonNode?, object> VisitBasicField(BasicField type) => type.Type switch {
+				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar
+					or TypeTag.Ntext => j => j!.GetValue<string>(),
+				TypeTag.Boolean => j => j!.GetValue<bool>(),
+				TypeTag.Byte => j => j!.GetValue<byte>(),
+				TypeTag.Short => j => j!.GetValue<short>(),
+				TypeTag.Int => j => j!.GetValue<int>(),
+				TypeTag.Long => j => j!.GetValue<long>(),
+				TypeTag.UShort => j => j!.GetValue<ushort>(),
+				TypeTag.UInt => j => j!.GetValue<uint>(),
+				TypeTag.ULong => j => j!.GetValue<ulong>(),
+				TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney => j => j!.GetValue<decimal>(),
+				TypeTag.Float or TypeTag.Single => j => j!.GetValue<float>(),
+				TypeTag.Double => j => j!.GetValue<double>(),
+				TypeTag.Date or TypeTag.Time or TypeTag.DateTime or TypeTag.SmallDateTime => j => j!.GetValue<DateTime>(),
+				TypeTag.TimeTZ or TypeTag.DateTimeTZ => j => j!.GetValue<DateTimeOffset>(),
+				TypeTag.Guid => j => j!.GetValue<Guid>(),
+				TypeTag.Json => j => j!,
+				_ => throw new NotImplementedException($"No JSON extractor implemented for '{type.Type}'.")
 			};
+
+			public Func<JsonNode?, object> VisitCollection(CollectionField type)
+			{
+				var resultBase = Visit(type.BaseType);
+				return type.CollectionType switch {
+					CollectionType.Array or CollectionType.Multiset => j => {
+						return j is JsonArray arr
+							? arr.Select(resultBase).ToArray()
+							: throw new DataException($"Provided JSON value is not an array");
+					},
+					_ => throw new NotImplementedException($"Invalid collection type '{type.CollectionType}.'")
+				};
+			}
+
+			public Func<JsonNode?, object> VisitCustomField(CustomField type)
+			{
+				throw new NotImplementedException();
+			}
+
+			public Func<JsonNode?, object> VisitTupleField(TupleField type)
+			{
+				throw new NotImplementedException();
+			}
+		}
 	}
 }

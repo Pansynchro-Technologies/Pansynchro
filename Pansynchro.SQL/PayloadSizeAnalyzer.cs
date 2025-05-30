@@ -8,7 +8,7 @@ namespace Pansynchro.SQL
 {
 	public static class PayloadSizeAnalyzer
 	{
-		public static int AverageSize(DbConnection conn, StreamDefinition table, ISqlFormatter formatter, DbTransaction tran)
+		public static int AverageSize(DbConnection conn, StreamDefinition table, ISqlFormatter formatter, DbTransaction? tran)
 		{
 			using var query = conn.CreateCommand();
 			query.Transaction = tran;

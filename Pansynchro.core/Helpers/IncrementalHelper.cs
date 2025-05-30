@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.Incremental;
 
 namespace Pansynchro.Core.Helpers
@@ -28,9 +29,9 @@ namespace Pansynchro.Core.Helpers
 		}
 
 		private static readonly FieldDefinition[] INCREMENTAL_HEADER = {
-			new(BOOKMARK_FIELD_NAME, new(TypeTag.Varchar, true, CollectionType.None, null)),
-			new(TYPE_FIELD_NAME, new(TypeTag.Int, false, CollectionType.None, null)),
-			new(AFFECTED_FIELD_NAME, new(TypeTag.Varchar, false, CollectionType.None, null)),
+			new(BOOKMARK_FIELD_NAME, new BasicField(TypeTag.Varchar, true, null, false)),
+			new(TYPE_FIELD_NAME, new BasicField(TypeTag.Int, false, null, false)),
+			new(AFFECTED_FIELD_NAME, new BasicField(TypeTag.Varchar, false, null, false)),
 		};
 
 		private static StreamDefinition IncrementalStream(StreamDefinition s, HashSet<StreamDescription> streams)

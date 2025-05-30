@@ -7,6 +7,7 @@ using ExcelDataReader;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.Excel
 {
@@ -42,7 +43,7 @@ namespace Pansynchro.Connectors.Excel
 				return null;
 			}
 			for (int i = 0; i < excelReader.FieldCount; ++i) {
-				fields.Add(new FieldDefinition(excelReader.GetString(i), new FieldType(TypeTag.Unstructured, false, CollectionType.None, null)));
+				fields.Add(new FieldDefinition(excelReader.GetString(i), new BasicField(TypeTag.Unstructured, false, null, false)));
 			}
 			for (int i = 0; i < ANALYZER_ROWS; ++i) {
 				if (!excelReader.Read()) {
@@ -58,13 +59,14 @@ namespace Pansynchro.Connectors.Excel
 		private static FieldDefinition ReadTypeInfo(FieldDefinition fd, Type type)
 		{
 			if (type == null) {
-				return fd.Type.Nullable ? fd : fd with { Type = fd.Type with { Nullable = true } };
+				return fd.Type.Nullable ? fd : fd with { Type = fd.Type.MakeNull() };
 			}
 			var tag = GetTypeTag(type);
-			if (tag == fd.Type.Type) {
+			var bf = (BasicField)fd.Type;
+			if (tag == bf.Type) {
 				return fd;
 			}
-			return fd with { Type = fd.Type with { Type = MergeTypes(tag, fd.Type.Type) } };
+			return fd with { Type = bf with { Type = MergeTypes(tag, bf.Type) } };
 		}
 
 		private static TypeTag MergeTypes(TypeTag l, TypeTag r)

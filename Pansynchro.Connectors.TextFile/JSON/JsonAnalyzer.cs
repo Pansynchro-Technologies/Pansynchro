@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {
@@ -36,14 +37,14 @@ namespace Pansynchro.Connectors.TextFile.JSON
 		private static IEnumerable<StreamDefinition> AnalyzeObjType(string ns, IDictionary<string, JsonQuery> streams)
 		{
 			foreach (var name in streams.Keys) {
-				var field = new FieldDefinition("Value", new FieldType(TypeTag.Json, false, CollectionType.None, null));
+				var field = new FieldDefinition("Value", new BasicField(TypeTag.Json, false, null, false));
 				yield return new StreamDefinition(new(ns, name), new[] { field }, Array.Empty<string>());
 			}
 		}
 
 		private static IEnumerable<StreamDefinition> AnalyzeArrType(string name)
 		{
-			var field = new FieldDefinition("Value", new FieldType(TypeTag.Json, false, CollectionType.None, null));
+			var field = new FieldDefinition("Value", new BasicField(TypeTag.Json, false, null, false));
 			yield return new StreamDefinition(new(null, name), new[] { field }, Array.Empty<string>());
 		}
 	}

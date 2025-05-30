@@ -9,6 +9,7 @@ using FirebirdSql.Data.FirebirdClient;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Firebird
@@ -58,10 +59,11 @@ where
 			return (new StreamDescription(null, reader.GetString(0).Trim()), reader.GetString(1).Trim());
 		}
 
-		private static FieldType GetFieldType(IDataReader reader)
+		private static IFieldType GetFieldType(IDataReader reader)
 		{
 			var (tag, info) = GetFieldTypeDefinition(reader);
-			return new FieldType(tag, reader.GetInt16(6) == 1, reader.IsDBNull(5) ? CollectionType.None : CollectionType.Array, info);
+			var result = new BasicField(tag, reader.GetInt16(6) == 1, info, false);
+			return reader.IsDBNull(5) ? result : new CollectionField(result, CollectionType.Array, false);
 		}
 
 		private static (TypeTag tag, string? info) GetFieldTypeDefinition(IDataReader reader)
@@ -162,13 +164,13 @@ where RDB$RELATION_TYPE = 0
 			return new FieldDefinition(name, BuildFieldType(row));
 		}
 
-		private static FieldType BuildFieldType(DataRow row)
+		private static IFieldType BuildFieldType(DataRow row)
 		{
 			var fbType = (FbDbType)row["ProviderType"];
 			var info = HasInfo(fbType) ? TypeInfo(fbType, row) : null;
 			var type = GetTypeTag(fbType);
 			var nullable = (bool)row["AllowDBNull"];
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new BasicField(type, nullable, info, false);
 		}
 
 		private static TypeTag GetTypeTag(FbDbType type) => type switch {

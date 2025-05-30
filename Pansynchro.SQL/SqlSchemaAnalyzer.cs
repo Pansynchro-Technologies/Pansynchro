@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.EventsSystem;
 
 namespace Pansynchro.SQL
@@ -137,7 +138,7 @@ namespace Pansynchro.SQL
 				.ToLookupAsync(pair => pair.table, pair => pair.column);
 		}
 
-		protected virtual Task<Dictionary<string, FieldType>> LoadCustomTypes() => Task.FromResult(new Dictionary<string, FieldType>());
+		protected virtual Task<Dictionary<string, IFieldType>> LoadCustomTypes() => Task.FromResult(new Dictionary<string, IFieldType>());
 
 		protected abstract (StreamDescription table, FieldDefinition column) BuildFieldDefinition(IDataReader reader);
 
@@ -213,7 +214,7 @@ namespace Pansynchro.SQL
 			var id = stream.Fields.Single(f => f.Name == stream.Identity[0]);
 			if (id.Type.Nullable)
 				return null;
-			return id.Type.Type is TypeTag.Int or TypeTag.Long ? Array.IndexOf(stream.Fields, id) : null;
+			return id.Type is BasicField { Type: TypeTag.Int or TypeTag.Long } ? Array.IndexOf(stream.Fields, id) : null;
 		}
 
 		private async Task<KeyValuePair<string, long>[]> ExtractDomainShifts(StreamDefinition stream) =>
@@ -222,7 +223,7 @@ namespace Pansynchro.SQL
 		private async Task<KeyValuePair<string, long>[]> ExtractDomainShiftsDT(StreamDefinition stream)
 		{
 			var dateFields = stream.Fields
-				.Where(f => f.Type.Type is TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime)
+				.Where(f => f.Type is BasicField { Type: TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime })
 				.ToArray();
 			if (dateFields.Length == 0) {
 				return Array.Empty<KeyValuePair<string, long>>();
@@ -235,7 +236,7 @@ namespace Pansynchro.SQL
 
 		private async Task<KeyValuePair<string, long>[]> ExtractDomainShiftsTZ(StreamDefinition stream)
 		{
-			var dateFields = stream.Fields.Where(f => f.Type.Type == TypeTag.DateTimeTZ).ToArray();
+			var dateFields = stream.Fields.Where(f => f.Type is BasicField { Type: TypeTag.DateTimeTZ }).ToArray();
 			if (dateFields.Length == 0) {
 				return Array.Empty<KeyValuePair<string, long>>();
 			}
@@ -248,7 +249,7 @@ namespace Pansynchro.SQL
 		private async Task<string[]> ExtractRcfFields(StreamDefinition stream)
 		{
 			var fieldList = string.Join(", ", stream.Fields
-				.Where(f => f.Type.Type is not (TypeTag.Text or TypeTag.Ntext or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob))
+				.Where(f => f.Type is BasicField bf && bf.Type is not (TypeTag.Text or TypeTag.Ntext or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob))
 				.Select(f => $"count(distinct {f.Name}) as {f.Name}"));
 			var query = GetDistinctCountQuery(fieldList, stream.Name.ToString(), LARGE_TABLE_THRESHOLD);
 			var results = await SqlHelper.ReadValuesAsync(_conn, query, DistinctQuerySelector).SingleAsync();

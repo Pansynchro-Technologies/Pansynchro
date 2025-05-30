@@ -9,6 +9,7 @@ using Npgsql;
 using Pansynchro.Core;
 using Pansynchro.SQL;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.Postgres
 {
@@ -65,7 +66,7 @@ AND    n.nspname <> 'information_schema'
 AND    pg_catalog.pg_type_is_visible(t.oid)";
 
 
-		protected override async Task<Dictionary<string, FieldType>> LoadCustomTypes()
+		protected override async Task<Dictionary<string, IFieldType>> LoadCustomTypes()
 		{
 			await foreach (var type in SqlHelper.ReadValuesAsync(_conn, CUSTOM_TYPE_QUERY, ReadCustomType)) {
 				_customTypes.Add(type.Name, type.Type);
@@ -95,15 +96,15 @@ AND    pg_catalog.pg_type_is_visible(t.oid)";
 			return (new StreamDescription(reader.GetString(0), reader.GetString(1)), reader.GetString(2));
 		}
 
-		private readonly Dictionary<string, FieldType> _customTypes = new();
+		private readonly Dictionary<string, IFieldType> _customTypes = new();
 
-		private FieldType GetColumnType(IDataReader reader)
+		private IFieldType GetColumnType(IDataReader reader)
 		{
 			var typeName = reader.GetString(3);
 			var formalType = typeName.StartsWith('"');
 			if (formalType) {
-				if (_customTypes.TryGetValue(typeName[1..^1], out var result)) {
-					return result;
+				if (_customTypes.TryGetValue(typeName[1..^1], out var cTyp)) {
+					return cTyp;
 				}
 			}
 			var isArr = typeName.EndsWith("[]");
@@ -118,7 +119,8 @@ AND    pg_catalog.pg_type_is_visible(t.oid)";
 			}
 			var type = GetTagType(typeName);
 			var nullable = !reader.GetBoolean(4);
-			return new FieldType(type, nullable, isArr ? CollectionType.Array : CollectionType.None, info);
+			var result = new BasicField(type, nullable, info, false);
+			return isArr ? new CollectionField(result.MakeNull(), CollectionType.Array, false) : result;
 		}
 
 		private static readonly Dictionary<string, TypeTag> TYPE_MAP = new()
@@ -221,7 +223,7 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
 			return new FieldDefinition(name, BuildFieldType(row));
 		}
 
-		private static FieldType BuildFieldType(DataRow row)
+		private static IFieldType BuildFieldType(DataRow row)
 		{
 			var typeName = (string)row["DataTypeName"];
 			var isArr = typeName.EndsWith("[]");
@@ -235,9 +237,9 @@ where table_type = 'BASE TABLE' and table_schema !~ 'pg_' and table_schema != 'i
 				typeName = typeName.Substring(0, startPos);
 			}
 			var type = GetTagType(typeName);
-			// BUG: https://github.com/npgsql/npgsql/issues/4639
 			var nullable = row["AllowDBNull"] is bool b ? b : true;
-			return new FieldType(type, nullable, isArr ? CollectionType.Array : CollectionType.None, info);
+			var result = new BasicField(type, nullable, info, false);
+			return isArr ? new CollectionField(result.MakeNull(), CollectionType.Array, false) : result;
 		}
 	}
 }

@@ -324,5 +324,77 @@ static class Program {
 			var result = new Compiler().Compile("test", NS_MAP);
 			Assert.That(result.Code, Is.EqualTo(FixDicts(NS_MAP_OUTPUT)));
 		}
+
+		private const string PURE_FILTER = """
+load dict from '.\myDataDict.pansync'
+open inFile as Files for source with '{ "Files": [{ "Name": "input", "File": ["InputFile.csv"] }]"}'
+open outFile as Files for sink with '{ "Files": [{ "Name": "output", "File": ["OutputFile.csv"] }]"}'
+open input as CSV for read with dict, 'Delimiter=	', inFile
+open output as CSV for write with dict, 'Delimiter=	', outFile
+
+stream inUsers as dict.Users
+stream outUsers as dict.Users
+
+select Id, Name, Address, TypeID, AccountId, EmailHash
+from inUsers u
+where u.Address is not null
+into outUsers
+
+sync input to output
+""";
+
+		private const string PURE_FILTER_OUTPUT = @"using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
+
+using Pansynchro.Core;
+using Pansynchro.Core.Connectors;
+using Pansynchro.Core.DataDict;
+using Pansynchro.PanSQL.Core;
+using static Pansynchro.PanSQL.Core.Credentials;
+
+class Sync : StreamTransformerBase {
+	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+		var result = new object[6];
+		while (r.Read()) {
+			if (!((!(((r.IsDBNull(2) ? System.DBNull.Value : r.GetString(2)) == System.DBNull.Value))))) continue;
+			result[0] = r.GetInt32(0);
+			result[1] = r.GetString(1);
+			result[2] = (r.IsDBNull(2) ? System.DBNull.Value : r.GetString(2));
+			result[3] = r.GetInt32(3);
+			result[4] = (r.IsDBNull(4) ? System.DBNull.Value : r.GetInt32(4));
+			result[5] = (r.IsDBNull(5) ? System.DBNull.Value : r.GetString(5));
+			yield return result;
+		}
+	}
+
+	public Sync(DataDictionary destDict) : base(destDict) {
+		_streamDict.Add(""Users"", Transformer__1);
+	}
+}
+
+static class Program {
+	public static async Task Main() {
+		var dict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""i1QBQJwHtiN6MORLzxHqdEt1AREZKjtbvlYhJMoVNubLpwKMjW7zuHx+Ba9HOu6OoUEQRJgEHZzLxzbVi3XTrIHXH1ghMPC3bflJMHrP0uayHnEEa2dEYT3tt+ALqAW/1FMQIBQAdIRQJpDq2ErYYzB3CcPg/eWH9IlkTyqlzY0LDIMrjYX1SDC5lqf+IDsSaXp7rcN28L6XTMMcPdThtBLGGgDbxn1TwzlvMgzmDUWXHnx0rQzc/a0zaP778EqzPL9suyQWRGGeSw28NDo+WG9h5wD3W8507lRpcdBVfZirHGdsme/feUz2jyG7C+KrzpIYFfCJljEsHjEA""));
+		var inFile = ConnectorRegistry.GetSource(""Files"", ""{ \""Files\"": [{ \""Name\"": \""input\"", \""File\"": [\""InputFile.csv\""] }]\""}"");
+		var outFile = ConnectorRegistry.GetSink(""Files"", ""{ \""Files\"": [{ \""Name\"": \""output\"", \""File\"": [\""OutputFile.csv\""] }]\""}"");
+		var input = ConnectorRegistry.GetReader(""CSV"", ""Delimiter=\t"");
+		((ISourcedConnector)input).SetDataSource(inFile);
+		var output = ConnectorRegistry.GetWriter(""CSV"", ""Delimiter=\t"");
+		((ISinkConnector)output).SetDataSink(outFile);
+		var reader__2 = input.ReadFrom(dict);
+		reader__2 = new Sync(dict).Transform(reader__2);
+		await output.Sync(reader__2, dict);
+	}
+}
+";
+
+		[Test]
+		public void PureFilter()
+		{
+			var result = new Compiler().Compile("test", PURE_FILTER);
+			Assert.That(result.Code, Is.EqualTo(FixDicts(PURE_FILTER_OUTPUT)));
+		}
 	}
 }

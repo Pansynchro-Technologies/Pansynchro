@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.Errors;
 using Pansynchro.Core.EventsSystem;
 
@@ -97,29 +98,31 @@ namespace Pansynchro.Connectors.Avro
 			return result;
 		}
 
-		private static JToken BuildAvroType(FieldType type)
+		private static JToken BuildAvroType(IFieldType type)
 		{
-			JToken result = type.Type switch {
-				TypeTag.Boolean => "boolean",
-				TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort or TypeTag.Int => "int",
-				TypeTag.UInt or TypeTag.Long => "long",
-				TypeTag.Blob or TypeTag.Binary or TypeTag.Varbinary => "bytes",
-				TypeTag.Ntext or TypeTag.Text or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Char =>
-					"string",
-				TypeTag.Single or TypeTag.Float => "float",
-				TypeTag.Double => "double",
-				TypeTag.Guid => JObject.Parse("{\"type\": \"string\", \"logicalType\": \"uuid\"}"),
-				TypeTag.DateTimeTZ => JObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}"),
-				TypeTag.DateTime => JObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}"),
-				_ => throw new NotSupportedException($"Field data type '{type.Type}' is not supported")
-			};
-			if (type.Nullable) {
-				var arr = new JArray();
-				arr.Add("null");
-				arr.Add(result);
-				result = arr;
+			if (type is BasicField bf) {
+				JToken result = bf.Type switch {
+					TypeTag.Boolean => "boolean",
+					TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort or TypeTag.Int => "int",
+					TypeTag.UInt or TypeTag.Long => "long",
+					TypeTag.Blob or TypeTag.Binary or TypeTag.Varbinary => "bytes",
+					TypeTag.Ntext or TypeTag.Text or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Char =>
+						"string",
+					TypeTag.Single or TypeTag.Float => "float",
+					TypeTag.Double => "double",
+					TypeTag.Guid => JObject.Parse("{\"type\": \"string\", \"logicalType\": \"uuid\"}"),
+					TypeTag.DateTime or TypeTag.DateTimeTZ => JObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}"),
+					_ => throw new NotSupportedException($"Field data type '{bf.Type}' is not supported")
+				};
+				if (type.Nullable) {
+					var arr = new JArray();
+					arr.Add("null");
+					arr.Add(result);
+					result = arr;
+				}
+				return result;
 			}
-			return result;
+			throw new NotImplementedException();
 		}
 
 		public void SetDataSink(IDataSink sink)

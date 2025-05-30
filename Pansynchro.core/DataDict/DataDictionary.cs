@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using Pansynchro.Core.DataDict.TypeSystem;
+
 namespace Pansynchro.Core.DataDict
 {
 	public record DataDictionary(
 		string Name,
 		StreamDefinition[] Streams,
 		StreamDescription[][] DependencyOrder,
-		Dictionary<string, FieldType> CustomTypes)
+		Dictionary<string, IFieldType> CustomTypes)
 	{
 		public DataDictionary(string name, StreamDefinition[] streams)
 			: this(name, streams, Array.Empty<StreamDescription[]>(), new()) { }
@@ -95,8 +97,9 @@ namespace Pansynchro.Core.DataDict
 				&& AuditFieldIndex == other.AuditFieldIndex;
 	}
 
-	public record FieldDefinition(string Name, FieldType Type, string? CustomRead = null);
+	public record FieldDefinition(string Name, IFieldType Type, string? CustomRead = null);
 
+	/*
 	public record FieldType(TypeTag Type, bool Nullable, CollectionType CollectionType, string? Info)
 	{
 		// for data with a high degree of entropy, such as random numbers, non-sequential GUIDs,
@@ -129,18 +132,18 @@ namespace Pansynchro.Core.DataDict
 			return result;
 		}
 	}
+	*/
 
 	public enum CollectionType
 	{
-		None,
 		Array,
 		Multiset
 	}
 
 	public enum TypeTag
 	{
+		None, // represents NULL literals
 		Unstructured,
-		Custom,
 		Char,
 		Varchar,
 		Text,

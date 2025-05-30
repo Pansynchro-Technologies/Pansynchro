@@ -90,7 +90,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (node.Database.Count > 0) {
 				_imports.AddRange(USING_DB);
 			}
-			_transformer = _file.Mappings.Count != 0 || _file.NsMappings.Count != 0;
+			_transformer = _file.Mappings.Count != 0 || _file.NsMappings.Count != 0 || _file.Lines.OfType<SqlTransformStatement>().Any();
 			var classes = new List<ClassModel>();
 			if (_transformer) {
 				classes.Add(BuildTransformer(node, _imports));
@@ -343,7 +343,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (decl.Type == VarDeclarationType.Table && decl.Stream != null) {
 				var methodName = CodeBuilder.NewNameReference("Transformer");
 				_file.Transformers.Add(_file.Vars[decl.Name], methodName.Name);
-				var tableName = decl.Stream.Name;
+				var tableName = decl.Stream.Name.ToTableName();
 				var body = new List<CSharpStatement>();
 				var loopBody = new List<CSharpStatement>() { new CSharpStringExpression($"__db.{tableName}.Insert(new DB.{tableName}_(r))") };
 				body.Add(new WhileLoop(new CSharpStringExpression("r.Read()"), loopBody));

@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.EventsSystem;
 using Pansynchro.Core.Streams;
 
@@ -240,20 +241,20 @@ namespace Pansynchro.Protocol
 				var isRcf = schema.RareChangeFields.Contains(field.Name);
 				// for the moment, arrays will not be treated as RCFs, in the interest of ease of implementation.
 				// This may change if anyone comes up with a valid use case
-				result[i] = (isRcf && type.CollectionType == CollectionType.None)
-					? GetRcfReader(i, type, dr, dict, rcfReaders)
-					: GetReader(i, type, dr, dict);
+				result[i] = (isRcf && type is BasicField bf)
+					? GetRcfReader(bf, dr, dict, rcfReaders)
+					: GetReader(type, dr, dict);
 			}
 			return (result, rcfReaders.ToArray());
 		}
 
-		private static Func<BinaryReader, object> GetRcfReader(int i, FieldType type, long dr, DataDictionary dict, List<IRcfReader> rcfReaders)
+		private static Func<BinaryReader, object> GetRcfReader(BasicField type, long dr, DataDictionary dict, List<IRcfReader> rcfReaders)
 		{
-			var baseReader = GetReader(i, type, dr, dict);
+			var baseReader = GetReader(type, dr, dict);
 			return type.Nullable ? GetNullableRcfReader(baseReader!, type, rcfReaders) : GetPlainRcfReader(baseReader, type, rcfReaders);
 		}
 
-		private static Func<BinaryReader, object> GetPlainRcfReader(Func<BinaryReader, object> baseReader, FieldType type, List<IRcfReader> rcfReaders)
+		private static Func<BinaryReader, object> GetPlainRcfReader(Func<BinaryReader, object> baseReader, BasicField type, List<IRcfReader> rcfReaders)
 		{
 			switch (type.Type) {
 				case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
@@ -320,7 +321,7 @@ namespace Pansynchro.Protocol
 			}
 		}
 
-		private static Func<BinaryReader, object> GetNullableRcfReader(Func<BinaryReader, object> baseReader, FieldType type, List<IRcfReader> rcfReaders)
+		private static Func<BinaryReader, object> GetNullableRcfReader(Func<BinaryReader, object> baseReader, BasicField type, List<IRcfReader> rcfReaders)
 		{
 			switch (type.Type) {
 				case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
@@ -387,11 +388,31 @@ namespace Pansynchro.Protocol
 			}
 		}
 
-		private static Func<BinaryReader, object> GetReader(int i, FieldType type, long domainReduction, DataDictionary dict)
+		private static Func<BinaryReader, object> GetReader(IFieldType type, long domainReduction, DataDictionary dict) 
+			=> new ReaderBuilder(domainReduction, dict).Visit(type);
+
+		private readonly struct ReaderBuilder : IFieldTypeVisitor<Func<BinaryReader, object>>
 		{
-			Func<BinaryReader, object> reader = type.Type switch {
+			private readonly long _domainReduction;
+			private readonly DataDictionary _dict;
+
+			public ReaderBuilder(long domainReduction, DataDictionary dict)
+			{
+				_domainReduction = domainReduction;
+				_dict = dict;
+			}
+
+			public Func<BinaryReader, object> Visit(IFieldType type)
+			{
+				var result = type.Accept(this);
+				if (type.Nullable) {
+					result = MakeNullable(result);
+				}
+				return result;
+			}
+
+			public Func<BinaryReader, object> VisitBasicField(BasicField type) => type.Type switch {
 				TypeTag.Unstructured => Unimplemented(type),
-				TypeTag.Custom => GetCustomTypeReader(i, type, domainReduction, dict),
 				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml
 					=> StringReader,
 				TypeTag.Json => JsonReader,
@@ -405,24 +426,28 @@ namespace Pansynchro.Protocol
 				TypeTag.Single => SingleReader,
 				TypeTag.Float or TypeTag.Double => DoubleReader,
 				TypeTag.TimeTZ => Unimplemented(type),
-				TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime => MakeDateTimeReader(i, domainReduction),
-				TypeTag.DateTimeTZ => MakeDateTimeTZReader(i, domainReduction),
+				TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime => MakeDateTimeReader(_domainReduction),
+				TypeTag.DateTimeTZ => MakeDateTimeTZReader(_domainReduction),
 				TypeTag.VarDateTime => Unimplemented(type),
 				TypeTag.Guid => GuidReader,
 				TypeTag.Time or TypeTag.Interval => TimeSpanReader,
 				TypeTag.Bits => Unimplemented(type),
 				_ => Unimplemented(type)
 			};
-			if (type.Nullable) {
-				reader = MakeNullable(reader);
+
+			public Func<BinaryReader, object> VisitCollection(CollectionField type)
+			{
+				var reader = Visit(type.BaseType);
+				return MakeArrayReader(reader);
 			}
 
-			reader = type.CollectionType switch {
-				CollectionType.None => reader,
-				CollectionType.Array => MakeArrayReader(reader),
-				_ => throw new NotImplementedException()
-			};
-			return reader;
+			public Func<BinaryReader, object> VisitCustomField(CustomField type) 
+				=> GetCustomTypeReader(type, _domainReduction, _dict);
+
+			public Func<BinaryReader, object> VisitTupleField(TupleField type)
+			{
+				throw new NotImplementedException();
+			}
 		}
 
 		//Typing this as object[] is inefficient, but hopefully it will work!
@@ -441,10 +466,10 @@ namespace Pansynchro.Protocol
 			return result;
 		};
 
-		private static Func<BinaryReader, object> GetCustomTypeReader(int i, FieldType type, long domainReduction, DataDictionary dict)
+		private static Func<BinaryReader, object> GetCustomTypeReader(CustomField type, long domainReduction, DataDictionary dict)
 		{
-			if (dict.CustomTypes.TryGetValue(type.Info!, out var ft)) {
-				return GetReader(i, ft, domainReduction, dict);
+			if (dict.CustomTypes.TryGetValue(type.Name, out var ft)) {
+				return GetReader(ft, domainReduction, dict);
 			}
 			return Unimplemented(type);
 		}
@@ -472,9 +497,9 @@ namespace Pansynchro.Protocol
 
 		private static object DoubleReader(BinaryReader r) => r.ReadDouble();
 
-		private static Func<BinaryReader, object> MakeDateTimeReader(int i, long dr) => r => new DateTime(r.Read7BitEncodedInt64() + dr);
+		private static Func<BinaryReader, object> MakeDateTimeReader(long dr) => r => new DateTime(r.Read7BitEncodedInt64() + dr);
 
-		private static Func<BinaryReader, object> MakeDateTimeTZReader(int i, long dr) => r => {
+		private static Func<BinaryReader, object> MakeDateTimeTZReader(long dr) => r => {
 			var dt = new DateTime(r.Read7BitEncodedInt64() + dr);
 			var o = TimeSpan.FromMinutes(r.ReadInt16());
 			return new DateTimeOffset(dt, o);
@@ -492,11 +517,11 @@ namespace Pansynchro.Protocol
 
 		private static object JsonReader(BinaryReader r) => JToken.Parse(r.ReadString());
 
-		private static Func<BinaryReader, object> Unimplemented(FieldType type)
+		private static Func<BinaryReader, object> Unimplemented(IFieldType type)
 		{
-			var customType = CustomTypeRegistry.GetType(type.Type);
+			var customType = type is BasicField bf ? CustomTypeRegistry.GetType(bf.Type) : null;
 			if (customType == null) {
-				throw new NotImplementedException($"No reader implemented for '{type.Type}'.");
+				throw new NotImplementedException($"No reader implemented for '{type}'.");
 			}
 			return customType.ProtocolReader;
 		}

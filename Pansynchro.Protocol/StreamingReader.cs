@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Protocol
@@ -38,7 +39,7 @@ namespace Pansynchro.Protocol
 				_nameMap.Add(schema.NameList[i], i);
 			}
 			_seqIdField = schema.SeqIdIndex;
-			_seqIdIsLong = _seqIdField.HasValue && schema.Fields[_seqIdField.Value].Type.Type == TypeTag.Long;
+			_seqIdIsLong = _seqIdField.HasValue && ((BasicField)schema.Fields[_seqIdField.Value].Type).Type == TypeTag.Long;
 			_blockReader = new(_bufferStream);
 		}
 

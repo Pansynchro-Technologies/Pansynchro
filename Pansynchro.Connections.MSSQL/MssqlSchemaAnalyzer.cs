@@ -9,6 +9,7 @@ using Microsoft.Data.SqlClient;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.MSSQL
@@ -53,7 +54,7 @@ from sys.types t
 join sys.types bt on bt.user_type_id = t.system_type_id
 where t.is_user_defined = 1";
 
-		protected override async Task<Dictionary<string, FieldType>> LoadCustomTypes()
+		protected override async Task<Dictionary<string, IFieldType>> LoadCustomTypes()
 		{
 			await foreach (var (table, column) in SqlHelper.ReadValuesAsync(_conn, CUSTOM_TYPE_QUERY, BuildFieldDefinition)) {
 				_customTypes.Add(table.ToString(), column.Type);
@@ -76,21 +77,21 @@ where t.is_user_defined = 1";
 			return (new StreamDescription(reader.GetString(0), reader.GetString(1)), reader.GetString(2));
 		}
 
-		private readonly Dictionary<string, FieldType> _customTypes = new();
+		private readonly Dictionary<string, IFieldType> _customTypes = new();
 
-		private FieldType GetColumnType(IDataReader reader)
+		private IFieldType GetColumnType(IDataReader reader)
 		{
 			var formalType = !reader.IsDBNull(8);
 			var typeName = reader.GetString(formalType ? 8 : 3);
 			if (formalType) {
-				if (_customTypes.ContainsKey(typeName)) {
-					return new FieldType(TypeTag.Custom, false, CollectionType.None, typeName);
+				if (_customTypes.TryGetValue(typeName, out var cTyp)) {
+					return new CustomField(typeName, cTyp, false);
 				}
 			}
 			var type = GetTagType(typeName);
 			var info = HasInfo(type) ? TypeInfo(type, reader) : null;
 			var nullable = reader.GetBoolean(7);
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new BasicField(type, nullable, info, false);
 		}
 
 		private static string? TypeInfo(TypeTag type, IDataReader reader) => type switch {
@@ -217,16 +218,16 @@ order by TableName";
 			return new FieldDefinition(name, BuildFieldType(row));
 		}
 
-		private FieldType BuildFieldType(DataRow row)
+		private IFieldType BuildFieldType(DataRow row)
 		{
 			var typeName = (string)row["DataTypeName"];
-			if (_customTypes.ContainsKey(typeName)) {
-				return new FieldType(TypeTag.Custom, false, CollectionType.None, typeName);
+			if (_customTypes.TryGetValue(typeName, out var cTyp)) {
+				return new CustomField(typeName, cTyp, false);
 			}
 			var type = GetTagType(typeName);
 			var info = HasInfo(type) ? TypeInfo(type, row) : null;
 			var nullable = (bool)row["AllowDBNull"];
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new BasicField(type, nullable, info, false);
 		}
 
 		private static string? TypeInfo(TypeTag type, DataRow row) => type switch {

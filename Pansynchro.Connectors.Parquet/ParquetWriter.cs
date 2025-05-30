@@ -13,6 +13,7 @@ using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Errors;
 using Pansynchro.Core.EventsSystem;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.Parquet
 {
@@ -82,16 +83,17 @@ namespace Pansynchro.Connectors.Parquet
 			return (schema, writers.ToArray());
 		}
 
-		private static Func<object[][], DataColumn> BuildWriter(FieldType ft, DataField field, int idx)
+		private static Func<object[][], DataColumn> BuildWriter(IFieldType ft, DataField field, int idx)
 		{
 			var arrayBuilder = MakeArrayBuilder(ft, idx);
 			return grid => new DataColumn(field, arrayBuilder(grid));
 		}
 
-		private static Func<object[][], Array> MakeArrayBuilder(FieldType ft, int idx)
+		private static Func<object[][], Array> MakeArrayBuilder(IFieldType ft, int idx)
 		{
 			var nullable = ft.Nullable;
-			return ft.Type switch {
+			var bt = ft as BasicField ?? throw new NotSupportedException("Arrays of non-primitive types are not supported");
+			return bt.Type switch {
 				TypeTag.Boolean => nullable ? DoMakeNullableArrayBuilder<bool>(idx) : DoMakeArrayBuilder<bool>(idx),
 				TypeTag.Byte => nullable ? DoMakeNullableArrayBuilder<byte>(idx) : DoMakeArrayBuilder<byte>(idx),
 				TypeTag.SByte => nullable ? DoMakeNullableArrayBuilder<sbyte>(idx) : DoMakeArrayBuilder<sbyte>(idx),
@@ -112,7 +114,7 @@ namespace Pansynchro.Connectors.Parquet
 				TypeTag.DateTimeTZ => nullable ? DoMakeNullableArrayBuilder<DateTimeOffset>(idx) : DoMakeArrayBuilder<DateTimeOffset>(idx),
 				TypeTag.DateTime => nullable ? DoMakeNullableDateTimeBuilder(idx) : DoMakeDateTimeBuilder(idx),
 				TypeTag.Interval => nullable ? DoMakeNullableArrayBuilder<TimeSpan>(idx) : DoMakeArrayBuilder<TimeSpan>(idx),
-				_ => throw new NotSupportedException($"Field data type '{ft.Type}' is not supported")
+				_ => throw new NotSupportedException($"Field data type '{bt.Type}' is not supported")
 			};
 		}
 
@@ -176,10 +178,7 @@ namespace Pansynchro.Connectors.Parquet
 
 		private static DataField BuildField(FieldDefinition fd)
 		{
-			var type = fd.Type;
-			if (type.CollectionType == CollectionType.Array) {
-				throw new DataException("Array types are not supported yet");
-			}
+			var type = fd.Type as BasicField ?? throw new DataException("Non-primitive types are not supported yet");
 			return new DataField(fd.Name, LookupDataType(type.Type), type.Nullable);
 		}
 

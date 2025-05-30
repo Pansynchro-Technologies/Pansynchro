@@ -17,6 +17,7 @@ using Newtonsoft.Json.Linq;
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.EventsSystem;
 
 #if DEBUG
@@ -34,7 +35,7 @@ namespace Pansynchro.Protocol
 		private readonly TcpClient? _client;
 		private readonly MemoryStream _bufferStream = new(BUFFER_SIZE);
 		private readonly BinaryWriter _outputWriter;
-		//private readonly BinaryWriter _incompressibleWriter;
+		private readonly BinaryWriter _incompressibleWriter;
 		private readonly BrotliStream _compressor;
 #if DEBUG
 		private readonly MeteredStream _meter;
@@ -49,7 +50,7 @@ namespace Pansynchro.Protocol
 			_output = _meter;
 #endif
 			_outputWriter = new BinaryWriter(_output, Encoding.UTF8);
-			//_incompressibleWriter = new BinaryWriter(output, Encoding.UTF8);
+			_incompressibleWriter = new BinaryWriter(output, Encoding.UTF8);
 		}
 
 		public BinaryEncoder(TcpListener server, DataDictionary dict, int compressionLevel = 4)
@@ -65,7 +66,7 @@ namespace Pansynchro.Protocol
 			_output = _meter;
 #endif
 			_outputWriter = new BinaryWriter(_output, Encoding.UTF8);
-			//_incompressibleWriter = new BinaryWriter(buffer, Encoding.UTF8);
+			_incompressibleWriter = new BinaryWriter(buffer, Encoding.UTF8);
 			_dataDict = dict;
 		}
 
@@ -160,8 +161,14 @@ namespace Pansynchro.Protocol
 
 		private const int BUFFER_SIZE = 1024 * 1024;
 
+		private BinaryWriter? _lastWriter;
+
 		private void FlushBuffer(BinaryWriter writer)
 		{
+			if (writer != _lastWriter) {
+				_lastWriter?.Flush();
+				_lastWriter = writer;
+			}
 			writer.Write7BitEncodedInt((int)_bufferStream.Length + sizeof(int));
 			_bufferStream.WriteTo(writer.BaseStream);
 			writer.Write(Crc32(_bufferStream.GetBuffer(), (int)_bufferStream.Length));
@@ -194,7 +201,7 @@ namespace Pansynchro.Protocol
 		private async ValueTask WriteBlock(int count, int rowSize, Action<object, BinaryWriter>[] rowWriters,
 			int? sequentialID, ChannelWriter<WriteJob> writer, bool useCompression, List<IRcfWriter> rcfWriters)
 		{
-			var job = new WriteJob(_buffer, count, rowSize, rowWriters, sequentialID, _outputWriter, rcfWriters);
+			var job = new WriteJob(_buffer, count, rowSize, rowWriters, sequentialID, useCompression ? _outputWriter : _incompressibleWriter, rcfWriters);
 			await writer.WriteAsync(job);
 			_buffer = new object[BUFFER_LENGTH][];
 			//DoWriteBlock(_buffer, count, rowSize, rowWriters, rcfCount, sequentialID);
@@ -467,9 +474,9 @@ namespace Pansynchro.Protocol
 				var isRcf = schema.RareChangeFields.Contains(field.Name);
 				// for the moment, arrays will not be treated as RCFs, in the interest of ease of implementation.
 				// This may change if anyone comes up with a valid use case
-				Action<object, BinaryWriter> writer = (isRcf && type.CollectionType == CollectionType.None)
-					? GetRcfWriter(i, type, dr, dict, rcfFinalizers)
-					: GetWriter(i, type, dr, dict);
+				Action<object, BinaryWriter> writer = result[i] = (isRcf && type is BasicField bf)
+					? GetRcfWriter(bf, dr, dict, rcfFinalizers)
+					: GetWriter(type, dr, dict);
 				result[i] = writer;
 				if (type.Incompressible) {
 					incompressibles.Add(i);
@@ -478,13 +485,13 @@ namespace Pansynchro.Protocol
 			return result;
 		}
 
-		private static Action<object, BinaryWriter> GetRcfWriter(int i, FieldType type, long dr, DataDictionary dict, List<IRcfWriter> rcfFinalizers)
+		private static Action<object, BinaryWriter> GetRcfWriter(BasicField type, long dr, DataDictionary dict, List<IRcfWriter> rcfFinalizers)
 		{
-			var baseWriter = GetWriter(i, type, dr, dict);
+			var baseWriter = GetWriter(type, dr, dict);
 			return type.Nullable ? GetNullableRcfWriter(baseWriter!, type, rcfFinalizers) : GetPlainRcfWriter(baseWriter, type, rcfFinalizers);
 		}
 
-		private static Action<object, BinaryWriter> GetPlainRcfWriter(Action<object, BinaryWriter> baseWriter, FieldType type, List<IRcfWriter> rcfFinalizers)
+		private static Action<object, BinaryWriter> GetPlainRcfWriter(Action<object, BinaryWriter> baseWriter, BasicField type, List<IRcfWriter> rcfFinalizers)
 		{
 			switch (type.Type) {
 				case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
@@ -551,7 +558,7 @@ namespace Pansynchro.Protocol
 			}
 		}
 
-		private static Action<object, BinaryWriter> GetNullableRcfWriter(Action<object?, BinaryWriter> baseWriter, FieldType type, List<IRcfWriter> rcfFinalizers)
+		private static Action<object, BinaryWriter> GetNullableRcfWriter(Action<object?, BinaryWriter> baseWriter, BasicField type, List<IRcfWriter> rcfFinalizers)
 		{
 			switch (type.Type) {
 				case TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml:
@@ -618,12 +625,28 @@ namespace Pansynchro.Protocol
 			}
 		}
 
-		private static Action<object, BinaryWriter> GetWriter(
-			int i, FieldType type, long domainReduction, DataDictionary dict)
+		private readonly struct WriterBuilder: IFieldTypeVisitor<Action<object, BinaryWriter>>
 		{
-			Action<object, BinaryWriter> writer = type.Type switch {
-				TypeTag.Unstructured => Unimplemented(type, i),
-				TypeTag.Custom => GetCustomTypeWriter(i, type, domainReduction, dict),
+			private readonly long _domainReduction;
+			private readonly DataDictionary _dict;
+
+			public WriterBuilder(long domainReduction, DataDictionary dict)
+			{
+				_domainReduction = domainReduction;
+				_dict = dict;
+			}
+
+			public Action<object, BinaryWriter> Visit(IFieldType type)
+			{
+				var result = type.Accept(this);
+				if (type.Nullable) {
+					result = MakeNullable(result);
+				}
+				return result;
+			}
+
+			public Action<object, BinaryWriter> VisitBasicField(BasicField type) => type.Type switch {
+				TypeTag.Unstructured => Unimplemented(type),
 				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml
 					=> (o, s) => s.Write((string)o),
 				TypeTag.Json => (o, s) => s.Write(((JToken)o).ToString()),
@@ -637,26 +660,36 @@ namespace Pansynchro.Protocol
 				TypeTag.Decimal or TypeTag.Numeric or TypeTag.Money or TypeTag.SmallMoney => (o, s) => s.Write((decimal)o),
 				TypeTag.Single => (o, s) => s.Write((float)o),
 				TypeTag.Float or TypeTag.Double => (o, s) => s.Write((double)o),
-				TypeTag.TimeTZ => Unimplemented(type, i),
-				TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime => MakeDateTimeWriter(domainReduction),
-				TypeTag.DateTimeTZ => MakeDateTimeTZWriter(domainReduction),
-				TypeTag.VarDateTime => Unimplemented(type, i),
+				TypeTag.TimeTZ => Unimplemented(type),
+				TypeTag.Date or TypeTag.DateTime or TypeTag.SmallDateTime => MakeDateTimeWriter(_domainReduction),
+				TypeTag.DateTimeTZ => MakeDateTimeTZWriter(_domainReduction),
+				TypeTag.VarDateTime => Unimplemented(type),
 				TypeTag.Guid => MakeGuidWriter(),
 				TypeTag.Time or TypeTag.Interval => MakeTimeSpanWriter(),
-				TypeTag.Bits => Unimplemented(type, i),
-				_ => Unimplemented(type, i)
-			};
-			if (type.Nullable) {
-				writer = MakeNullable(writer);
-			}
-			writer = type.CollectionType switch {
-				CollectionType.None => writer,
-				CollectionType.Array => MakeArrayWriter(writer),
-				_ => throw new NotImplementedException()
+				TypeTag.Bits => Unimplemented(type),
+				_ => Unimplemented(type)
 			};
 
-			return writer;
+			public Action<object, BinaryWriter> VisitCollection(CollectionField type)
+			{
+				var writer = Visit(type.BaseType);
+				return type.CollectionType switch {
+					CollectionType.Array => MakeArrayWriter(writer),
+					_ => throw new NotImplementedException()
+				};
+			}
+
+			public Action<object, BinaryWriter> VisitCustomField(CustomField type)
+				=> GetCustomTypeWriter(type, _domainReduction, _dict);
+
+			public Action<object, BinaryWriter> VisitTupleField(TupleField type)
+			{
+				throw new NotImplementedException();
+			}
 		}
+
+		private static Action<object, BinaryWriter> GetWriter(IFieldType type, long domainReduction, DataDictionary dict) 
+			=> new WriterBuilder(domainReduction, dict).Visit(type);
 
 		private static Action<object, BinaryWriter> MakeArrayWriter(Action<object, BinaryWriter> writer) => (o, w) => {
 			// there exists ambiguity as to whether a nullable array denotes an array that can be null, or an array of
@@ -673,13 +706,12 @@ namespace Pansynchro.Protocol
 			}
 		};
 
-		private static Action<object, BinaryWriter> GetCustomTypeWriter(
-			int i, FieldType type, long domainReduction, DataDictionary dict)
+		private static Action<object, BinaryWriter> GetCustomTypeWriter(CustomField type, long domainReduction, DataDictionary dict)
 		{
-			if (dict.CustomTypes.TryGetValue(type.Info!, out var ft)) {
-				return GetWriter(i, ft, domainReduction, dict);
+			if (dict.CustomTypes.TryGetValue(type.Name, out var ft)) {
+				return GetWriter(ft, domainReduction, dict);
 			}
-			return Unimplemented(type, i);
+			return Unimplemented(type);
 		}
 
 		private static Action<object, BinaryWriter> MakeTimeSpanWriter() => (o, s) =>
@@ -715,11 +747,11 @@ namespace Pansynchro.Protocol
 			s.Write(data);
 		};
 
-		private static Action<object, BinaryWriter> Unimplemented(FieldType type, int i)
+		private static Action<object, BinaryWriter> Unimplemented(IFieldType type)
 		{
-			var customType = CustomTypeRegistry.GetType(type.Type);
+			var customType = type is BasicField bf ? CustomTypeRegistry.GetType(bf.Type) : null;
 			if (customType == null) {
-				throw new NotImplementedException($"No writer implemented for '{type.Type}'.");
+				throw new NotImplementedException($"No writer implemented for '{type}'.");
 			}
 			return customType.ProtocolWriter;
 		}

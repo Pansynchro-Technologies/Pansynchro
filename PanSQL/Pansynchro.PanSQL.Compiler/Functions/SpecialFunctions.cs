@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
 
@@ -10,8 +11,8 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 {
 	internal record struct SpecialFunc(
 		string Name,
-		Func<FieldType[], string?> VerifyArgs,
-		Func<FieldType[], FieldType> ReturnType,
+		Func<IFieldType[], string?> VerifyArgs,
+		Func<IFieldType[], IFieldType> ReturnType,
 		Func<DbExpression[], Func<DbExpression, string>?, string> Codegen);
 
 	internal static class SpecialFunctions
@@ -33,38 +34,38 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		private static SpecialFunc AcosFunction() => new("ACOS", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Acos({arg})" : $"Math.Acos({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Acos({arg})" : $"Math.Acos({arg})";
 			});
 
 		private static SpecialFunc AsinFunction() => new("ASIN", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Asin({arg})" : $"Math.Asin({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Asin({arg})" : $"Math.Asin({arg})";
 			});
 
 		private static SpecialFunc AtanFunction() => new("ATAN", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Atan({arg})" : $"Math.Atan({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Atan({arg})" : $"Math.Atan({arg})";
 			});
 
 		private static SpecialFunc Atan2Function() => new("ATAN2", AnyFloat(2), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg1 = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
 				var arg2 = reader?.Invoke(exprs[1]) ?? exprs[1].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Atan2({arg1}, {arg2})" : $"Math.Atan2({arg1}, {arg2})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Atan2({arg1}, {arg2})" : $"Math.Atan2({arg1}, {arg2})";
 			});
 
 		private static SpecialFunc CeilFunction() => new("CEILING", AnyFloatOrDecimal(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Ceiling({arg})" : $"Math.Ceiling({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Ceiling({arg})" : $"Math.Ceiling({arg})";
 			});
 
 		private static SpecialFunc CosFunction() => new("COS", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Cos({arg})" : $"Math.Cos({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Cos({arg})" : $"Math.Cos({arg})";
 			});
 
 		private static SpecialFunc DegFunction() => new("DEGREES", AnyNumeric(1), IdentityTypeFirst,
@@ -82,13 +83,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		private static SpecialFunc ExpFunction() => new("EXP", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Exp({arg})" : $"Math.Exp({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Exp({arg})" : $"Math.Exp({arg})";
 			});
 
 		private static SpecialFunc FloorFunction() => new("Floor", AnyFloatOrDecimal(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Floor({arg})" : $"Math.Floor({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Floor({arg})" : $"Math.Floor({arg})";
 			});
 
 		private static SpecialFunc LogFunction() => new("LOG", AnyFloat(1, 2), IdentityTypeFirst,
@@ -96,22 +97,22 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
 				if (exprs.Length == 2) {
 					var arg2 = reader?.Invoke(exprs[1]) ?? exprs[1].ToString();
-					return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Log({arg}, {arg2})" : $"Math.Log({arg}, {arg2})";
+					return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Log({arg}, {arg2})" : $"Math.Log({arg}, {arg2})";
 				}
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Log({arg})" : $"Math.Log({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Log({arg})" : $"Math.Log({arg})";
 			});
 
 		private static SpecialFunc Log10Function() => new("LOG10", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Log10({arg})" : $"Math.Log10({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Log10({arg})" : $"Math.Log10({arg})";
 			});
 
 		private static SpecialFunc PowFunction() => new("POWER", AnyFloat(2), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg1 = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
 				var arg2 = reader?.Invoke(exprs[1]) ?? exprs[1].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Pow({arg1}, {arg2})" : $"Math.Pow({arg1}, {arg2})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Pow({arg1}, {arg2})" : $"Math.Pow({arg1}, {arg2})";
 			});
 
 		private static SpecialFunc RandFunction() => new("RAND", IntCount(0, 1), _ => TypesHelper.FloatType,
@@ -126,7 +127,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		private static SpecialFunc RoundFunction() => new("ROUND", AnyFloatOrDecimal(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Round({arg})" : $"Math.Round({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Round({arg})" : $"Math.Round({arg})";
 			});
 
 		private static SpecialFunc SignFunction() => new("SIGN", AnyNumeric(1), _ => TypesHelper.IntType,
@@ -138,13 +139,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		private static SpecialFunc SinFunction() => new("SIN", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Sin({arg})" : $"Math.Sin({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Sin({arg})" : $"Math.Sin({arg})";
 			});
 
 		private static SpecialFunc SqrtFunction() => new("SQRT", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Sqrt({arg})" : $"Math.Sqrt({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Sqrt({arg})" : $"Math.Sqrt({arg})";
 			});
 
 		private static SpecialFunc SquareFunction() => new("SQUARE", AnyNumeric(1), IdentityTypeFirst,
@@ -156,7 +157,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		private static SpecialFunc TanFunction() => new("TAN", AnyFloat(1), IdentityTypeFirst,
 			(exprs, reader) => {
 				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
-				return exprs[0].Type!.Type == TypeTag.Float ? $"MathF.Tan({arg})" : $"Math.Tan({arg})";
+				return ((BasicField)exprs[0].Type!).Type == TypeTag.Float ? $"MathF.Tan({arg})" : $"Math.Tan({arg})";
 			});
 		
 		private static SpecialFunc ReplaceFunction() => new("Replace", AnyString(3),
@@ -181,16 +182,16 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				return $"{value}?.{call}(({arg}).ToCharArray())";
 			});
 
-		private static string? NoArgs(FieldType[] types) 
+		private static string? NoArgs(IFieldType[] types) 
 			=> (types.Length != 0) ? $"Function {{0}} does not take any argument(s)." : null;
 
-		private static Func<FieldType[], string?> AnyNumeric(int count) => types => {
+		private static Func<IFieldType[], string?> AnyNumeric(int count) => types => {
 			if (types.Length != count) {
 				return $"Function {{0}} requires {count} argument(s).";
 			}
 			for (int i = 0; i < count; i++) {
 				var typ = types[i];
-				if ((typ.CollectionType != CollectionType.None) || (!(typ.Type is TypeTag.Int or TypeTag.UInt or TypeTag.Long or TypeTag.ULong or TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort or TypeTag.Decimal or TypeTag.Float or TypeTag.Double or TypeTag.Numeric))) {
+				if ((typ is not BasicField {Type: TypeTag.Int or TypeTag.UInt or TypeTag.Long or TypeTag.ULong or TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort or TypeTag.Decimal or TypeTag.Float or TypeTag.Double or TypeTag.Numeric })) {
 					return $"'{typ}' is not a numeric type.";
 				}
 			}
@@ -200,13 +201,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
-		private static Func<FieldType[], string?> AnyFloat(int count) => types => {
+		private static Func<IFieldType[], string?> AnyFloat(int count) => types => {
 			if (types.Length != count) {
 				return $"Function {{0}} requires {count} argument(s).";
 			}
 			for (int i = 0; i < count; i++) {
 				var typ = types[i];
-				if ((typ.CollectionType != CollectionType.None) || (!(typ.Type is TypeTag.Float or TypeTag.Double))) {
+				if ((typ is not BasicField { Type: TypeTag.Float or TypeTag.Double})) {
 					return $"'{typ}' is not a float type.";
 				}
 			}
@@ -216,7 +217,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
-		private static Func<FieldType[], string?> AnyString(int count) => types => {
+		private static Func<IFieldType[], string?> AnyString(int count) => types => {
 			if (types.Length != count) {
 				return $"Function {{0}} requires {count} argument(s).";
 			}
@@ -229,13 +230,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
-		private static Func<FieldType[], string?> IntCount(int countMin, int countMax) => types => {
+		private static Func<IFieldType[], string?> IntCount(int countMin, int countMax) => types => {
 			if (types.Length < countMin || types.Length > countMax) {
 				return $"Function {{0}} requires between {countMin} and {countMax} arguments.";
 			}
 			for (int i = 0; i < types.Length; i++) {
 				var typ = types[i];
-				if ((typ.CollectionType != CollectionType.None) || (!(typ.Type is TypeTag.Int or TypeTag.UInt or TypeTag.Long or TypeTag.ULong or TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort))) {
+				if ((typ is not BasicField { Type: TypeTag.Int or TypeTag.UInt or TypeTag.Long or TypeTag.ULong or TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort })) {
 					return $"'{typ}' is not a float type.";
 				}
 			}
@@ -245,13 +246,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
-		private static Func<FieldType[], string?> AnyFloat(int countMin, int countMax) => types => {
+		private static Func<IFieldType[], string?> AnyFloat(int countMin, int countMax) => types => {
 			if (types.Length < countMin || types.Length > countMax) {
 				return $"Function {{0}} requires between {countMin} and {countMax} arguments.";
 			}
 			for (int i = 0; i < types.Length; i++) {
 				var typ = types[i];
-				if ((typ.CollectionType != CollectionType.None) || (!(typ.Type is TypeTag.Float or TypeTag.Double))) {
+				if ((typ is not BasicField { Type: TypeTag.Float or TypeTag.Double })) {
 					return $"'{typ}' is not a float type.";
 				}
 			}
@@ -261,13 +262,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
-		private static Func<FieldType[], string?> AnyFloatOrDecimal(int count) => types => {
+		private static Func<IFieldType[], string?> AnyFloatOrDecimal(int count) => types => {
 			if (types.Length != count) {
 				return $"Function {{0}} requires {count} argument(s).";
 			}
 			for (int i = 0; i < count; i++) {
 				var typ = types[i];
-				if ((typ.CollectionType != CollectionType.None) || (!(typ.Type is TypeTag.Float or TypeTag.Double or TypeTag.Decimal or TypeTag.Numeric))) {
+				if ((typ is not BasicField { Type: TypeTag.Float or TypeTag.Double or TypeTag.Decimal or TypeTag.Numeric })) {
 					return $"'{typ}' is not a float or decimal type.";
 				}
 			}
@@ -277,7 +278,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		};
 
-		private static string? TrimArgs(FieldType[] types) 
+		private static string? TrimArgs(IFieldType[] types) 
 		{
 			if (types.Length != 3
 					|| TypesHelper.FieldTypeToDotNetType(types[0]) != typeof(string)
@@ -288,8 +289,8 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		}
 
-		private static FieldType IdentityTypeFirst(FieldType[] types) => types[0];
+		private static IFieldType IdentityTypeFirst(IFieldType[] types) => types[0];
 
-		private static FieldType IdentityTypeSecond(FieldType[] types) => types[1];
+		private static IFieldType IdentityTypeSecond(IFieldType[] types) => types[1];
 	}
 }

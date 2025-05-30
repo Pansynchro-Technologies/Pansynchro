@@ -8,6 +8,7 @@ using Microsoft.Data.Sqlite;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Sqlite
@@ -49,7 +50,7 @@ ORDER BY table_name, cid;";
 			return (table, column);
 		}
 
-		private FieldType GetColumnType(IDataReader reader)
+		private static BasicField GetColumnType(IDataReader reader)
 		{
 			var typeName = reader.GetString(2);
 			string? info = null;
@@ -60,7 +61,7 @@ ORDER BY table_name, cid;";
 			}
 			var type = GetTagType(typeName);
 			var nullable = !reader.GetBoolean(3);
-			return new FieldType(type, nullable, CollectionType.None, info);
+			return new BasicField(type, nullable, info, false);
 		}
 
 		protected override string PkQuery =>

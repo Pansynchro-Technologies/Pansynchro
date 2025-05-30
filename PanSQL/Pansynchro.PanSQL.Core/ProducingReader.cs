@@ -6,7 +6,7 @@ using Pansynchro.Core.Readers;
 
 namespace Pansynchro.PanSQL.Core
 {
-	internal class ProducingReader : ArrayReader
+	public class ProducingReader : ArrayReader
 	{
 		private readonly IEnumerator<object?[]> _producer;
 		private readonly List<string> _names = new();

@@ -181,6 +181,34 @@ namespace Pansynchro.Core.Pansync
 		}
 	}
 
+	public class ModifiedNode : Expression
+	{
+		public NameNode Name { get; }
+		public Expression[] Values { get; }
+
+		public ModifiedNode(NameNode name, Expression[] values)
+		{
+			Name = name;
+			Values = values;
+		}
+
+		protected override void DoPrint(StringBuilder sb, int indentation)
+		{
+			sb.Append(Name.ToString());
+			sb.Append('[');
+			sb.AppendJoin<Expression>(", ", Values);
+			sb.Append(']');
+		}
+
+		protected override bool DoesMatch(PansyncNode other)
+		{
+			var mn = (ModifiedNode)other;
+			if (!mn.Name.Matches(Name)) return false;
+			if (Values.Length != mn.Values.Length) return false;
+			return (Values.Zip(mn.Values).All(z => z.First.Matches(z.Second)));
+		}
+	}
+
 	public abstract class Statement : PansyncNode { }
 
 	public class Command : Statement

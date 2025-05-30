@@ -103,7 +103,6 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private static string? StreamName(CompoundIdentifier name) => name.Name == null ? null : (name.Parent == null ? name.Name : string.Join('.', name.ToString()!.Split('.')[1..]));
 
-
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies() => [Dependency<SqlAnalysis>()];
 	}
 }

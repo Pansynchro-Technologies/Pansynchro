@@ -53,7 +53,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var cid = node.Identifier;
 			var dict = VerifyDictionaryName(cid.Parent, cid);
 			try {
-				node.Stream = ((LoadStatement)dict.Declaration).Dict.GetStream(cid.Name);
+				node.Stream = dict.Declaration switch {
+					LoadStatement l => l.Dict.GetStream(cid.Name),
+					AnalyzeStatement a => throw new CompilerError("A data dictionary needs to be loaded with the LOAD command to be used here.", node),
+					_ => throw new NotSupportedException()
+				};
 			} catch (KeyNotFoundException) {
 				throw new CompilerError($"'{cid.Parent}' does not contain a stream named {cid.Name}", node);
 			}
@@ -127,7 +131,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var oneAgg = false;
 			switch (stmt) {
 				case SelectStatement sel:
-					node.Tables.AddRange(VerifySelect(sel, node));
+					node.Tables.AddRange(VerifySelect(sel, node).Distinct());
 					node.Output = VerifyTableName(node.Dest.Name, false, node)[0];
 					var spec = (QuerySpecification)sel.QueryExpression;
 					grouped = spec.GroupByClause != null;
@@ -139,8 +143,8 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					throw new CompilerError("Only SELECT statements are supported at this time", node);
 			}
 
-			var tt = node.Tables.Any(v => v.Type == "Stream") ? TransactionType.Streamed : TransactionType.PureMemory;
-			if (node.Tables.Count > 1) {
+			var tt = node.Tables.Any(v => v.Type == "Stream") ? TransactionType.FromStream : TransactionType.PureMemory;
+			if (node.Tables.Where(t => t.Type != "Cte").Count() > 1) {
 				tt |= TransactionType.Joined;
 			}
 			if (node.Output.Type == "Stream") {
@@ -159,8 +163,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			if (sel.WithCtesAndXmlNamespaces?.CommonTableExpressions?.Count > 0) {
 				foreach (var cte in sel.WithCtesAndXmlNamespaces.CommonTableExpressions) {
-					foreach (var result in VerifyQuerySpec((QuerySpecification)cte.QueryExpression, node))
-					{ }
+					foreach (var result in VerifyQuerySpec((QuerySpecification)cte.QueryExpression, node)) {
+						yield return result;
+					}
 					AddCte(cte, node);
 				}
 			}

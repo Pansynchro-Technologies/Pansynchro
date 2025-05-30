@@ -8,11 +8,17 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 {
 	internal class AggregateStreamModel(DataModel model) : StreamedSqlModel(model)
 	{
+		// Generates an aggregated stream from a stream
 		public override Method GetScript(CodeBuilder cb, IndexData indices, List<ImportModel> imports, Dictionary<string, string> ctes)
 		{
 			var filters = new List<string>();
 			var methodName = cb.NewNameReference("Transformer");
 			List<CSharpStatement> methodBody = [.. InvokeCtes(ctes), new VarDecl("result", new CSharpStringExpression($"new object[{Model.Outputs.Length}]")) ];
+			HasCtes = ctes.Count > 0;
+			if (HasCtes) {
+				var query = BuildLinqExpression(Model);
+				methodBody.Add(new CSharpStringExpression($"var __preAgg = {query}"));
+			}
 			var aggs = new Dictionary<AggregateExpression, string>();
 			foreach (var agg in Model.AggOutputs) {
 				methodBody.Add(BuildAggregateProcessor(cb, agg, Model.GroupKey, aggs));
@@ -32,7 +38,12 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 					loopBody.Add(new CSharpStringExpression($"{aggs[agg]}.Add({GetFieldSet(Model.GroupKey!)}, {GetInput(agg.Args[0])})"));
 				}
 			}
-			methodBody.Add(new WhileLoop(new CSharpStringExpression("r.Read()"), loopBody));
+			if (HasCtes) {
+				methodBody.Add(new ForeachLoop("__item", "__preAgg", loopBody));
+				imports.Add("System.Linq");
+			} else {
+				methodBody.Add(new WhileLoop(new CSharpStringExpression("r.Read()"), loopBody));
+			}
 			for (int i = 0; i < Model.Outputs.Length; ++i) {
 				if (Model.Outputs[i].IsLiteral) {
 					methodBody.Add(new CSharpStringExpression($"result[{i}] = {GetInput(Model.Outputs[i])}"));

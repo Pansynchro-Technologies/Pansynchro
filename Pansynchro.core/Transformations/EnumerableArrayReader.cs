@@ -6,7 +6,7 @@ using Pansynchro.Core.Readers;
 
 namespace Pansynchro.Core.Transformations
 {
-	internal class EnumerableArrayReader : ArrayReader
+	public class EnumerableArrayReader : ArrayReader
 	{
 		private readonly IEnumerator<object?[]> _source;
 		private readonly string[] _names;

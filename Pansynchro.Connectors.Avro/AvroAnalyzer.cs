@@ -10,6 +10,7 @@ using Avro.Generic;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
+using Pansynchro.Core.DataDict.TypeSystem;
 
 namespace Pansynchro.Connectors.Avro
 {
@@ -17,7 +18,7 @@ namespace Pansynchro.Connectors.Avro
 	{
 		private IDataSource? _source;
 
-		private Dictionary<string, FieldType> _customTypes = null!;
+		private Dictionary<string, IFieldType> _customTypes = null!;
 
 		public void SetDataSource(IDataSource source)
 		{
@@ -56,7 +57,7 @@ namespace Pansynchro.Connectors.Avro
 			return new FieldDefinition(name, type);
 		}
 
-		private FieldType AnalyzeType(Schema schema)
+		private IFieldType AnalyzeType(Schema schema)
 		{
 			if (schema is ArraySchema asc) {
 				return AnalyzeArrayType(asc);
@@ -80,49 +81,50 @@ namespace Pansynchro.Connectors.Avro
 				Schema.Type.Bytes or Schema.Type.Fixed => TypeTag.Blob,
 				_ => throw new NotSupportedException($"Schema field type {schema.Tag} is not supported yet.")
 			};
-			return new FieldType(tt, false, CollectionType.None, null);
+			return new BasicField(tt, false, null, false);
 		}
 
-		private static FieldType? AnalyzeLogicalTypeSchema(Schema type)
+		private static IFieldType? AnalyzeLogicalTypeSchema(Schema type)
 		{
 			switch (type.GetProperty("logicalType")) {
 				case "timestamp-millis":
 				case "timestamp-micros":
 				case "date":
-					return new FieldType(TypeTag.DateTime, false, CollectionType.None, null);
+					return new BasicField(TypeTag.DateTime, false, null, false);
 				case "time-millis":
 				case "time-micros":
-					return new FieldType(TypeTag.Time, false, CollectionType.None, null);
+					return new BasicField(TypeTag.Time, false, null, false);
 				case "decimal":
-					return new FieldType(TypeTag.Decimal, false, CollectionType.None, $"({type.GetProperty("precision")},{type.GetProperty("scale")})");
+					return new BasicField(TypeTag.Decimal, false, $"({type.GetProperty("precision")},{type.GetProperty("scale")})", false);
 				case "uuid":
-					return new FieldType(TypeTag.Guid, false, CollectionType.None, null);
+					return new BasicField(TypeTag.Guid, false, null, true);
 			};
 			return null;
 		}
 
-		private FieldType AnalyzeEnumSchema(EnumSchema esc)
+		private IFieldType AnalyzeEnumSchema(EnumSchema esc)
 		{
-			_customTypes.Add(esc.Name, new FieldType(TypeTag.Int, false, CollectionType.None, null));
-			return new FieldType(TypeTag.Custom, false, CollectionType.None, esc.Name);
+			var bf = new BasicField(TypeTag.Int, false, null, false);
+			_customTypes.Add(esc.Name, bf);
+			return new CustomField(esc.Name, bf, false);
 		}
 
 		private static bool IsNullSchema(Schema value)
 			=> value is PrimitiveSchema ps && ps.Tag == Schema.Type.Null;
 
-		private FieldType AnalyzeUnionType(UnionSchema usc)
+		private IFieldType AnalyzeUnionType(UnionSchema usc)
 		{
 			if (usc.Schemas.Count == 2 && usc.Schemas.Where(IsNullSchema).Count() == 1) {
 				var baseType = AnalyzeType(usc.Schemas.Single(s => !IsNullSchema(s)));
-				return baseType with { Nullable = true };
+				return baseType.MakeNull();
 			}
 			throw new NotSupportedException($"Schema union types other than nullables are not supported yet.");
 		}
 
-		private FieldType AnalyzeArrayType(ArraySchema asc)
+		private IFieldType AnalyzeArrayType(ArraySchema asc)
 		{
 			var baseType = AnalyzeType(asc.ItemSchema);
-			return baseType with { CollectionType = CollectionType.Array };
+			return new CollectionField(baseType, CollectionType.Array, false);
 		}
 	}
 }
