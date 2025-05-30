@@ -45,13 +45,6 @@ jobs:
         max_attempts: 3
         command: nuget restore $env:SOLUTION
 
-    - name: Restore PanSQL dependencies
-      uses: nick-fields/retry@v2.8.3
-      with:
-        timeout_minutes: 10
-        max_attempts: 3
-        command: nuget restore $env:PANSQL
-
     - name: Install Java
       uses: actions/setup-java@v4
       with:
@@ -69,6 +62,13 @@ jobs:
     - name: Publish
       if: startsWith(github.ref, 'refs/heads/release')
       run: nuget push **\*.nupkg -Source 'https://api.nuget.org/v3/index.json' -ApiKey ${{secrets.NUGET_API_KEY}} -SkipDuplicate
+
+    - name: Restore PanSQL dependencies
+      uses: nick-fields/retry@v2.8.3
+      with:
+        timeout_minutes: 10
+        max_attempts: 3
+        command: nuget restore $env:PANSQL
 
     - name: copy connectors file
       shell: pwsh
