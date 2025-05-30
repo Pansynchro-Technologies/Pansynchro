@@ -8,7 +8,7 @@ namespace Pansynchro.Connectors.TextFile
 {
 	internal static class AnalyzerHelper
 	{
-		internal static StreamDefinition Analyze(string streamName, CSV.AnalyzerArrayProducer reader)
+		internal static StreamDefinition Analyze(string streamName, CSV.CsvArrayProducer reader)
 		{
 			var fields = new List<FieldDefinition>();
 			for (int i = 0; i < reader.FieldTypes.Length; ++i) {
