@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<TargetFrameworks>net6.0;net6.0-windows;net7.0;net7.0-windows;net8.0;net8.0-windows</TargetFrameworks>
+	<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.34</AssemblyVersion>
-	<FileVersion>0.6.34</FileVersion>
-	<Version>0.6.34</Version>
+	<AssemblyVersion>0.7.0-experimental-v1</AssemblyVersion>
+	<FileVersion>0.7.0-experimental-v1</FileVersion>
+	<Version>0.7.0-experimental-v1</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Network Protocol</Product>
 	<Description>Implements the Pansynchro protocol, the fastest way to transmit bulk structured data over a network.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;networking</PackageTags>
 	<PackageReleaseNotes>
-		Implementing new logging system
+		Updating with the new type system
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>
