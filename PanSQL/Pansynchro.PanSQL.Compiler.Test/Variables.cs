@@ -44,8 +44,9 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 static class Program {
+	public static string conn__1;
+
 	public static async Task Main(string[] args) {
-		string conn__1;
 		var __varResult = new VariableReader(args, true).ReadVar(""conn"", out conn__1).Result;
 		if (__varResult != null) {
 			System.Console.WriteLine(__varResult);
@@ -133,8 +134,9 @@ class Sync : StreamTransformerBase {
 }
 
 static class Program {
+	public static string sku__1;
+
 	public static async Task Main(string[] args) {
-		string sku__1;
 		var __varResult = new VariableReader(args, true).ReadVar(""sku"", out sku__1).Result;
 		if (__varResult != null) {
 			System.Console.WriteLine(__varResult);
@@ -211,8 +213,9 @@ class Sync : StreamTransformerBase {
 }
 
 static class Program {
+	public static int id__1;
+
 	public static async Task Main(string[] args) {
-		int id__1;
 		var __varResult = new VariableReader(args, true).ReadVar(""id"", out id__1).Result;
 		if (__varResult != null) {
 			System.Console.WriteLine(__varResult);
@@ -289,8 +292,9 @@ class Sync : StreamTransformerBase {
 }
 
 static class Program {
+	public static int id__1 = 78;
+
 	public static async Task Main(string[] args) {
-		int id__1 = 78;
 		var __varResult = new VariableReader(args, false).TryReadVar(""id"", ref id__1).Result;
 		if (__varResult != null) {
 			System.Console.WriteLine(__varResult);
@@ -395,8 +399,9 @@ class Sync : StreamTransformerBase {
 }
 
 static class Program {
+	public static string streamname__1;
+
 	public static async Task Main(string[] args) {
-		string streamname__1;
 		var __varResult = new VariableReader(args, true).ReadVar("streamname", out streamname__1).Result;
 		if (__varResult != null) {
 			System.Console.WriteLine(__varResult);
@@ -481,8 +486,9 @@ class Sync : StreamTransformerBase {
 }
 
 static class Program {
+	public static string filename__1;
+
 	public static async Task Main(string[] args) {
-		string filename__1;
 		var __varResult = new VariableReader(args, true).ReadVar("filename", out filename__1).Result;
 		if (__varResult != null) {
 			System.Console.WriteLine(__varResult);

@@ -150,18 +150,16 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.UserTypes.Insert(new DB.UserTypes_(r));
+			__db.UserTypes.Add(new DB.UserTypes_(r));
 		}
-		yield break;
 	}
 
-	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+	private void Consumer__2(IDataReader r) {
 		while (r.Read()) {
-			__db.Users.Insert(new DB.Users_(r));
+			__db.Users.Add(new DB.Users_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__3() {
@@ -186,8 +184,8 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""UserTypes"", Transformer__1);
-		_streamDict.Add(""Users"", Transformer__2);
+		_consumers.Add(""UserTypes"", Consumer__1);
+		_consumers.Add(""Users"", Consumer__2);
 		_producers.Add((destDict.GetStream(""Users""), Transformer__3));
 		_nameMap.Add(StreamDescription.Parse(""Orders""), StreamDescription.Parse(""OrderData""));
 	}
@@ -275,11 +273,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -302,7 +299,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 	}
 }
@@ -389,11 +386,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -416,7 +412,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 	}
 }
@@ -503,11 +499,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -532,7 +527,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 		_nameMap.Add(StreamDescription.Parse(""Products""), StreamDescription.Parse(""ProductMax""));
 	}
@@ -620,11 +615,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -649,7 +643,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 		_nameMap.Add(StreamDescription.Parse(""Products""), StreamDescription.Parse(""ProductCount""));
 	}
@@ -738,11 +732,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -768,7 +761,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 		_nameMap.Add(StreamDescription.Parse(""Products""), StreamDescription.Parse(""ProductCount""));
 	}
@@ -856,11 +849,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -888,7 +880,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 		_nameMap.Add(StreamDescription.Parse(""Products""), StreamDescription.Parse(""ProductMaxAndCount""));
 	}
@@ -976,11 +968,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -1006,7 +997,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 		_nameMap.Add(StreamDescription.Parse(""Products""), StreamDescription.Parse(""ProductMaxAndCount""));
 	}
@@ -1104,11 +1095,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Users.Insert(new DB.Users_(r));
+			__db.Users.Add(new DB.Users_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -1133,7 +1123,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Users"", Transformer__1);
+		_consumers.Add(""Users"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Users""), Transformer__2));
 	}
 }
@@ -1220,11 +1210,10 @@ class Sync : StreamTransformerBase {
 	private readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.Products.Insert(new DB.Products_(r));
+			__db.Products.Add(new DB.Products_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2() {
@@ -1247,7 +1236,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Products"", Transformer__1);
+		_consumers.Add(""Products"", Consumer__1);
 		_producers.Add((destDict.GetStream(""Products""), Transformer__2));
 	}
 }

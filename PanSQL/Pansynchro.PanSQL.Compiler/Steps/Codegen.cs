@@ -115,9 +115,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				var passType = sVar.Expr != null ? "ref" : "out";
 				initializer = $"{initializer}.{methodName}({sVar.Name.Name.ToLiteral()}, {passType} {sVar.ScriptName})";
 			}
-			_mainBody.Insert(_scriptVars.Count, new CSharpStringExpression($"var __varResult = {initializer}.Result"));
+			_mainBody.Insert(0, new CSharpStringExpression($"var __varResult = {initializer}.Result"));
 			var checkBody = new Block([new CSharpStringExpression("System.Console.WriteLine(__varResult)"), new ReturnStatement()]);
-			_mainBody.Insert(_scriptVars.Count + 1, new IfStatement(new BooleanExpression(BoolExpressionType.NotEquals, new ReferenceExpression("__varResult"), new CSharpStringExpression("null")), checkBody));
+			_mainBody.Insert(1, new IfStatement(new BooleanExpression(BoolExpressionType.NotEquals, new ReferenceExpression("__varResult"), new CSharpStringExpression("null")), checkBody));
 		}
 
 		private IEnumerable<ImportModel?> SortImports()
@@ -234,7 +234,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private static ClassModel GenerateModelClass(DataClassModel model, List<DataFieldModel> outerFields)
 		{
-			var fields = model.Fields.Select(f => new DataFieldModel(f.Name, f.Type, null, true)).ToArray();
+			var fields = model.Fields.Select(f => new DataFieldModel(f.Name, f.Type, null, true, true)).ToArray();
 			var lines = new List<CSharpStatement>();
 			for (int i = 0; i < model.Fields.Length; ++i) {
 				var field = model.Fields[i];
@@ -242,7 +242,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 			var ctorArgs = model.FieldConstructor ? BuildFieldConstructorArgs(fields) : "IDataReader r";
 			var ctor = new Method("public", model.Name, "", ctorArgs, lines, true);
-			outerFields.Add(new(model.Name[..^1], $"List<{model.Name}>", null, true));
+			outerFields.Add(new(model.Name[..^1], $"List<{model.Name}>", null, true, true));
 			return new ClassModel("public", model.Name, null, null, fields, [ctor]);
 		}
 

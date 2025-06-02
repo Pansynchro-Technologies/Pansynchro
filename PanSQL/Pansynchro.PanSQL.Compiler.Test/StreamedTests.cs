@@ -170,11 +170,10 @@ class Sync : StreamTransformerBase {
 
 	private readonly DB __db = new();
 
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {
-			__db.UserTypes.Insert(new DB.UserTypes_(r));
+			__db.UserTypes.Add(new DB.UserTypes_(r));
 		}
-		yield break;
 	}
 
 	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
@@ -193,8 +192,8 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""UserTypes"", Transformer__1);
 		_streamDict.Add(""Users"", Transformer__2);
+		_consumers.Add(""UserTypes"", Consumer__1);
 		_nameMap.Add(StreamDescription.Parse(""Orders""), StreamDescription.Parse(""OrderData""));
 	}
 }
