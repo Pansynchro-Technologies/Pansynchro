@@ -90,7 +90,7 @@ class Sync : StreamTransformerBase {
 			aggregator__4.Add(r.GetString(0), r.GetFloat(1));
 		}
 		foreach (var pair in Aggregates.Combine(aggregator__2, aggregator__3, aggregator__4)) {
-			__db.Aggs.Insert(new DB.Aggs_(pair.Key, pair.Value.Item1, pair.Value.Item2, pair.Value.Item3));
+			__db.Aggs.Add(new DB.Aggs_(pair.Key, pair.Value.Item1, pair.Value.Item2, pair.Value.Item3));
 		}
 	}
 
