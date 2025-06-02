@@ -136,7 +136,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					LookupField(m, tables, node);
 					break;
 				case VariableReferenceExpression v:
-					v.Type = ((ScriptVarDeclarationStatement)_file.Vars[v.Name[1..]].Declaration).FieldType;
+					var decl = (ScriptVarDeclarationStatement)_file.Vars[v.Name[1..]].Declaration;
+					v.Type = decl.FieldType;
+					v.ScriptVarName = decl.ScriptName.Name;
 					break;
 				case AggregateExpression ag:
 					LookupField(ag.Args[0], tables, node);
@@ -183,6 +185,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					break;
 				case CastExpression cast:
 					LookupField(cast.Value, tables, node);
+					break;
+				case TryCastExpression tCast:
+					LookupField(tCast.Value, tables, node);
 					break;
 				case IfThenExpression it:
 					LookupField(it.Cond, tables, node);

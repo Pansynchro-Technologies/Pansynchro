@@ -214,7 +214,6 @@ static class Program {
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include=""NMemory"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.Core"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.PanSQL.Core"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.Sources.Files"" Version=""*"" />

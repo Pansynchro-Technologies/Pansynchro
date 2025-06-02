@@ -10,7 +10,7 @@ internal class PureMemoryModel(DataModel model) : MemorySqlModel(model)
 		List<CSharpStatement> methodBody = [.. InvokeCtes(ctes)];
 		var query = BuildLinqExpression(Model);
 		var ctorCall = new CallExpression(new($"new DB.{Model.OutputTable}_"), [.. Model.Outputs.Select(i => new CSharpStringExpression(GetInput(i)))]);
-		var addCall = new CallExpression(new MemberReferenceExpression(new("__db." + Model.OutputTable!), "Insert"), [ctorCall]);
+		var addCall = new CallExpression(new MemberReferenceExpression(new("__db." + Model.OutputTable!), "Add"), [ctorCall]);
 		var loop = new ForeachLoop("__item", query.ToString()!, new([addCall]));
 		methodBody.Add(loop);
 		return new Method("private", methodName.Name, "void", "", methodBody);

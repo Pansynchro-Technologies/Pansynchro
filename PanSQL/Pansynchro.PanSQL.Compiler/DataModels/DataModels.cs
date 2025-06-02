@@ -80,7 +80,9 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 	}
 
 	class VariableReferenceExpression(string name) : ReferenceExpression(name)
-	{ }
+	{
+		public string ScriptVarName { get; set; } = null!;
+	}
 
 	class StarExpression(ReferenceExpression? table) : DbExpression
 	{
@@ -106,6 +108,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public DbExpression[] Args { get; } = args;
 
 		public bool IsProp { get; internal set; }
+		public bool IsStaticProp { get; internal set; }
 		public Func<DbExpression[], Func<DbExpression, string>?, string>? SpecialCodegen { get; internal set; }
 
 		internal override bool Match(DbExpression other)
@@ -146,13 +149,6 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			=> other is BooleanExpression be && be.Op == Op && be.Left.Match(Left) && be.Right.Match(Right);
 
 		public override string ToString() => $"{Left} {OpString} {Right}";
-	}
-
-	class IsNullExpression(DbExpression value) : DbExpression
-	{
-		public DbExpression Value { get; } = value;
-
-		internal override bool Match(DbExpression other) => other is IsNullExpression i && i.Value.Match(Value);
 	}
 
 	enum UnaryExpressionType
@@ -220,6 +216,15 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public override string ToString() => $"{Left} {OpString} {Right}";
 	}
 
+	class IsNullExpression(DbExpression value) : DbExpression
+	{
+		public DbExpression Value { get; } = value;
+
+		internal override bool Match(DbExpression other) => other is IsNullExpression i && i.Value.Match(Value);
+
+		public override string ToString() => $"{Value} == null";
+	}
+
 	class LikeExpression(DbExpression left, DbExpression right) : DbExpression
 	{
 		public DbExpression Left { get; } = left;
@@ -284,6 +289,57 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		internal override bool Match(DbExpression other)
 		{
 			throw new NotImplementedException();
+		}
+
+		public override string ToString() => $"(({TypesHelper.FieldTypeToCSharpType(Type!)}){Value})";
+	}
+
+	class TryCastExpression : DbExpression
+	{
+		public TryCastExpression(DbExpression value, IFieldType type)
+		{
+			Value = value;
+			Type = type;
+		}
+
+		public DbExpression Value { get; }
+
+		internal override bool Match(DbExpression other)
+		{
+			throw new NotImplementedException();
+		}
+
+		public override string ToString()
+		{
+			var suffix = TypesHelper.IsReferenceType(Type!) ? 'R' : 'V';
+			return $"SqlFunctions.TryCast{suffix}<{TypesHelper.FieldTypeToCSharpType(Type!).TrimEnd('?')}, {TypesHelper.FieldTypeToCSharpType(Value.Type!).TrimEnd('?')}>({Value})";
+		}
+	}
+
+	class ParseExpression : DbExpression
+	{
+		public ParseExpression(DbExpression value, IFieldType type, bool isTry)
+		{
+			Value = value;
+			Type = isTry ? type.MakeNull() : type;
+			IsTry = isTry;
+		}
+
+		public DbExpression Value { get; }
+
+		public bool IsTry { get; }
+
+		internal override bool Match(DbExpression other)
+		{
+			throw new NotImplementedException();
+		}
+
+		public override string ToString()
+		{
+			var suffix = TypesHelper.IsReferenceType(Type) ? 'R' : 'V';
+			return IsTry
+			? $"SqlFunctions.TryParse{suffix}<{TypesHelper.FieldTypeToCSharpType(Type!).TrimEnd('?')}>({Value})"
+			: $"{TypesHelper.FieldTypeToCSharpType(Type!).TrimEnd('?')}>.TryParse{suffix}({Value})";
 		}
 	}
 

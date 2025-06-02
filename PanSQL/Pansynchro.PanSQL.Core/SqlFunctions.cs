@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json.Nodes;
+
+using Json.Path;
 
 namespace Pansynchro.PanSQL.Core
 {
@@ -38,5 +41,49 @@ namespace Pansynchro.PanSQL.Core
 		}
 
 		public static JsonNode HttpQueryJson(string url) => JsonNode.Parse(HttpQuery(url))!;
+
+		private static Dictionary<string, JsonPath> _paths = [];
+
+		public static string? JsonValue(JsonNode value, string path)
+		{
+			if (!_paths.TryGetValue(path, out var pathObj)) {
+				pathObj = JsonPath.Parse(path);
+				_paths[path] = pathObj;
+			}
+			try {
+				var result = pathObj.Evaluate(value);
+				return result.Matches.TryGetSingleValue(out var node) ? (string?)node : null;
+			} catch {
+				return null;
+			}
+		}
+
+		public static string StrLeft(string value, int length) => value[..length];
+
+		public static string StrRight(string value, int length) => value[^length..];
+
+		public static T? TryCastV<T, U>(U value) where T: struct
+		{
+			try {
+				return (T)Convert.ChangeType(value, typeof(T))!;
+			} catch { 
+				return null;
+			}
+		}
+
+		public static T? TryCastR<T, U>(U value) where T : class
+		{
+			try {
+				return (T)Convert.ChangeType(value, typeof(T))!;
+			} catch {
+				return null;
+			}
+		}
+
+		public static T? TryParseV<T>(string value) where T : struct, IParsable<T>
+			=> T.TryParse(value, null, out var result) ? result : null;
+
+		public static T? TryParseR<T>(string value) where T : class, IParsable<T>
+			=> T.TryParse(value, null, out var result) ? result : null;
 	}
 }

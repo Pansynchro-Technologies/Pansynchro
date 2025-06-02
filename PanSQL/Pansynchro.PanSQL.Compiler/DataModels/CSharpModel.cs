@@ -102,13 +102,13 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		private static void SerializeField(StringBuilder sb, int indent, DataFieldModel field)
 		{
 			sb.Append('\t', indent);
-			sb.Append(field.IsProp ? "public " : "private ");
-			if (field.IsReadonly) {
+			sb.Append(field.IsProp || field.IsPublic ? "public " : "private ");
+			if (field.IsReadonly && !field.IsProp) {
 				sb.Append("readonly ");
 			}
 			sb.Append($"{field.Type} {field.Name}");
 			if (field.IsProp) {
-				sb.Append(" { get; }");
+				sb.Append(field.IsReadonly ? " { get; }" : " { get; set; }");
 			}
 			if (field.Initializer != null) {
 				sb.Append($" = {field.Initializer};");

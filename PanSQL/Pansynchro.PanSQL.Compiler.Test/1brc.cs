@@ -55,12 +55,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Aggs_ {
 			public string Name { get; }
 			public float MinTemp { get; }
@@ -75,13 +71,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Aggs_> Aggs { get; }
-		public IUniqueIndex<Aggs_, string> Aggs__Name { get; }
+		public List<Aggs_> Aggs { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Aggs = Tables.Create<Aggs_, string>(t => t.Name);
-			Aggs__Name = (IUniqueIndex<Aggs_, string>)Aggs.PrimaryKeyIndex;
+			Aggs = [];
 		}
 	}
 

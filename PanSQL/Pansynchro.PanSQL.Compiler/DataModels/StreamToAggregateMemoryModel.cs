@@ -52,7 +52,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			if (Model.AggFilter != null) {
 				forBody.Add(WriteHavingClause(Model.AggFilter));
 			}
-			forBody.Add(new CSharpStringExpression($"__db.{tableName}.Insert(new DB.{tableName}_(pair.Key, {arglist}))"));
+			forBody.Add(new CSharpStringExpression($"__db.{tableName}.Add(new DB.{tableName}_(pair.Key, {arglist}))"));
 			methodBody.Add(new ForeachLoop("pair", GetAggIterator(Model.AggOutputs, aggs), forBody));
 			return new Method("private", methodName.Name, "void", "IDataReader r", methodBody);
 		}

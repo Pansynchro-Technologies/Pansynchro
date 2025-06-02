@@ -28,6 +28,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal Dictionary<string, string> Mappings { get; set; } = null!;
 		internal NullableDictionary<string, string> NsMappings { get; set; } = null!;
 		internal Dictionary<Variable, string> Transformers { get; } = [];
+		internal Dictionary<Variable, string> Consumers { get; } = [];
 		internal Dictionary<Variable, string> Producers { get; } = [];
 		internal List<DataClassModel> Database { get; } = [];
 		internal Dictionary<string, TypeDefinition> Types { get; } = [];

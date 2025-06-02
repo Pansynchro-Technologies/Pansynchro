@@ -1,13 +1,16 @@
-﻿using Microsoft.SqlServer.TransactSql.ScriptDom;
+﻿using System;
+using System.CodeDom;
+using System.Collections.Generic;
+using System.Linq;
+
+using Microsoft.SqlServer.TransactSql.ScriptDom;
+
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Helpers;
-using System;
-using System.CodeDom;
-using System.Collections.Generic;
-using System.Linq;
+
 using BinaryExpression = Pansynchro.PanSQL.Compiler.DataModels.BinaryExpression;
 using BooleanExpression = Pansynchro.PanSQL.Compiler.DataModels.BooleanExpression;
 using Identifier = Microsoft.SqlServer.TransactSql.ScriptDom.Identifier;
@@ -291,9 +294,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 #endif
 			}
 
+			private bool _inList;
+
 			public void Finish()
 			{
-				if (_stack.Count > 0) throw new NotImplementedException("Unimplemented SQL operation detected");
+				if (_stack.Count > 0 && !_inList) throw new NotImplementedException("Unimplemented SQL operation detected");
 			}
 
 			private static AggregateExpression CheckAggExpression(string name, DbExpression[]? args)
@@ -396,6 +401,16 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_stack.Push(new VariableReferenceExpression(refName));
 			}
 
+			public override void ExplicitVisit(TryCastCall codeObject)
+			{
+				var value = VisitValue(codeObject.Parameter);
+				var typeName = codeObject.DataType.Name.BaseIdentifier.Value;
+				if (!Enum.TryParse<TypeTag>(typeName, out var type)) {
+					throw new Exception("Unknown data type: " + typeName);
+				}
+				_stack.Push(new TryCastExpression(value, new BasicField(type, true, null, false)));
+			}
+
 			public override void ExplicitVisit(CastCall codeObject)
 			{
 				var value = VisitValue(codeObject.Parameter);
@@ -429,9 +444,19 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_stack.Push(new CallExpression(new ReferenceExpression(name), []));
 			}
 
+			private DbExpression[] VisitList(IList<ScalarExpression>? list)
+			{
+				var oldList = _inList;
+				_inList = true;
+				var args = list?.Select(VisitValue).ToArray() ?? [];
+				_inList = oldList;
+				Finish();
+				return args;
+			}
+
 			public override void ExplicitVisit(FunctionCall codeObject)
 			{
-				var args = codeObject.Parameters?.Select(VisitValue).ToArray() ?? [];
+				var args = VisitList(codeObject.Parameters);
 				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(codeObject.FunctionName.Value.ToLower().ToPropertyName())) {
 					_stack.Push(CheckAggExpression(codeObject.FunctionName.Value, args));
 					return;
@@ -446,6 +471,24 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					args = args.Length == 1 ? [args[0], new NullLiteralExpression(), type] : [..args, type];
 				}
 				_stack.Push(new CallExpression(new ReferenceExpression(name), args));
+			}
+
+			public override void ExplicitVisit(LeftFunctionCall node)
+			{
+				var args = VisitList(node.Parameters);
+				if (args.Length != 2) {
+					throw new Exception("LEFT requires two arguments");
+				}
+				_stack.Push(new CallExpression(new("LEFT"), args));
+			}
+
+			public override void ExplicitVisit(RightFunctionCall node)
+			{
+				var args = VisitList(node.Parameters);
+				if (args.Length != 2) {
+					throw new Exception("RIGHT requires two arguments");
+				}
+				_stack.Push(new CallExpression(new("RIGHT"), args));
 			}
 
 			public override void ExplicitVisit(InPredicate codeObject)

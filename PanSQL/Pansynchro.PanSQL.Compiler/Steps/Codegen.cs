@@ -37,11 +37,6 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			"Pansynchro.PanSQL.Core",
 			new ("Pansynchro.PanSQL.Core.Credentials", true)];
 
-		private static readonly ImportModel[] USING_DB = [
-			"NMemory",
-			"NMemory.Tables",
-			"NMemory.Indexes"];
-
 		private const string CSPROJ = @"<Project Sdk=""Microsoft.NET.Sdk"">
 
 	<PropertyGroup>
@@ -53,7 +48,6 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include=""NMemory"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.Core"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.PanSQL.Core"" Version=""*"" />
 		{0}
@@ -87,9 +81,6 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnFile(PanSqlFile node)
 		{
 			_imports.AddRange(USING_BLOCK);
-			if (node.Database.Count > 0) {
-				_imports.AddRange(USING_DB);
-			}
 			_transformer = _file.Mappings.Count != 0 || _file.NsMappings.Count != 0 || _file.Lines.OfType<SqlTransformStatement>().Any();
 			var classes = new List<ClassModel>();
 			if (_transformer) {
@@ -102,20 +93,20 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 			var args = _scriptVars.Count > 0 ? "string[] args" : null;
 			var main = new Method("public static async", "Main", "Task", args, _mainBody);
-			classes.Add(new("static", "Program", null, null, [], [main]));
+			classes.Add(new("static", "Program", null, null, [.. _scriptVarFields], [main]));
 			var result = new FileModel(SortImports().ToArray(), [.. classes]);
 			Output.SetFile(result);
 		}
+
+		private List<DataFieldModel> _scriptVarFields = [];
 
 		private void WriteScriptVarInit()
 		{
 			for (int i = _scriptVars.Count - 1; i >= 0; --i) {
 				var sVar = _scriptVars[i];
-				var decl = $"{TypesHelper.FieldTypeToCSharpType(sVar.FieldType)} {sVar.ScriptName}";
-				if (sVar.Expr != null) {
-					decl = $"{decl} = {sVar.Expr}";
-				}
-				_mainBody.Insert(0, new ExpressionStatement(new CSharpStringExpression(decl)));
+				var name = sVar.ScriptName.ToString();
+				var type = "static " + TypesHelper.FieldTypeToCSharpType(sVar.FieldType);
+				_scriptVarFields.Add(new DataFieldModel(name, type, sVar.Expr?.ToString(), IsPublic: true));
 			}
 			var required = _scriptVars.Any(sv => sv.Expr == null);
 			var initializer = $"new VariableReader(args, {required.ToString().ToLowerInvariant()})";
@@ -157,6 +148,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			foreach (var tf in _file.Transformers) {
 				var tableName = VariableHelper.GetStream(_file.Vars[tf.Key.Name]).Name.ToString();
 				body.Add(new CSharpStringExpression($"_streamDict.Add({tableName.ToLiteral()}, {tf.Value})"));
+			}
+			foreach (var cn in _file.Consumers) {
+				var tableName = VariableHelper.GetStream(_file.Vars[cn.Key.Name]).Name.ToString();
+				body.Add(new CSharpStringExpression($"_consumers.Add({tableName.ToLiteral()}, {cn.Value})"));
 			}
 			foreach (var pr in _file.Producers) {
 				var tableName = VariableHelper.GetStream(_file.Vars[pr.Key.Name]).Name.ToString();
@@ -220,12 +215,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (_file.Producers.Count > 0) {
 				outerFields.Add(new("_producers", "readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)>", "new()"));
 			}
-			return new ClassModel("private", "DB", "Database", subclasses, [.. fields], [ctor]);
+			return new ClassModel("private", "DB", null, subclasses, [.. fields], [ctor]);
 		}
 
 		private static Method GenerateDatabaseConstructor(List<DataClassModel> database)
 		{
-			var body = new List<CSharpStatement> { new CSharpStringExpression("NMemory.NMemoryManager.DisableObjectCloning = true") };
+			var body = new List<CSharpStatement>();
 			foreach (var model in database) {
 				GenerateModelConstruction(model, body);
 			}
@@ -234,8 +229,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private static void GenerateModelConstruction(DataClassModel model, List<CSharpStatement> body)
 		{
-			body.Add(new CSharpStringExpression($"{model.Name[..^1]} = Tables.Create<{model.Name}, {TypesHelper.ModelIdentityType(model)}>(t => {TypesHelper.ModelIdentityFields(model, "t")})"));
-			body.Add(new CSharpStringExpression($"{model.Name}{TypesHelper.ModelIdentityName(model)} = (IUniqueIndex<{model.Name}, {TypesHelper.ModelIdentityType(model)}>){model.Name[..^1]}.PrimaryKeyIndex"));
+			body.Add(new CSharpStringExpression($"{model.Name[..^1]} = []"));
 		}
 
 		private static ClassModel GenerateModelClass(DataClassModel model, List<DataFieldModel> outerFields)
@@ -248,8 +242,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 			var ctorArgs = model.FieldConstructor ? BuildFieldConstructorArgs(fields) : "IDataReader r";
 			var ctor = new Method("public", model.Name, "", ctorArgs, lines, true);
-			outerFields.Add(new(model.Name[..^1], $"ITable<{model.Name}>", null, true));
-			outerFields.Add(new($"{model.Name}{TypesHelper.ModelIdentityName(model)}", $"IUniqueIndex<{model.Name}, {TypesHelper.ModelIdentityType(model)}>", null, true));
+			outerFields.Add(new(model.Name[..^1], $"List<{model.Name}>", null, true));
 			return new ClassModel("public", model.Name, null, null, fields, [ctor]);
 		}
 
@@ -327,7 +320,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				ctes[cte.Name] = script.Name;
 			}
 			var method = node.DataModel.GetScript(CodeBuilder, node.Indices, imports, ctes);
-			if (_file.Transformers.ContainsKey(node.Tables[0])) {
+			if (_file.Transformers.ContainsKey(node.Tables[0]) || _file.Consumers.ContainsKey(node.Tables[0])) {
 				_file.Producers.Add(node.Tables[0], method.Name);
 			} else {
 				var table = VariableHelper.GetInputStream(node, _file);
@@ -341,14 +334,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private Method? GetVarScript(VarDeclaration decl)
 		{
 			if (decl.Type == VarDeclarationType.Table && decl.Stream != null) {
-				var methodName = CodeBuilder.NewNameReference("Transformer");
-				_file.Transformers.Add(_file.Vars[decl.Name], methodName.Name);
+				var methodName = CodeBuilder.NewNameReference("Consumer");
+				_file.Consumers.Add(_file.Vars[decl.Name], methodName.Name);
 				var tableName = decl.Stream.Name.ToTableName();
 				var body = new List<CSharpStatement>();
-				var loopBody = new List<CSharpStatement>() { new CSharpStringExpression($"__db.{tableName}.Insert(new DB.{tableName}_(r))") };
+				var loopBody = new List<CSharpStatement>() { new CSharpStringExpression($"__db.{tableName}.Add(new DB.{tableName}_(r))") };
 				body.Add(new WhileLoop(new CSharpStringExpression("r.Read()"), loopBody));
-				body.Add(new YieldBreak());
-				return new Method("private", methodName.Name, "IEnumerable<object?[]>", "IDataReader r", body);
+				return new Method("private", methodName.Name, "void", "IDataReader r", body);
 			}
 			return null;
 		}

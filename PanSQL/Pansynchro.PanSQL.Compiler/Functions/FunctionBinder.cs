@@ -23,10 +23,14 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			_methods.Add("format", typeof(string).GetMethod("Format", [typeof(string), typeof(object[])])!);
 			_methods.Add("HttpQuery", typeof(SqlFunctions).GetMethod("HttpQuery")!);
 			_methods.Add("HttpQueryJson", typeof(SqlFunctions).GetMethod("HttpQueryJson")!);
+			_methods.Add("JSON_VALUE", typeof(SqlFunctions).GetMethod("JsonValue")!);
+			_methods.Add("LEFT", typeof(SqlFunctions).GetMethod("StrLeft")!);
+			_methods.Add("RIGHT", typeof(SqlFunctions).GetMethod("StrRight")!);
 			_props.Add("CurrentTimestamp", typeof(DateTime).GetProperty("Now")!);
 			_props.Add("getdate", _props["CurrentTimestamp"]);
 			_props.Add("getutcdate", typeof(DateTime).GetProperty("UtcNow")!);
 			_props.Add("pi", typeof(Math).GetProperty("PI")!);
+			_props.Add("len", typeof(string).GetProperty("Length")!);
 		}
 
 		internal static void Bind(FunctionCallExpression node)
@@ -98,11 +102,20 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 
 		private static void BindProp(CallExpression call, PropertyInfo prop, Node parent)
 		{
-			if (call.Args.Length > 0) {
-				throw new CompilerError($"Function '{call.Function}' does not take any arguments", parent);
+			var isStatic = prop.GetMethod!.IsStatic;
+			if (isStatic) {
+				if (call.Args.Length > 0) {
+					throw new CompilerError($"Function '{call.Function}' does not take any arguments", parent);
+				}
+				call.IsStaticProp = true;
+				call.Function = new ReferenceExpression($"{prop.DeclaringType!.Name}.{prop.Name}");
+			} else {
+				if (call.Args.Length != 1) {
+					throw new CompilerError($"Function '{call.Function}' takes one argument", parent);
+				}
+				call.IsProp = true;
+				call.Function = new ReferenceExpression(prop.Name);
 			}
-			call.IsProp = true;
-			call.Function = new ReferenceExpression($"{prop.DeclaringType!.Name}.{prop.Name}");
 			call.Type = TypesHelper.CSharpTypeToFieldType(prop.PropertyType);
 		}
 

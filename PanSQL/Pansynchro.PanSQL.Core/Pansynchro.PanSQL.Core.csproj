@@ -6,7 +6,7 @@
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<AssemblyVersion>0.3.0</AssemblyVersion>
 		<FileVersion>0.3.0</FileVersion>
-		<Version>0.3.0-experimental-v1</Version>
+		<Version>0.3.0-experimental-v2</Version>
 		<Authors>Pansynchro Technologies</Authors>
 		<Product>PanSQL core runtime</Product>
 		<Description>Supports data pipelines built with PanSQL</Description>
@@ -22,6 +22,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="JsonPath.Net" Version="2.1.1" />
 		<PackageReference Include="Pansynchro.Core" Version="0.7.0-experimental-v1" />
 		<PackageReference Include="System.IO.Compression" Version="4.3.0" />
 	</ItemGroup>

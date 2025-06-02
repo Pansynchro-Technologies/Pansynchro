@@ -108,12 +108,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class UserTypes_ {
 			public int Id { get; }
 			public string Name { get; }
@@ -142,17 +138,12 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<UserTypes_> UserTypes { get; }
-		public IUniqueIndex<UserTypes_, int> UserTypes__Id { get; }
-		public ITable<Users_> Users { get; }
-		public IUniqueIndex<Users_, int> Users__Id { get; }
+		public List<UserTypes_> UserTypes { get; }
+		public List<Users_> Users { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			UserTypes = Tables.Create<UserTypes_, int>(t => t.Id);
-			UserTypes__Id = (IUniqueIndex<UserTypes_, int>)UserTypes.PrimaryKeyIndex;
-			Users = Tables.Create<Users_, int>(t => t.Id);
-			Users__Id = (IUniqueIndex<Users_, int>)Users.PrimaryKeyIndex;
+			UserTypes = [];
+			Users = [];
 		}
 	}
 
@@ -258,12 +249,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -278,13 +265,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -379,12 +363,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -399,13 +379,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -500,12 +477,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -520,13 +493,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -624,12 +594,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -644,13 +610,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -749,12 +712,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -769,13 +728,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -874,12 +830,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -894,13 +846,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -1001,12 +950,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -1021,13 +966,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 
@@ -1132,12 +1074,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Users_ {
 			public int Id { get; }
 			public string Name { get; }
@@ -1156,13 +1094,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Users_> Users { get; }
-		public IUniqueIndex<Users_, int> Users__Id { get; }
+		public List<Users_> Users { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Users = Tables.Create<Users_, int>(t => t.Id);
-			Users__Id = (IUniqueIndex<Users_, int>)Users.PrimaryKeyIndex;
+			Users = [];
 		}
 	}
 
@@ -1259,12 +1194,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -1279,13 +1210,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<Products_> Products { get; }
-		public IUniqueIndex<Products_, int> Products__Id { get; }
+		public List<Products_> Products { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			Products = Tables.Create<Products_, int>(t => t.Id);
-			Products__Id = (IUniqueIndex<Products_, int>)Products.PrimaryKeyIndex;
+			Products = [];
 		}
 	}
 

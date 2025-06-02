@@ -303,5 +303,15 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 			};
 
 		}
+
+		internal static bool IsReferenceType(IFieldType type)
+		{
+			if (type is not BasicField b) {
+				return true;
+			}
+			return b.Type is TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar
+				or TypeTag.Ntext or TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob or TypeTag.Json or TypeTag.Xml
+				or TypeTag.Binary or TypeTag.Blob;
+		}
 	}
 }

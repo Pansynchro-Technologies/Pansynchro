@@ -103,10 +103,14 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			LikeExpression lk => new LikeExpression(GetField(lk.Left), GetField(lk.Right)),
 			ContainsExpression cont => new ContainsExpression(GetField(cont.Collection), GetField(cont.Value)),
 			CallExpression ce => new CallExpression(ce.Function, ce.Args.Select(GetField).ToArray()),
+			CastExpression cast => GetField(cast),
+			TryCastExpression tCast => GetField(tCast),
 			AggregateExpression agg => GetField(agg.Args[0]),
 			OrderingExpression ord => new OrderingExpression(GetField(ord.Expr), ord.Desc),
 			CountExpression => new MemberReferenceExpression(new("__agg__"), "__Count__"),
+			IsNullExpression ine => new IsNullExpression(GetField(ine.Value)),
 			LiteralExpression => expr,
+			VariableReferenceExpression vr => new MemberReferenceExpression(new("Program"), vr.ScriptVarName),
 			_ => throw new NotImplementedException()
 		};
 
@@ -115,7 +119,48 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			var table = r.Parent;
 			var stream = Model.Inputs.First(i => i.Name.Equals(table.Name, StringComparison.InvariantCultureIgnoreCase));
 			var field = stream.Stream.Fields.First(f => f.Name.Equals(r.Name, StringComparison.InvariantCultureIgnoreCase));
-			return new MemberReferenceExpression(new("__" + stream.Name), field.Name);
+			return new MemberReferenceExpression(new("__" + stream.Name), field.Name) { Type = r.Type };
+		}
+
+		protected DbExpression GetField(CastExpression expr)
+		{
+			var type = TypesHelper.FieldTypeToDotNetType(expr.Type!);
+			var fromType = TypesHelper.FieldTypeToDotNetType(expr.Value.Type!);
+			var fromValue = GetField(expr.Value);
+			if (fromType == type) {
+				return fromValue;
+			}
+			if (type.IsArray && type.GetElementType() == fromType) {
+				return GetField(new CollectionExpression([fromValue]));
+			}
+			if (fromType == typeof(string)) {
+				if (type.GetInterfaces()?.Any(i => i.Name.StartsWith("IParsable")) == true) {
+					return new ParseExpression(fromValue, expr.Type!, false);
+				}
+			}
+			return new CastExpression(fromValue, expr.Type!);
+		}
+
+		protected DbExpression GetField(TryCastExpression expr)
+		{
+			var type = TypesHelper.FieldTypeToDotNetType(expr.Type!);
+			var fromType = TypesHelper.FieldTypeToDotNetType(expr.Value.Type!);
+			var fromValue = GetField(expr.Value);
+			if (fromType == type) {
+				return fromValue;
+			}
+			if (type.IsArray && type.GetElementType() == fromType) {
+				return GetField(new CollectionExpression([fromValue]));
+			}
+			if (expr.Type!.Nullable && !TypesHelper.IsReferenceType(expr.Type)) {
+				type = Nullable.GetUnderlyingType(type);
+			}
+			if (fromType == typeof(string)) {
+				if (type.GetInterfaces()?.Any(i => i.Name.StartsWith("IParsable")) == true) {
+					return new ParseExpression(fromValue, expr.Type!, true);
+				}
+			}
+			return new TryCastExpression(fromValue, expr.Type!);
 		}
 
 		protected void GetFields(DbExpression expr, HashSet<DbExpression> fields)
@@ -162,6 +207,34 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			}
 			return true;
 		}
+
+		private string SpecialCodegen(CallExpression call)
+		{
+			var result = call.SpecialCodegen!(call.Args, GetInput);
+			if (result.Contains("System.DBNull.Value")) {
+				result = result.Replace("System.DBNull.Value", "null");
+			}
+			if (result.Contains("?.")) {
+				result = $"((object)({result.Replace(" ?? null", "").Replace("(object)", "")}) ?? System.DBNull.Value)";
+			}
+			return result;
+		}
+
+		protected string GetInput(DbExpression[] args) => string.Join(", ", args.Select(GetInput));
+
+		protected string GetInput(CallExpression call)
+		{
+			if (call.SpecialCodegen != null) {
+				return SpecialCodegen(call);
+			}
+			if (call.IsStaticProp) {
+				return call.Function.ToString();
+			}
+			if (call.IsProp) {
+				return $"{GetInput(call.Args[0])}.{call.Function}";
+			}
+			return $"{call.Function}({GetInput(call.Args)})";
+		}
 	}
 
 	abstract class StreamedSqlModel(DataModel model) : SqlModel(model)
@@ -207,26 +280,12 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			ContainsExpression con => $"{GetInput(con.Collection)}.Contains({GetInput(con.Value)})",
 			LiteralExpression => expr.ToString()!,
 			AggregateExpression ag => GetInput(ag.Args),
-			CallExpression call => call.SpecialCodegen != null ? SpecialCodegen(call) : call.IsProp ? call.Function.ToString() : $"{call.Function}({GetInput(call.Args)})",
+			CallExpression call => GetInput(call),
 			CastExpression cast => GetInput(cast),
 			IfExpression ie => GetInput(ie),
 			VariableReferenceExpression => expr.ToString()!,
 			_ => throw new NotImplementedException()
 		};
-
-		private string SpecialCodegen(CallExpression call)
-		{
-			var result = call.SpecialCodegen!(call.Args, GetInput);
-			if (result.Contains("System.DBNull.Value")) {
-				result = result.Replace("System.DBNull.Value", "null");
-			}
-			if (result.Contains("?.")) {
-				result = $"((object)({result.Replace(" ?? null", "").Replace("(object)", "")}) ?? System.DBNull.Value)";
-			}
-			return result;
-		}
-
-		protected string GetInput(DbExpression[] args) => string.Join(", ", args.Select(GetInput));
 
 		protected string GetInput(CastExpression cast)
 		{
@@ -349,8 +408,9 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 				MemberReferenceExpression mre => GetMreInput(mre),
 				AliasedExpression ae => GetAliasedInput(ae),
 				AggregateExpression ag => GetInput(ag.Args),
-				CallExpression ce => $"{ce.Function}({GetInput(ce.Args)})",
+				CallExpression ce => base.GetInput(ce),
 				BinaryExpression bin => $"{GetInput(bin.Left)} {bin.OpString} {GetInput(bin.Right)}",
+				VariableReferenceExpression vr => "Program." + vr.ScriptVarName,
 				LiteralExpression => expr.ToString()!,
 				_ => throw new NotImplementedException()
 			};
@@ -367,7 +427,8 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			_ => throw new NotImplementedException()
 		};
 
-		private static string GetAliasedInput(AliasedExpression ae) => "__item." + ae.Alias;
+		private string GetAliasedInput(AliasedExpression ae)
+			=> ae.Expr is ReferenceExpression ? "__item." + ae.Alias : GetInput(ae.Expr);
 
 		private string GetMreInput(MemberReferenceExpression mre)
 		{

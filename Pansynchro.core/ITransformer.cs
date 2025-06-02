@@ -17,6 +17,8 @@ namespace Pansynchro.Core
 	{
 		protected Dictionary<string, Func<IDataReader, IEnumerable<object[]>>> _streamDict
 			= new(System.StringComparer.InvariantCultureIgnoreCase);
+		protected Dictionary<string, Action<IDataReader>> _consumers 
+			= new(System.StringComparer.InvariantCultureIgnoreCase);
 		protected Dictionary<StreamDescription, StreamDescription> _nameMap = new();
 		private Dictionary<string, string?> _nsMap = new();
 		private string? _nullNsMap;
@@ -40,9 +42,7 @@ namespace Pansynchro.Core
 		}
 
 		protected virtual Func<IDataReader, IEnumerable<object[]>>? GetProcessor(DataStream stream)
-		{
-			return _streamDict.TryGetValue(stream.Name.ToString(), out var processor) ? processor : null;
-		}
+			=> _streamDict.TryGetValue(stream.Name.ToString(), out var processor) ? processor : null;
 
 		public async IAsyncEnumerable<DataStream> Transform(IAsyncEnumerable<DataStream> input)
 		{
@@ -70,6 +70,9 @@ namespace Pansynchro.Core
 						EventLog.Instance.AddTransformerMatchStreamEvent(this, stream.Name);
 						result = stream.Transformed(processor, destStream);
 					}
+				} else if (_consumers.TryGetValue(stream.Name.ToString(), out var consumer)) {
+					consumer(stream.Reader);
+					continue;
 				} else {
 					result = stream;
 				}

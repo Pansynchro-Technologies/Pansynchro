@@ -149,12 +149,8 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
-using NMemory;
-using NMemory.Indexes;
-using NMemory.Tables;
-
 class Sync : StreamTransformerBase {
-	private class DB : Database {
+	private class DB {
 		public class UserTypes_ {
 			public int Id { get; }
 			public string Name { get; }
@@ -165,13 +161,10 @@ class Sync : StreamTransformerBase {
 			}
 		}
 
-		public ITable<UserTypes_> UserTypes { get; }
-		public IUniqueIndex<UserTypes_, int> UserTypes__Id { get; }
+		public List<UserTypes_> UserTypes { get; }
 
 		public DB() {
-			NMemory.NMemoryManager.DisableObjectCloning = true;
-			UserTypes = Tables.Create<UserTypes_, int>(t => t.Id);
-			UserTypes__Id = (IUniqueIndex<UserTypes_, int>)UserTypes.PrimaryKeyIndex;
+			UserTypes = [];
 		}
 	}
 
@@ -230,7 +223,6 @@ static class Program {
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include=""NMemory"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.Core"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.PanSQL.Core"" Version=""*"" />
 		<PackageReference Include=""Pansynchro.Connectors.MSSQL"" Version=""*"" />
