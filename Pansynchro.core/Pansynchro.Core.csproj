@@ -6,7 +6,7 @@
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	<AssemblyVersion>0.7.0.0</AssemblyVersion>
 	<FileVersion>0.7.0.0</FileVersion>
-	<Version>0.7.0-experimental-v2</Version>
+	<Version>0.7.0-experimental-v3</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Reworking the type system to be more expressive
+		Exposing ConnectorRegistry.ProcessorTypes
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>

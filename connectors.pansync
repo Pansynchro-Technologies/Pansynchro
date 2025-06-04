@@ -66,6 +66,10 @@ Connectors:
 		supports Writer
 		assembly Pansynchro.Connectors.Debug
 
+	Connector FileSystem:
+		supports Analyzer, Reader, Configurator
+		assembly Pansynchro.Connectors.FileSystem
+
 DataSources:
 	Source Http:
 		Assembly Pansynchro.Sources.Http

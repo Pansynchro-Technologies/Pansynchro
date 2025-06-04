@@ -27,12 +27,14 @@ namespace Pansynchro.Sources.Files
 		private readonly SaveFileConfig _config;
 		private readonly KeyValuePair<Glob, string>[] _files;
 
+		private static readonly GlobOptions _globOptions = new GlobOptions() { Evaluation = new EvaluationOptions() { CaseInsensitive = true } };
+
 		public FileDataSink(string config)
 		{
 			_config = JsonConvert.DeserializeObject<SaveFileConfig>(config)
 				?? throw new ArgumentException("FileDataSink config is invalid");
 			_files = _config.Files
-				.Select(s => KeyValuePair.Create(Glob.Parse(s.StreamName), s.Filename))
+				.Select(s => KeyValuePair.Create(Glob.Parse(s.StreamName, _globOptions), s.Filename))
 				.ToArray();
 		}
 

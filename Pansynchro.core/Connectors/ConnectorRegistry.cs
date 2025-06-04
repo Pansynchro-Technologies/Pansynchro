@@ -45,6 +45,8 @@ namespace Pansynchro.Core.Connectors
 
 		public static IEnumerable<string> DataSinkTypes => _sourceLoaders.Where(kv => kv.Value.HasSink).Select(kv => kv.Key);
 
+		public static IEnumerable<string> ProcessorTypes => _procLoaders.Select(kv => kv.Key); 
+
 		public static void LoadConnectors(IEnumerable<ConnectorDescription> connectors)
 		{
 			foreach (var conn in connectors) {
