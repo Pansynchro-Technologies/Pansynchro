@@ -97,3 +97,6 @@ DataProcessors:
 
 	Source Gzip:
 		Assembly Pansynchro.Sources.Compression
+
+	Source Zipfile:
+		Assembly Pansynchro.Sources.Compression
