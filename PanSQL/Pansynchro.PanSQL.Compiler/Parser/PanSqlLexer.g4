@@ -1,12 +1,18 @@
 ﻿lexer grammar PanSqlLexer;
 
+ABORT : 'abort';
+ALTER : 'alter';
 ANALYZE : 'analyze';
 AS : 'as';
+CALL : 'call';
+CAST : 'cast';
 DECLARE : 'declare';
 EXCLUDE : 'exclude';
+EXISTS : 'exists';
 FALSE : 'false';
 FOR : 'for';
 FROM : 'from';
+IF : 'if';
 INCLUDE : 'include';
 INTO : 'into';
 LOAD : 'load';
@@ -16,8 +22,10 @@ NAMESPACE : 'namespace';
 NULL : 'null';
 OPEN : 'open';
 OPTIMIZE : 'optimize';
+PROCESS : 'process';
 SAVE : 'save';
 SELECT : 'select';
+SET : 'set'; 
 SINK : 'sink';
 SOURCE : 'source';
 STREAM : 'stream';
@@ -52,7 +60,7 @@ IDENTIFIER
 	;
 
 NUMBER
-	: DIGIT+ ~[.Ee]
+	: DIGIT+ { InputStream.LA(1) is not '.' or 'E' or 'e' }?
 	;
 
 fragment

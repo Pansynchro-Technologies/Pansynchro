@@ -1,34 +1,35 @@
-﻿using System;
+﻿using Antlr4.Runtime;
+using Antlr4.Runtime.Misc;
+using Antlr4.Runtime.Tree;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
+using Pansynchro.Core.Helpers;
+using Pansynchro.PanSQL.Compiler.Ast;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-
-using Antlr4.Runtime.Misc;
-using Antlr4.Runtime.Tree;
-
-using Microsoft.SqlServer.TransactSql.ScriptDom;
-
-using Pansynchro.Core.Helpers;
-using Pansynchro.PanSQL.Compiler.Ast;
-
 using Identifier = Pansynchro.PanSQL.Compiler.Ast.Identifier;
 
 namespace Pansynchro.PanSQL.Compiler.Parser
 {
 	internal class PanSqlParserVisitor : PanSqlParserBaseVisitor<Node>, IPanSqlParserVisitor<Node>
 	{
-		public override Node VisitId([NotNull] PanSqlParser.IdContext context)
+		private readonly CommonTokenStream _cts;
+
+		public PanSqlParserVisitor(CommonTokenStream cts)
 		{
-			throw new NotImplementedException();
+			_cts = cts;
 		}
+
+		public override Identifier VisitId([NotNull] PanSqlParser.IdContext context) => new Identifier(context.GetText());
 
 		public override Node VisitCompoundId([NotNull] PanSqlParser.CompoundIdContext context)
 		{
 			var parent = context.IDENTIFIER(0).GetText();
 			var name = string.Join('.', context.IDENTIFIER().Skip(1).Select(i => i.GetText()));
-			return new CompoundIdentifier(parent, name);
+			return new CompoundIdentifier(new Identifier(parent), name);
 		}
 
 		Node IPanSqlParserVisitor<Node>.VisitCompoundId(PanSqlParser.CompoundIdContext context)
@@ -38,10 +39,16 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 
 		Node IPanSqlParserVisitor<Node>.VisitFunctionCall(PanSqlParser.FunctionCallContext context)
 		{
-			var type = context.id().GetText();
-			var values = context.argList().expression()?.Select(VisitExpression).WhereNotNull().ToArray()
-				?? Array.Empty<Expression>();
-			return new FunctionCallExpression(type, values);
+			int startIdx = context.Start.TokenIndex;
+			int stopIdx = context.Stop.TokenIndex;
+			var list = _cts.GetTokens(startIdx, stopIdx);
+			var text = string.Concat(list.Select(t => t.Text));
+			using var reader = new StringReader(text);
+			var parsed = new TSql170Parser(false, SqlEngineType.Standalone).ParseExpression(reader, out var errors);
+			if (errors?.Count > 0) {
+				throw new Exception(errors[0].Message);
+			}
+			return new TSqlExpression(parsed);
 		}
 
 		public override Expression? VisitExpression(PanSqlParser.ExpressionContext context)
@@ -57,6 +64,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var expr = VisitExpression(context.expression());
 			return expr switch {
 				null => throw new Exception("Value should not be null"),
+				TSqlExpression { Expr: FunctionCall { FunctionName.Value: string name, Parameters : [StringLiteral sl] } } => new CredentialExpression(name, new StringLiteralExpression(sl.Value)),
 				FunctionCallExpression { Method: string name, Args : [StringLiteralExpression sl] } => new CredentialExpression(name, sl),
 				TypedExpression te => new CredentialExpression("__direct", te),
 				_ => throw new Exception($"'{expr}' is not a valid credentials value")
@@ -87,6 +95,32 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 		Node IPanSqlParserVisitor<Node>.VisitId(PanSqlParser.IdContext context) => new Identifier(context.GetText());
 
 		private new Statement VisitLine(PanSqlParser.LineContext ctx) => (Statement)Visit(ctx.statement());
+
+		Node IPanSqlParserVisitor<Node>.VisitAlterStatement(PanSqlParser.AlterStatementContext context)
+		{
+			var table = VisitIdElement(context.idElement());
+			var element = VisitId(context.id());
+			var value = VisitExpression(context.expression())!;
+			return new AlterStatement(table, element, value);
+		}
+
+		Node IPanSqlParserVisitor<Node>.VisitCallStatement(PanSqlParser.CallStatementContext context)
+		{
+			var call = (FunctionCallExpression)VisitFunctionCall(context.functionCall());
+			return new CallStatement(call);
+		}
+
+		Node IPanSqlParserVisitor<Node>.VisitReadStatement(PanSqlParser.ReadStatementContext context)
+		{
+			var table = VisitId(context.id());
+			return new ReadStatement(table);
+		}
+
+		Node IPanSqlParserVisitor<Node>.VisitWriteStatement(PanSqlParser.WriteStatementContext context)
+		{
+			var table = VisitId(context.id());
+			return new WriteStatement(table);
+		}
 
 		Node IPanSqlParserVisitor<Node>.VisitLoadStatement(PanSqlParser.LoadStatementContext context)
 		{
@@ -140,9 +174,9 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var ot = Enum.Parse<OpenType>(context.openType().GetText(), true);
 			var dict = ids.Length == 3 ? new Identifier(ids[2].GetText()) : null;
 			var creds = (CredentialExpression)VisitCredentials(context.credentials());
-			var source = context.dataSourceSink();
-			var sourceId = source == null ? null : new Identifier(source.id().GetText());
-			return new OpenStatement(name, connector, ot, dict, creds, sourceId);
+			var sources = context.dataSourceSink();
+			var sourceIds = sources?.Select(source => new Identifier(source.id().GetText())).ToArray();
+			return new OpenStatement(name, connector, ot, dict, creds, sourceIds?.Length > 0 ? sourceIds : null);
 		}
 
 		Node IPanSqlParserVisitor<Node>.VisitOpenType(PanSqlParser.OpenTypeContext context)
@@ -152,15 +186,18 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 
 		Node IPanSqlParserVisitor<Node>.VisitSqlStatement(PanSqlParser.SqlStatementContext context)
 		{
-			var start = context.WITH() != null ? "with" : "select";
-			var sql = start + ' ' + string.Join(' ', context.sqlToken().Select(t => t.GetText())).Replace(" . ", ".").Replace(" , ", ", ").Replace(" @ ", " @");
 			var id = context.id().GetText();
-			var parser = new TSql170Parser(false, SqlEngineType.All);
-			var altSqlNode = parser.Parse(new StringReader(sql), out IList<ParseError> list) as TSqlScript;
+			int startIdx = context.Start.TokenIndex;
+			int stopIdx = context.INTO().Symbol.TokenIndex - 1;
+			var list = _cts.GetTokens(startIdx, stopIdx);
+			var text = string.Concat(list.Select(t => t.Text));
+			using var reader = new StringReader(text);
+			var parser = new TSql170Parser(false, SqlEngineType.Standalone);
+			var altSqlNode = parser.Parse(reader, out IList<ParseError> errors) as TSqlScript;
 			var batches = altSqlNode?.Batches;
-			if (list.Count > 0) {
+			if (errors.Count > 0) {
 				throw new Exception("Error(s) found parsing SQL script:" + Environment.NewLine +
-				                    string.Join(Environment.NewLine, list.Select(e => e.Message)));
+									string.Join(Environment.NewLine, errors.Select(e => e.Message)));
 			}
 			if (batches == null || batches.Count > 1 || batches[0].Statements.Count > 1) {
 				throw new Exception("SQL scripts should only contain one statement at a time");
@@ -182,7 +219,11 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			if (context.compoundId() != null) {
 				return (Expression)VisitCompoundId(context.compoundId());
 			}
-			return new Identifier(context.id().GetText());
+			var text = context.id().GetText();
+			if (text == "CURRENT_TIMESTAMP") { // the only SQL Server niladic function that PanSQL will support
+				return new FunctionCallExpression("CurrentTimestamp", []);
+			}
+			return new Identifier(text);
 		}
 
 		Node IPanSqlParserVisitor<Node>.VisitVarType(PanSqlParser.VarTypeContext context)
@@ -227,25 +268,44 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 		public override Node VisitScriptVarDeclaration(PanSqlParser.ScriptVarDeclarationContext context)
 		{
 			var name = VisitScriptVarRef(context.scriptVarRef());
+			if (name is not ScriptVarExpression sv) {
+				throw new Exception("DECLARE statements cannot declare a variable with a compound name");
+			}
 			var type = VisitScriptVarType(context.scriptVarType());
 			var expr = VisitExpression(context.expression());
-			return new ScriptVarDeclarationStatement(name, type, expr);
+			return new ScriptVarDeclarationStatement(sv, type, expr);
 		}
 
-		public override ScriptVarExpression VisitScriptVarRef(PanSqlParser.ScriptVarRefContext context)
-			=> new(context.IDENTIFIER().GetText());
+		public override Expression VisitScriptVarRef(PanSqlParser.ScriptVarRefContext context)
+		{
+			var ids = context.IDENTIFIER();
+			Expression result = new ScriptVarExpression(ids[0].GetText());
+			for (int i = 1; i < ids.Length; ++i) {
+				var id = ids[i];
+				result = new CompoundIdentifier(result, id.GetText());
+			}
+			return result;
+		}
 
 		public override TypeReferenceExpression VisitScriptVarType(PanSqlParser.ScriptVarTypeContext context)
 		{
 			var name = context.id().GetText();
-			var magnitudeStr = context.scriptVarSize()?.GetText().ToLower();
-			int? magnitude = magnitudeStr switch {
-				null => null,
-				"max" => null,
-				_ => int.Parse(magnitudeStr),
-			};
 			var isArr = context.ARRAY() != null;
-			return new TypeReferenceExpression(name, magnitude, isArr);
+			if (context.scriptVarSize()?.id() != null) {
+				var id = context.scriptVarSize()?.id().GetText()!;
+				if (name.Equals("Record", StringComparison.OrdinalIgnoreCase)) {
+					return new RecordTypeReferenceExpression(id, isArr);
+				}
+				throw new Exception("Named types must be used with the Record() type constructor.");
+			} else {
+				var magnitudeStr = context.scriptVarSize()?.GetText().ToLower();
+				int? magnitude = magnitudeStr switch {
+					null => null,
+					"max" => null,
+					_ => int.Parse(magnitudeStr),
+				};
+				return new TypeReferenceExpression(name, magnitude, isArr);
+			}
 		}
 
 		public override LiteralExpression VisitLiteral(PanSqlParser.LiteralContext context)
@@ -343,6 +403,9 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 						break;
 					case PanSqlParser.ScriptVarRefContext v:
 						ints.Add(KeyValuePair.Create(new JsonIndexing(name), (Expression)Visit(v)));
+						break;
+					case PanSqlParser.FunctionCallContext f:
+						ints.Add(KeyValuePair.Create(new JsonIndexing(name), (Expression)Visit(f)));
 						break;
 					default:
 						obj.Add(name, JsonNode.Parse(pair.jsonValue().GetText()));

@@ -15,6 +15,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 {
 	internal class DefineVars : VisitorCompileStep
 	{
+		public override void OnFile(PanSqlFile node)
+		{
+			_file.Vars.Add("FS_DICT", new Variable("FS_DICT", "Data", new MagicDeclarationStatement("FileSystem")));
+			base.OnFile(node);
+		}
+
 		public override void OnLoadStatement(LoadStatement node)
 		{
 			var filename = node.Filename;
@@ -51,11 +57,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnVarDeclaration(VarDeclaration node)
 		{
 			var cid = node.Identifier;
-			var dict = VerifyDictionaryName(cid.Parent, cid);
+			var dict = VerifyDictionaryName(cid.Parent.ToString()!, cid);
 			try {
 				node.Stream = dict.Declaration switch {
-					LoadStatement l => l.Dict.GetStream(cid.Name),
+					LoadStatement l => l.Dict.GetStream(cid.Name!),
 					AnalyzeStatement a => throw new CompilerError("A data dictionary needs to be loaded with the LOAD command to be used here.", node),
+					MagicDeclarationStatement m => GetMagicDict(m.Value).GetStream(cid.Name!),
 					_ => throw new NotSupportedException()
 				};
 			} catch (KeyNotFoundException) {
@@ -64,6 +71,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var newvar = new Variable(node.Name, node.Type.ToString(), node);
 			_file.AddVar(newvar, node);
 		}
+
+		private static DataDictionary GetMagicDict(string value) => value switch {
+			"FileSystem" => DataBuiltin.FileSystem.Dict,
+			_ => throw new NotImplementedException()
+		};
 
 		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
 		{
@@ -92,8 +104,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					}
 					var dictName = node.Dictionary.Name;
 					VerifyDictionaryName(dictName, node);
-					if (node.Source != null && !_file.Vars.ContainsKey(node.Source.Name)) {
-						throw new CompilerError($"No variable named '{node.Source}' has been declared.", node);
+					if (node.Source != null) {
+						foreach (var src in node.Source) {
+							if (!_file.Vars.ContainsKey(src.Name)) {
+								throw new CompilerError($"No variable named '{node.Source}' has been declared.", node);
+							}
+						}
 					}
 					var newvar = new Variable(node.Name, node.Type == OpenType.Read ? "Reader" : "Writer", node);
 					_file.AddVar(newvar, node);
@@ -108,6 +124,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				case OpenType.Source:
 				case OpenType.Sink:
 					newvar = new Variable(node.Name, node.Type == OpenType.Source ? "Source" : "Sink", node);
+					_file.AddVar(newvar, node);
+					break;
+				case OpenType.ProcessRead:
+				case OpenType.ProcessWrite:
+					newvar = new Variable(node.Name, node.Type.ToString(), node);
 					_file.AddVar(newvar, node);
 					break;
 			}
@@ -280,7 +301,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private StreamDefinition CheckStreamVar(CompoundIdentifier id)
 		{
-			var dict = VerifyDictionaryName(id.Parent!, id);
+			var dict = VerifyDictionaryName(id.Parent.ToString()!, id);
 			try {
 				return ((LoadStatement)dict.Declaration).Dict.GetStream(id.Name!);
 			} catch (KeyNotFoundException) {

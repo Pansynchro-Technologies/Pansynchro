@@ -8,15 +8,17 @@ file : NEWLINE* line+ EOF;
 
 line : statement ({InputStream.LA(1) == TokenConstants.EOF}? | NEWLINE+);
 
-statement : loadStatement | saveStatement | openStatement | analyzeStatement | varDeclaration | scriptVarDeclaration | mapStatement | sqlStatement | syncStatement ;
+statement : loadStatement | saveStatement | openStatement | analyzeStatement | varDeclaration | scriptVarDeclaration 
+          | mapStatement | sqlStatement | syncStatement | ifStatement | abortStatement | callStatement
+		  | alterStatement | readStatement | writeStatement ;
 
 loadStatement : LOAD id FROM STRING; 
 
-openStatement : OPEN id AS id FOR openType WITH (id COMMA)? credentials dataSourceSink?;
+openStatement : OPEN id AS id FOR openType WITH (id COMMA)? credentials dataSourceSink*;
 
 dataSourceSink : COMMA id ;
 
-openType : READ | WRITE | ANALYZE | SOURCE | SINK ;
+openType : READ | WRITE | ANALYZE | SOURCE | SINK | PROCESS (READ | WRITE) ;
 
 saveStatement : SAVE id TO STRING ;
 
@@ -54,6 +56,10 @@ mapping : id EQUALS id;
 
 sqlStatement : (SELECT | WITH) sqlToken+ INTO id;
 
+readStatement : READ id;
+
+writeStatement : WRITE id;
+
 sqlToken : ~INTO;
 
 syncStatement : SYNC id TO id;
@@ -62,14 +68,30 @@ scriptVarDeclaration : DECLARE scriptVarRef AS? scriptVarType (EQUALS expression
 
 scriptVarType : id scriptVarSize? ARRAY?;
 
-scriptVarSize : LPAREN (NUMBER | MAX) RPAREN;
+scriptVarSize : LPAREN (NUMBER | MAX | id) RPAREN;
 
-expression : literal | idElement | functionCall | scriptVarRef | jsonExpression;
+ifStatement : IF expression NEWLINE LPAREN NEWLINE? (statement NEWLINE+)+ RPAREN;
+
+abortStatement : ABORT;
+
+existsExpression : EXISTS NEWLINE* LPAREN NEWLINE* sqlStatement NEWLINE* RPAREN ;
+
+callStatement : CALL functionCall;
+
+alterStatement : ALTER idElement SET id EQUALS expression;
+
+expression : arithmeticExpression | expressionValue | LPAREN expression RPAREN;
+
+expressionValue : literal | idElement | castExpression | functionCall | scriptVarRef | jsonExpression | existsExpression;
+
+arithmeticExpression : expressionValue OPERATOR expression;
+
+castExpression : CAST LPAREN expression AS id RPAREN;
 
 literal : STRING | NUMBER;
 
 
-scriptVarRef : AT IDENTIFIER;
+scriptVarRef : AT IDENTIFIER (DOT IDENTIFIER)*;
 id : IDENTIFIER;
 compoundId: IDENTIFIER (DOT IDENTIFIER)+;
 
@@ -85,4 +107,4 @@ jsonArray : LBRACK NEWLINE* jsonValue NEWLINE* (COMMA NEWLINE* jsonValue NEWLINE
 
 jsonPair : JSONSTRING NEWLINE* COLON NEWLINE* jsonValue;
 
-jsonValue : JSONSTRING | JSONNUMBER | NUMBER | jsonObject | jsonArray | TRUE | FALSE | NULL | scriptVarRef;
+jsonValue : JSONSTRING | JSONNUMBER | NUMBER | jsonObject | jsonArray | TRUE | FALSE | NULL | scriptVarRef | functionCall;

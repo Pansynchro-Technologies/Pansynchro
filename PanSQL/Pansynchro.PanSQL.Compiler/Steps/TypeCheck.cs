@@ -19,6 +19,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private readonly List<string> _analyzers = [];
 		private readonly List<string> _sources = [];
 		private readonly List<string> _sinks = [];
+		private readonly List<string> _processors = [];
 
 		public override void Execute(PanSqlFile f)
 		{
@@ -27,6 +28,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_analyzers.AddRange(ConnectorRegistry.AnalyzerTypes);
 			_sources.AddRange(ConnectorRegistry.DataSourceTypes);
 			_sinks.AddRange(ConnectorRegistry.DataSinkTypes);
+			_processors.AddRange(ConnectorRegistry.ProcessorTypes);
 			base.Execute(f);
 		}
 
@@ -129,7 +131,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private void DoTypeCheck(DbExpression? filter, SqlTransformStatement node)
+		private static void DoTypeCheck(DbExpression? filter, SqlTransformStatement node)
 		{
 			if (filter is BooleanExpression b) {
 				DoTypeCheck(b.Left, node);
@@ -144,7 +146,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private void DoTypeCheck(JoinSpec[] joins, SqlTransformStatement node)
+		private static void DoTypeCheck(JoinSpec[] joins, SqlTransformStatement node)
 		{
 			foreach (var join in joins) {
 				DoTypeCheck(join.Condition, node);
@@ -187,6 +189,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				OpenType.Analyze => _analyzers,
 				OpenType.Source => _sources,
 				OpenType.Sink => _sinks,
+				OpenType.ProcessRead or OpenType.ProcessWrite => _processors,
 				_ => throw new NotImplementedException(),
 			};
 			var idx = list.FindIndex(n => n.Equals(node.Connector, StringComparison.InvariantCultureIgnoreCase));
@@ -213,14 +216,23 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (node.Type is not (OpenType.Read or OpenType.Write or OpenType.Analyze)) {
 				throw new CompilerError($"The connector '{node.Name}' is a {node.Type} and cannot be connected to a Source or Sink.", node);
 			}
-			var source = _file.Vars[node.Source!.Name];
+			var source = _file.Vars[node.Source![^1].Name];
+			if (source.Name != node.Source![^1].Name) {
+				node.Source![^1].Name = source.Name;
+			}
 			var expectedType = node.Type switch {
 				OpenType.Read or OpenType.Analyze => "Source",
 				OpenType.Write => "Sink",
 				_ => throw new NotImplementedException()
 			};
 			if (source.Type != expectedType) {
-				throw new CompilerError($"The connector '{node.Name}' requires a {expectedType}, but '{node.Source}' is a {source.Type}.", node);
+				throw new CompilerError($"The connector '{node.Name}' requires a {expectedType}, but '{node.Source[^1]}' is a {source.Type}.", node);
+			}
+			for (int i = 0; i < node.Source.Length - 1; i++) {
+				var typ = _file.Vars[node.Source[i].Name].Type;
+				if (!(typ.StartsWith("Process"))) {
+					throw new CompilerError($"A multiple data source/sink chain requires all entries but the last to be a processor.  The connector '{node.Source[i]}' is a {typ}.", node);
+				}
 			}
 			var desc = ConnectorRegistry.GetConnectorDescription(node.Connector);
 			if (desc?.RequiresDataSource != true) {

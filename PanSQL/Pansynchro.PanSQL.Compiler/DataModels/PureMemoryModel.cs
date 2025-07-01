@@ -9,11 +9,12 @@ internal class PureMemoryModel(DataModel model) : MemorySqlModel(model)
 		var methodName = cb.NewNameReference("Cte");
 		List<CSharpStatement> methodBody = [.. InvokeCtes(ctes)];
 		var query = BuildLinqExpression(Model);
+		imports.Add("System.Linq");
 		var ctorCall = new CallExpression(new($"new DB.{Model.OutputTable}_"), [.. Model.Outputs.Select(i => new CSharpStringExpression(GetInput(i)))]);
-		var addCall = new CallExpression(new MemberReferenceExpression(new("__db." + Model.OutputTable!), "Add"), [ctorCall]);
-		var loop = new ForeachLoop("__item", query.ToString()!, new([addCall]));
+		var yieldCall = new YieldReturn(ctorCall);
+		var loop = new ForeachLoop("__item", query.ToString()!, new([yieldCall]));
 		methodBody.Add(loop);
-		return new Method("private", methodName.Name, "void", "", methodBody);
+		return new Method("private", methodName.Name, $"IEnumerable< DB.{Model.OutputTable}_>", "", methodBody);
 	}
 
 	public override string? Validate() => null;

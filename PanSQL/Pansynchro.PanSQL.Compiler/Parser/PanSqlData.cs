@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 
 using Antlr4.Runtime;
-
+using Antlr4.Runtime.Tree;
 using Pansynchro.PanSQL.Compiler.Ast;
 
 namespace Pansynchro.PanSQL.Compiler.Parser
@@ -17,10 +17,10 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			return result;
 		}
 
-		private static Exception? ParseError(ParserRuleContext context)
+		private static (Exception, ParserRuleContext)? ParseError(ParserRuleContext context)
 		{
 			if (context.exception != null) {
-				return context.exception;
+				return (context.exception, context);
 			}
 			foreach (var child in context.children.OfType<ParserRuleContext>()) {
 				var result = ParseError(child);
@@ -36,12 +36,14 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var reader = new StringReader(data);
 			var stream = new AntlrInputStream(reader);
 			var lexer = new PanSqlLexer(stream);
-			var parser = new PanSqlParser(new CommonTokenStream(lexer));
+			var cts = new CommonTokenStream(lexer);
+			var parser = new PanSqlParser(cts);
 			var file = parser.file();
-			if (ParseError(file) != null) {
+			var err = ParseError(file);
+			if (err != null) {
 				throw new CompilerError("Invalid PanSQL syntax", new PanSqlFile([]));
 			}
-			var result = (PanSqlFile)file.Accept(new PanSqlParserVisitor());
+			var result = (PanSqlFile)file.Accept(new PanSqlParserVisitor(cts));
 			return result;
 		}
 	}

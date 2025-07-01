@@ -22,7 +22,8 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return [AbsFunction(), AcosFunction(), AsinFunction(), AtanFunction(), Atan2Function(), CeilFunction(),
 					CosFunction(), DegFunction(), RadFunction(), ExpFunction(), FloorFunction(), LogFunction(),
 					Log10Function(), PowFunction(), RandFunction(), RoundFunction(), SignFunction(),
-					SinFunction(), SqrtFunction(), SquareFunction(), TanFunction(), TrimFunction(), ReplaceFunction()];
+					SinFunction(), SqrtFunction(), SquareFunction(), TanFunction(), TrimFunction(), ReplaceFunction(),
+					TableSingleFunction(), /*TableFirstFunction(), TableLastFunction(), TableIndexFunction()*/];
 		}
 
 		private static SpecialFunc AbsFunction() => new("ABS", AnyNumeric(1), IdentityTypeFirst,
@@ -182,6 +183,12 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				return $"{value}?.{call}(({arg}).ToCharArray())";
 			});
 
+		private static SpecialFunc TableSingleFunction() => new SpecialFunc("SINGLE", TableArgs, IdentityTypeTable,
+			(exprs, reader) => {
+				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
+				return $"System.Linq.Enumerable.Single({arg})";
+			});
+
 		private static string? NoArgs(IFieldType[] types) 
 			=> (types.Length != 0) ? $"Function {{0}} does not take any argument(s)." : null;
 
@@ -273,7 +280,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				}
 			}
 			if (count > 1 && types.Distinct().Count() > 1) {
-				return $"All arguments for function {{0}} must be of the same type.";
+				return "All arguments for function '{0}' must be of the same type.";
 			}
 			return null;
 		};
@@ -289,8 +296,21 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			return null;
 		}
 
+		private static string? TableArgs(IFieldType[] args)
+		{
+			if (args.Length > 1) {
+				return "Function '{0}' does not take any arguments aside from the table.";
+			}
+			return null;
+		}
+
 		private static IFieldType IdentityTypeFirst(IFieldType[] types) => types[0];
 
 		private static IFieldType IdentityTypeSecond(IFieldType[] types) => types[1];
+
+		private static IFieldType IdentityTypeTable(IFieldType[] arg)
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

@@ -74,7 +74,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			Visit(node.Dictionary);
 			Visit(node.Creds);
-			Visit(node.Source);
+			VisitList(node.Source);
 		}
 
 		public virtual void OnSqlStatement(SqlTransformStatement node)
@@ -86,6 +86,16 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			Visit(node.Input);
 			Visit(node.Output);
+		}
+
+		public virtual void OnReadStatement(ReadStatement node)
+		{
+			Visit(node.Table);
+		}
+
+		public virtual void OnWriteStatement(WriteStatement node)
+		{
+			Visit(node.Table);
 		}
 
 		public virtual void OnVarDeclaration(VarDeclaration node)
@@ -111,6 +121,21 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			VisitList(node.Values);
 		}
+
+		public virtual void OnAlterStatement(AlterStatement node)
+		{
+			Visit(node.Table);
+			Visit(node.Property);
+			Visit(node.Value);
+		}
+
+		public virtual void OnCallStatement(CallStatement node)
+		{
+			Visit(node.Call);
+		}
+
+		public virtual void OnTsqlExpression(TSqlExpression sqlExpression)
+		{ }
 
 		public virtual void OnTypeDefinition(TypeDefinition typeDefinition)
 		{ }

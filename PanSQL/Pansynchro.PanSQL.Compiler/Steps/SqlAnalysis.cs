@@ -45,6 +45,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var modelGen = tt.HasFlag(TransactionType.ToStream) ? BuildToStreamModel(model, tt) : BuildMemoryModel(model, tt);
 			node.DataModel = modelGen;
 			node.Indices = BuildIndexData(node);
+			(node.Output.Declaration as VarDeclaration)?.Handlers.Add(modelGen);
+		}
+
+		public override void OnTsqlExpression(TSqlExpression node)
+		{
+			base.OnTsqlExpression(node);
+			node.Value = new SqlAnalysis.DataExpressionVisitor(_file, [], []).VisitValue(node.Expr);
 		}
 
 		private IndexData BuildIndexData(SqlTransformStatement node)
@@ -73,7 +80,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private static SqlModel BuildMemoryModel(DataModel model, TransactionType tt)
 			=> (tt.HasFlag(TransactionType.FromStream), tt.HasFlag(TransactionType.Grouped)) switch {
 				(true, true) => new StreamToAggregateMemoryModel(model),
-				(true, false) => throw new NotImplementedException(),
+				(true, false) => new StreamToMemoryModel(model),
 				(false, true) => throw new NotImplementedException(),
 				(false, false) => new PureMemoryModel(model),
 			};
@@ -90,6 +97,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 			if (builder.Model.AggOutputs.Length > MAX_AGGS) {
 				throw new CompilerError($"PanSQL only supports a maximum of {MAX_AGGS} aggregate functions in a single query.", node);
+			}
+			if (obj is SelectStatement && !string.IsNullOrWhiteSpace(node.Output?.Name)) {
+				builder.SetOutput(node.Output.Name);
 			}
 			return builder.Model;
 		}
@@ -263,10 +273,15 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_expressionVisitor.Tables = [.. _tables];
 				_orderBy = codeObject.OrderByElements.Select(i => (OrderingExpression)_expressionVisitor.VisitValue(i)).ToArray();
 			}
+
+			internal void SetOutput(string name) => _outputTable = name.ToPropertyName();
 		}
 
-		internal static readonly Dictionary<string, int> AGGREGATE_FUNCTIONS_SUPPORTED = new()
+		internal static readonly Dictionary<string, int> AGGREGATE_FUNCTIONS_SUPPORTED = new(StringComparer.OrdinalIgnoreCase)
 			{ {"Avg", 1}, {"Sum", 1}, {"Count", 1}, {"Min", 1}, {"Max", 1}, {"String_agg", 2} };
+
+		internal static readonly Dictionary<string, int> TABLE_FUNCTIONS_SUPPORTED = new(StringComparer.OrdinalIgnoreCase)
+			{ {"Single", 0}, {"First", 0}, {"Last", 0}, {"Index", 1 } };
 
 		private class DataExpressionVisitor(PanSqlFile file, Dictionary<string, Variable> aliases, HashSet<string> scriptVars) : TSqlFragmentVisitor
 		{
@@ -356,6 +371,32 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_stack.Push(result!);
 			}
 
+			public override void ExplicitVisit(UserDefinedTypePropertyAccess node)
+			{
+				var parent = VisitValue(node.CallTarget);
+				var name = node.PropertyName.Value;
+				DbExpression result = parent switch {
+					VariableReferenceExpression vr => VisitParentProperty(vr, name),
+					_ => throw new NotImplementedException()
+				};
+				_stack.Push(result);
+			}
+
+			private MemberReferenceExpression VisitParentProperty(VariableReferenceExpression vr, string name)
+			{
+				if (!_file.Vars.TryGetValue(vr.Name, out var vbl) || vbl.Type != "ScriptVar") {
+					throw new Exception($"No variable named @'{vr.Name}' has been declared.");
+				}
+				var typ = ((ScriptVarDeclarationStatement)vbl.Declaration).Type;
+				if (typ is not RecordTypeReferenceExpression rtr || !_file.Vars.TryGetValue(rtr.Name, out var tbl) || tbl.Type != "Table") {
+					throw new Exception($"Variable @'{vr.Name[1..]}' must be a record of a table-type variable.");
+				}
+				var fields = ((VarDeclaration)tbl.Declaration).Stream!.Fields;
+				var field = fields.FirstOrDefault(f => f.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase))
+					?? throw new Exception($"Table '{tbl.Name}' does not contain a field named '{name}'.");
+				return new MemberReferenceExpression(new VariableReferenceExpression(vr.Name), field.Name) { Type = field.Type };
+			}
+
 			public override void ExplicitVisit(Identifier codeObject)
 			{
 				var fieldName = codeObject.Value;
@@ -398,7 +439,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				}
 				var refName = '_' + varName;
 				_scriptVars.Add(refName);
-				_stack.Push(new VariableReferenceExpression(refName));
+				_stack.Push(new VariableReferenceExpression(varName));
 			}
 
 			public override void ExplicitVisit(TryCastCall codeObject)
@@ -415,7 +456,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			{
 				var value = VisitValue(codeObject.Parameter);
 				var typeName = codeObject.DataType.Name.BaseIdentifier.Value;
-				if (!Enum.TryParse<TypeTag>(typeName, out var type)) {
+				if (!Enum.TryParse<TypeTag>(typeName, true, out var type)) {
 					throw new Exception("Unknown data type: " + typeName);
 				}
 				_stack.Push(new CastExpression(value, new BasicField(type, false, null, false)));
@@ -456,13 +497,17 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 			public override void ExplicitVisit(FunctionCall codeObject)
 			{
-				var args = VisitList(codeObject.Parameters);
-				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(codeObject.FunctionName.Value.ToLower().ToPropertyName())) {
-					_stack.Push(CheckAggExpression(codeObject.FunctionName.Value, args));
+				var fName = codeObject.FunctionName.Value;
+				if (TABLE_FUNCTIONS_SUPPORTED.ContainsKey(fName)) {
+					_stack.Push(CheckTableExpression(fName, [.. codeObject.Parameters]));
 					return;
 				}
-				var name = codeObject.FunctionName.Value;
-				if (name.Equals("trim", StringComparison.InvariantCultureIgnoreCase)) {
+				var args = VisitList(codeObject.Parameters);
+				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(fName)) {
+					_stack.Push(CheckAggExpression(fName, args));
+					return;
+				}
+				if (fName.Equals("trim", StringComparison.InvariantCultureIgnoreCase)) {
 					var type = new IntegerLiteralExpression(codeObject.TrimOptions?.Value.ToLowerInvariant() switch {
 						"leading" => 1,
 						"trailing" => 2,
@@ -470,8 +515,27 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					});
 					args = args.Length == 1 ? [args[0], new NullLiteralExpression(), type] : [..args, type];
 				}
-				_stack.Push(new CallExpression(new ReferenceExpression(name), args));
+				_stack.Push(new CallExpression(new ReferenceExpression(fName), args));
 			}
+
+			private DbExpression CheckTableExpression(string name, ScalarExpression[] args)
+			{
+				name = name.ToLower().ToPropertyName();
+				if (!TABLE_FUNCTIONS_SUPPORTED.TryGetValue(name, out var argCount)) {
+					throw new Exception($"The '{name}' function is not supported by PanSQL at this time");
+				}
+				if (args.Length != argCount + 1) {
+					throw new Exception($"The '{name}' function requires {argCount + 1} argument(s).");
+				}
+				var tableName = (args[0] as ColumnReferenceExpression)?.MultiPartIdentifier.Identifiers[0].Value;
+				if (tableName == null || !(_file.Vars.TryGetValue(tableName, out var table) && table.Type == "Table")) {
+					throw new Exception($"The '{name}' function requires a TABLE variable as its {(argCount > 0 ? "first " : "")}argument.");
+				}
+				var argVals = args.Skip(1).Select(a => { VisitValue(a); return _stack.Pop(); }).ToArray();
+				var call = Enum.Parse<TableFunctionCallType>(name, true);
+				return new TableFunctionCall(call, tableName, argVals);
+			}
+
 
 			public override void ExplicitVisit(LeftFunctionCall node)
 			{

@@ -122,10 +122,7 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 				throw new NotImplementedException();
 			}
 
-			public string VisitTupleField(TupleField type)
-			{
-				throw new NotImplementedException();
-			}
+			public string VisitTupleField(TupleField type) => "Sync.DB." + type.Name + '_';
 		}
 
 		public static string FieldTypeToCSharpType(IFieldType type) => new TypePrinter().Visit(type);
@@ -297,11 +294,16 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 				.Where(f => f.Value.Name.Equals(fieldName, StringComparison.InvariantCultureIgnoreCase))
 				.ToArray();
 			return matches.Length switch {
-				0 => throw new Exception($"No field named {fieldName} is available"),
+				0 => LookupTable(tables, fieldName),
 				1 => matches[0],
 				_ => throw new Exception($"Ambiguous field name: {fieldName}. {matches.Length} different tables contain a field by that name.  Make sure to qualify the name.")
 			};
 
+		}
+
+		private static KeyValuePair<string, FieldDefinition> LookupTable(TableReference[] tables, string fieldName)
+		{
+			throw new Exception($"No field named {fieldName} is available");
 		}
 
 		internal static bool IsReferenceType(IFieldType type)

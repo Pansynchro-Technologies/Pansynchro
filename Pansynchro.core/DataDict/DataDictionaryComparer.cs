@@ -182,6 +182,11 @@ namespace Pansynchro.Core.DataDict
 			{ TypeTag.Decimal, new[] { TypeTag.Numeric, TypeTag.Decimal64, TypeTag.Decimal128 } },
 			{ TypeTag.Numeric, new[] { TypeTag.Decimal, TypeTag.Decimal64, TypeTag.Decimal128 } },
 			{ TypeTag.Decimal64, new[] { TypeTag.Numeric, TypeTag.Decimal128 } },
+			{ TypeTag.Char, new[] { TypeTag.Text, TypeTag.Ntext } },
+			{ TypeTag.Varchar, new[] { TypeTag.Text, TypeTag.Ntext } },
+			{ TypeTag.Nchar, new[] { TypeTag.Ntext } },
+			{ TypeTag.Nvarchar, new[] { TypeTag.Ntext } },
+			{ TypeTag.Text, new[] { TypeTag.Ntext } },
 		};
 
 		private static readonly TypeTag[] _stringTypes = new[] { TypeTag.Varchar, TypeTag.Nvarchar, TypeTag.Text, TypeTag.Ntext, TypeTag.Unstructured };

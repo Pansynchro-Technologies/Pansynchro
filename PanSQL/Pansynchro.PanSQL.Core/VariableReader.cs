@@ -56,6 +56,19 @@ namespace Pansynchro.PanSQL.Core
 			return this;
 		}
 
+		public VariableReader ReadVar(string name, out JsonNode result)
+		{
+			if (_values == null) {
+				result = default!;
+			} else if (_values.TryGetValue(name, out var value) && value != null) {
+				result = value;
+			} else {
+				result = default!;
+				_errors.Add($"Script variable '{name}' does not exist in the JSON file.");
+			}
+			return this;
+		}
+
 		public VariableReader TryReadVar<T>(string name, ref T result) where T : IParsable<T>
 		{
 			if (_values != null) {
@@ -64,6 +77,16 @@ namespace Pansynchro.PanSQL.Core
 					if (!T.TryParse(jVal, CultureInfo.InvariantCulture, out result)) {
 						_errors.Add($"Script variable '{name}': '{value}' cannot be assigned to an integer.");
 					}
+				}
+			}
+			return this;
+		}
+
+		public VariableReader TryReadVar(string name, ref JsonNode result)
+		{
+			if (_values != null) {
+				if (_values.TryGetValue(name, out var value) && value != null) {
+					result = value;
 				}
 			}
 			return this;

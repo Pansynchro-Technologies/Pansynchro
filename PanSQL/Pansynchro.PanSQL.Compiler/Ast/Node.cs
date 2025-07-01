@@ -46,6 +46,16 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 	public abstract class Statement : Node { }
 
+	public class MagicDeclarationStatement(string value) : Statement
+	{
+		public string Value { get; } = value;
+
+		internal override void Accept(IVisitor visitor)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
 	public class LoadStatement(string name, string filename) : Statement
 	{
 		public string Name { get; } = name;
@@ -84,6 +94,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		public CompoundIdentifier Identifier { get; } = identifier;
 
 		public StreamDefinition? Stream { get; internal set; }
+		internal List<SqlModel> Handlers { get; } = [];
 
 		internal override void Accept(IVisitor visitor) => visitor.OnVarDeclaration(this);
 	}
@@ -94,17 +105,19 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		Write,
 		Analyze,
 		Source,
-		Sink
+		Sink,
+		ProcessRead,
+		ProcessWrite,
 	}
 
-	public class OpenStatement(string name, string connector, OpenType type, Identifier? dictionary, CredentialExpression creds, Identifier? source) : Statement
+	public class OpenStatement(string name, string connector, OpenType type, Identifier? dictionary, CredentialExpression creds, Identifier[]? source) : Statement
 	{
 		public string Name { get; } = name;
 		public string Connector { get; internal set; } = connector;
 		public OpenType Type { get; } = type;
 		public Identifier? Dictionary { get; } = dictionary;
 		public CredentialExpression Creds { get; internal set; } = creds;
-		public Identifier? Source { get; } = source;
+		public Identifier[]? Source { get; } = source;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnOpenStatement(this);
 	}
@@ -135,6 +148,22 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnAnalyzeStatement(this);
 	}
 
+	public class AlterStatement(Expression table, Identifier property, Expression value) : Statement
+	{
+		public Expression Table { get; } = table;
+		public Identifier Property { get; } = property;
+		public Expression Value { get; } = value;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnAlterStatement(this);
+	}
+
+	public class CallStatement(FunctionCallExpression call) : Statement
+	{
+		public FunctionCallExpression Call { get; } = call;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnCallStatement(this);
+	}
+
 	internal record CteData(string Name, SqlModel Model, StreamDefinition Stream);
 
 	public class SqlTransformStatement(TSqlStatement sqlNode, Identifier dest) : Statement
@@ -163,6 +192,20 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnMapStatement(this);
 	}
 
+	public class ReadStatement(Identifier table) : Statement
+	{
+		public Identifier Table { get; } = table;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnReadStatement(this);
+	}
+
+	public class WriteStatement(Identifier table) : Statement
+	{
+		public Identifier Table { get; } = table;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnWriteStatement(this);
+	}
+
 	public class SyncStatement(Identifier input, Identifier output) : Statement
 	{
 		public Identifier Input { get; } = input;
@@ -179,11 +222,15 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 		internal IFieldType FieldType { get; set; } = null!;
 		internal Identifier ScriptName { get; set; } = null!;
+		internal DbExpression? ScriptValue { get; set; }
 
 		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarDeclarationStatement(this);
 	}
 
-	public abstract class Expression : Node { }
+	public abstract class Expression : Node 
+	{
+		public virtual bool IsConstant => false;
+	}
 
 	public abstract class TypedExpression : Expression
 	{
@@ -192,7 +239,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 	public class Identifier(string name) : Expression
 	{
-		public string Name { get; } = name;
+		public string Name { get; internal set; } = name;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnIdentifier(this);
 
@@ -222,14 +269,22 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		{ }
 	}
 
-	public class CompoundIdentifier(string? parent, string? name) : Expression
+	public class RecordTypeReferenceExpression(string name, bool isArray) : TypeReferenceExpression(name, null, isArray)
+	{
+		internal override void Accept(IVisitor visitor)
+		{ }
+	}
+
+	public class CompoundIdentifier(Expression parent, string? name) : Expression
 	{
 		public string? Name { get; } = name;
-		public string? Parent { get; } = parent;
+		public Expression Parent { get; } = parent;
+
+		internal DbExpression? Expr { get; set; }
 
 		internal override void Accept(IVisitor visitor) => visitor.OnCompoundIdentifier(this);
 
-		public override string? ToString() => Parent != null ? $"{Parent}.{Name}" : Name != null ? Name : null;
+		public override string? ToString() => Expr?.ToString() ?? (Parent != null ? $"{Parent}.{Name}" : Name != null ? Name : null);
 	}
 
 	public class FunctionCallExpression(string method, Expression[] args) : TypedExpression
@@ -240,6 +295,8 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal IFieldType? ReturnType { get; set; }
 
 		internal override IFieldType ExpressionType => ReturnType ?? throw new CompilerError($"No return type has been bound", this);
+
+		public override bool IsConstant => Args.All(a => a.IsConstant);
 
 		public string? CodeName { get; internal set; }
 		public string? Namespace { get; internal set; }
@@ -272,6 +329,17 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnMappingExpression(this);
 	}
 
+	public class TSqlExpression(ScalarExpression expr) : Expression
+	{
+		public ScalarExpression Expr { get; } = expr;
+
+		internal DbExpression Value { get; set; } = null!;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnTsqlExpression(this);
+
+		public override string ToString() => Value?.ToString() ?? "MISSING";
+	}
+
 	public enum AnalyzeOptionType
 	{
 		Optimize,
@@ -288,7 +356,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	}
 
 	public abstract class LiteralExpression : TypedExpression
-	{ }
+	{
+		public override bool IsConstant => true;
+	}
 
 	public class StringLiteralExpression(string value) : LiteralExpression
 	{

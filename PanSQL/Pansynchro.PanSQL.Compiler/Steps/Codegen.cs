@@ -41,7 +41,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<NoWarn>$(NoWarn);CS8621</NoWarn>
@@ -102,11 +102,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private void WriteScriptVarInit()
 		{
-			for (int i = _scriptVars.Count - 1; i >= 0; --i) {
-				var sVar = _scriptVars[i];
+			foreach (var sVar in _scriptVars) {
 				var name = sVar.ScriptName.ToString();
 				var type = "static " + TypesHelper.FieldTypeToCSharpType(sVar.FieldType);
-				_scriptVarFields.Add(new DataFieldModel(name, type, sVar.Expr?.ToString(), IsPublic: true));
+				_scriptVarFields.Add(new DataFieldModel(name, type, sVar.Expr?.IsConstant == false ? null : sVar.Expr?.ToString(), IsPublic: true));
 			}
 			var required = _scriptVars.Any(sv => sv.Expr == null);
 			var initializer = $"new VariableReader(args, {required.ToString().ToLowerInvariant()})";
@@ -215,7 +214,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (_file.Producers.Count > 0) {
 				outerFields.Add(new("_producers", "readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)>", "new()"));
 			}
-			return new ClassModel("private", "DB", null, subclasses, [.. fields], [ctor]);
+			return new ClassModel("internal", "DB", null, subclasses, [.. fields], [ctor]);
 		}
 
 		private static Method GenerateDatabaseConstructor(List<DataClassModel> database)
@@ -270,6 +269,8 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				OpenType.Analyze => "GetAnalyzer",
 				OpenType.Source => "GetSource",
 				OpenType.Sink => "GetSink",
+				OpenType.ProcessRead => "GetInputProcessor",
+				OpenType.ProcessWrite => "GetOutputProcessor",
 				_ => throw new NotImplementedException(),
 			};
 			if (node.Connector.Equals("Network", StringComparison.InvariantCultureIgnoreCase)) {
@@ -279,12 +280,16 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var line = $"ConnectorRegistry.{method}({node.Connector.ToLiteral()}, {node.Creds})";
 			_mainBody.Add(new VarDecl(node.Name, new CSharpStringExpression(line)));
 			if (node.Source != null) {
-				line = node.Type switch {
-					OpenType.Read or OpenType.Analyze => $"((ISourcedConnector){node.Name}).SetDataSource({node.Source})",
-					OpenType.Write => $"((ISinkConnector){node.Name}).SetDataSink({node.Source})",
-					_ => throw new NotImplementedException()
-				};
-				_mainBody.Add(new CSharpStringExpression(line));
+				var name = node.Name;
+				foreach (var source in node.Source) {
+					line = node.Type switch {
+						OpenType.Read or OpenType.Analyze => $"((ISourcedConnector){name}).SetDataSource({source})",
+						OpenType.Write => $"((ISinkConnector){name}).SetDataSink({source})",
+						_ => throw new NotImplementedException()
+					};
+					name = source.ToString();
+					_mainBody.Add(new CSharpStringExpression(line));
+				}
 			}
 			_connectorRefs.Add(node.Connector);
 			(node.Type is OpenType.Read or OpenType.Write or OpenType.Analyze ? _connectors : _sources).Add(node.Connector);
@@ -325,7 +330,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			} else {
 				var table = VariableHelper.GetInputStream(node, _file);
 				if (table != null) {
-					_file.Transformers.Add(table, method.Name);
+					if (method.Name.StartsWith("Consumer")) {
+						_file.Consumers.Add(table, method.Name);
+					} else {
+						_file.Transformers.Add(table, method.Name);
+					}
 				}
 			}
 			yield return method;
@@ -333,7 +342,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private Method? GetVarScript(VarDeclaration decl)
 		{
-			if (decl.Type == VarDeclarationType.Table && decl.Stream != null) {
+			if (decl.Type == VarDeclarationType.Table && decl.Stream != null && decl.Handlers.Count == 0) {
 				var methodName = CodeBuilder.NewNameReference("Consumer");
 				_file.Consumers.Add(_file.Vars[decl.Name], methodName.Name);
 				var tableName = decl.Stream.Name.ToTableName();
@@ -375,6 +384,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
 		{
 			_scriptVars.Add(node);
+			Visit(node.Expr);
 		}
 
 		public override void OnJsonInterpolatedExpression(JsonInterpolatedExpression node)

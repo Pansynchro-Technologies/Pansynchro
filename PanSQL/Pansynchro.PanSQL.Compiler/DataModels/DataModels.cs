@@ -82,6 +82,8 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 	class VariableReferenceExpression(string name) : ReferenceExpression(name)
 	{
 		public string ScriptVarName { get; set; } = null!;
+
+		public override string ToString() => ScriptVarName ?? base.ToString();
 	}
 
 	class StarExpression(ReferenceExpression? table) : DbExpression
@@ -109,6 +111,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 		public bool IsProp { get; internal set; }
 		public bool IsStaticProp { get; internal set; }
+		public bool IsStaticMethod { get; internal set; }
 		public Func<DbExpression[], Func<DbExpression, string>?, string>? SpecialCodegen { get; internal set; }
 
 		internal override bool Match(DbExpression other)
@@ -116,7 +119,10 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			   && ce.Function.Match(Function)
 			   && MatchAll(ce.Args, Args);
 
-		public override string ToString() => $"{Function}({string.Join<DbExpression>(", ", Args)})";
+		public override string ToString()
+			=> IsStaticMethod
+			? $"{Function}({string.Join<DbExpression>(", ", Args)})"
+			: $"{Args[0]}.{Function}({string.Join(", ", Args.Skip(1))})";
 	}
 
 	enum BoolExpressionType
@@ -243,6 +249,37 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 
 		internal override bool Match(DbExpression other) 
 			=> other is AggregateExpression agg && agg.Name == Name && MatchAll(agg.Args, Args);
+
+		public override string ToString() => $"{Name}({string.Join<DbExpression>(", ", Args)})";
+	}
+
+	enum TableFunctionCallType
+	{
+		Single,
+		First,
+		Last,
+		Index
+	}
+
+	class TableFunctionCall(TableFunctionCallType type, string tableName, DbExpression[] args) : DbExpression
+	{
+		public TableFunctionCallType CallType { get; } = type;
+		public string TableName { get; } = tableName;
+		public DbExpression[] Args { get; } = args;
+
+		internal override bool Match(DbExpression other)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
+	class TableOpExpression(string name, params DbExpression[] args) : DbExpression
+	{
+		public string Name { get; } = name;
+		public DbExpression[] Args { get; } = args;
+
+		internal override bool Match(DbExpression other)
+			=> other is TableOpExpression t && t.Name == Name && MatchAll(t.Args, Args);
 
 		public override string ToString() => $"{Name}({string.Join<DbExpression>(", ", Args)})";
 	}

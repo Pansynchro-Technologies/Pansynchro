@@ -21,11 +21,15 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		static FunctionBinder()
 		{
 			_methods.Add("format", typeof(string).GetMethod("Format", [typeof(string), typeof(object[])])!);
+			_methods.Add("FormatDate", typeof(DateTime).GetMethod("ToString", [typeof(string)])!); 
 			_methods.Add("HttpQuery", typeof(SqlFunctions).GetMethod("HttpQuery")!);
 			_methods.Add("HttpQueryJson", typeof(SqlFunctions).GetMethod("HttpQueryJson")!);
+			_methods.Add("HttpPost", typeof(SqlFunctions).GetMethod("HttpPost")!);
+			_methods.Add("HttpPostJson", typeof(SqlFunctions).GetMethod("HttpPostJson")!);
 			_methods.Add("JSON_VALUE", typeof(SqlFunctions).GetMethod("JsonValue")!);
 			_methods.Add("LEFT", typeof(SqlFunctions).GetMethod("StrLeft")!);
 			_methods.Add("RIGHT", typeof(SqlFunctions).GetMethod("StrRight")!);
+			_methods.Add("ToUtc", typeof(DateTime).GetMethod("ToUniversalTime")!);
 			_props.Add("CurrentTimestamp", typeof(DateTime).GetProperty("Now")!);
 			_props.Add("getdate", _props["CurrentTimestamp"]);
 			_props.Add("getutcdate", typeof(DateTime).GetProperty("UtcNow")!);
@@ -76,17 +80,22 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				paramsArg = parameters[^1];
 				parameters = parameters[..^1];
 			}
-			if ((paramsArg == null && call.Args.Length != parameters.Length)
-			 || (paramsArg != null && call.Args.Length < parameters.Length)){
+			var selfArgCount = info.IsStatic ? 0 : 1;
+			if ((paramsArg == null && call.Args.Length != parameters.Length + selfArgCount)
+			 || (paramsArg != null && call.Args.Length < parameters.Length + selfArgCount)) {
 				throw new CompilerError($"Function '{call.Function}' requires {(paramsArg != null ? "at least " : "")}{parameters.Length} arguments.", parent);
 			}
 			try {
-				TypeCheck(call.Args, parameters, paramsArg);
+				if (!info.IsStatic) {
+					TypeCheck(call.Args[0], info.DeclaringType);
+				}
+				TypeCheck(info.IsStatic ? call.Args : call.Args[1..], parameters, paramsArg);
 			} catch (Exception e) {
 				throw new CompilerError(e.Message, e, parent);
 			}
-			call.Function = new($"{info.DeclaringType!.Name}.{info.Name}");
+			call.Function = info.IsStatic ? new($"{info.DeclaringType!.Name}.{info.Name}") : new(info.Name);
 			call.Type = TypesHelper.CSharpTypeToFieldType(info.ReturnType);
+			call.IsStaticMethod = info.IsStatic;
 		}
 
 		private static void BindSpecialFunction(CallExpression call, in SpecialFunc func, Node parent)
@@ -138,6 +147,12 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 		}
 
+		private static void TypeCheck(DbExpression expr, Type typ)
+		{
+			var expectedType = TypesHelper.CSharpTypeToFieldType(typ);
+			TypeCheck(expr, null!, expectedType, expr.Type);
+		}
+
 		private static void TypeCheck(DbExpression[] args, ParameterInfo[] parameters, ParameterInfo? paramsArg)
 		{
 			int i = 0;
@@ -170,7 +185,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 		}
 
-		private static void TypeCheck(DbExpression arg, ParameterInfo parameter, IFieldType expectedType, IFieldType? argType)
+		private static void TypeCheck(DbExpression arg, ParameterInfo? parameter, IFieldType expectedType, IFieldType? argType)
 		{
 			if (argType == null) {
 				throw new Exception($"'{arg}' is not a valid function argument.");
@@ -178,7 +193,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			if (expectedType is BasicField { Type: TypeTag.Unstructured }) {
 				return;
 			}
-			if (DataDictionaryComparer.TypeCheckField(argType, expectedType, parameter.Name!, false) != null) {
+			if (DataDictionaryComparer.TypeCheckField(argType, expectedType, parameter?.Name ?? "this", false) != null) {
 				throw new Exception($"'{arg}' cannot be passed to a function parameter of type '{expectedType}'.");
 			}
 		}

@@ -42,6 +42,15 @@ namespace Pansynchro.PanSQL.Core
 
 		public static JsonNode HttpQueryJson(string url) => JsonNode.Parse(HttpQuery(url))!;
 
+		public static string HttpPost(string url, string content)
+		{
+			using var client = new HttpClient();
+			var result = client.PostAsync(url, new StringContent(content)).GetAwaiter().GetResult();
+			return result.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+		}
+
+		public static JsonNode HttpPostJson(string url, string content) => JsonNode.Parse(HttpPost(url, content))!;
+
 		private static Dictionary<string, JsonPath> _paths = [];
 
 		public static string? JsonValue(JsonNode value, string path)

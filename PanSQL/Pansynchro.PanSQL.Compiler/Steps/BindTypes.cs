@@ -4,6 +4,7 @@ using System.Linq;
 
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.DataDict.TypeSystem;
+using Pansynchro.Core.Pansync;
 using Pansynchro.PanSQL.Compiler.Ast;
 using Pansynchro.PanSQL.Compiler.DataModels;
 using Pansynchro.PanSQL.Compiler.Functions;
@@ -11,8 +12,8 @@ using Pansynchro.PanSQL.Compiler.Helpers;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
-	using StringLiteralExpression = DataModels.StringLiteralExpression;
 	using IntegerLiteralExpression = DataModels.IntegerLiteralExpression;
+	using StringLiteralExpression = DataModels.StringLiteralExpression;
 
 	internal class BindTypes : VisitorCompileStep
 	{
@@ -41,6 +42,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (model.GroupKey != null) {
 				DoBindTypes(model.GroupKey, tables, node);
 			}
+		}
+
+		public override void OnTsqlExpression(TSqlExpression node)
+		{
+			base.OnTsqlExpression(node);
+			DoBindTypes(node.Value, _file.Vars.Values.ToList(), node);
 		}
 
 		private static DbExpression[] ExpandStarExpressions(DbExpression[] fields, DataModel model, SqlTransformStatement node)
@@ -73,9 +80,27 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
 		{
-			var type = node.Type.GetFieldType();
+			var nodeType = node.Type;
+			IFieldType type;
+			if (nodeType is RecordTypeReferenceExpression rtr) {
+				if (!_file.Vars.TryGetValue(rtr.Name, out var vbl) || vbl.Type != "Table") {
+					throw new CompilerError($"Record type '{rtr.Name}' is not defined as a Table variable", node);
+				}
+				var stream = GetStream(vbl)!;
+				type = BuildRecordType(stream);
+			} else {
+				type = nodeType.GetFieldType();
+			}
 			node.FieldType = type;
 			node.ScriptName = CodeBuilder.NewNameReference(node.Name.Name);
+			_file.Vars[node.ScriptName.Name] = _file.Vars[node.Name.Name];
+			base.OnScriptVarDeclarationStatement(node);
+		}
+
+		private static TupleField BuildRecordType(StreamDefinition stream)
+		{
+			var fields = stream.Fields.Select(f => KeyValuePair.Create(f.Name, f.Type)).ToArray();
+			return new TupleField(stream.Name.ToTableName(), fields, false);
 		}
 
 		public override void OnScriptVarExpression(ScriptVarExpression node)
@@ -88,14 +113,29 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			node.Name = sVar.ScriptName.Name;
 		}
 
-		private void DoBindTypes(DbExpression[] fields, List<Variable> tables, SqlTransformStatement node)
+		public override void OnCompoundIdentifier(CompoundIdentifier node)
+		{
+			if (node.Parent is ScriptVarExpression sv) {
+				OnScriptVarExpression(sv);
+				if (sv.ExpressionType is not TupleField tf) {
+					throw new CompilerError($"Variable '{sv.Name}' does not contain any fields.", node);
+				}
+				var field = tf.Fields.FirstOrDefault(f => f.Key.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase));
+				if (field.Value == null) {
+					throw new CompilerError($"Variable '{sv.Name}' does not contain a field named '{node.Name}'.", node);
+				}
+				node.Expr = new MemberReferenceExpression(new(sv.Name), node.Name!) { Type = field.Value };
+			}
+		}
+
+		private void DoBindTypes(DbExpression[] fields, List<Variable> tables, Node node)
 		{
 			foreach (var field in fields) {
 				LookupField(field, tables, node);
 			}
 		}
 
-		private void DoBindTypes(DbExpression? expr, List<Variable> tables, SqlTransformStatement node)
+		private void DoBindTypes(DbExpression? expr, List<Variable> tables, Node node)
 		{
 			switch (expr) {
 				case null: break;
@@ -117,14 +157,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private void DoBindTypes(JoinSpec[] joins, List<Variable> tables, SqlTransformStatement node)
+		private void DoBindTypes(JoinSpec[] joins, List<Variable> tables, Node node)
 		{
 			foreach (var js in joins) {
 				DoBindTypes(js.Condition, tables, node);
 			}
 		}
 
-		private void LookupField(DbExpression? field, List<Variable> tables, SqlTransformStatement node)
+		private void LookupField(DbExpression? field, List<Variable> tables, Node node)
 		{
 			switch (field) {
 				case null: break;
@@ -136,9 +176,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					LookupField(m, tables, node);
 					break;
 				case VariableReferenceExpression v:
-					var decl = (ScriptVarDeclarationStatement)_file.Vars[v.Name[1..]].Declaration;
+					var decl = (ScriptVarDeclarationStatement)_file.Vars[v.Name].Declaration;
 					v.Type = decl.FieldType;
 					v.ScriptVarName = decl.ScriptName.Name;
+					break;
+				case ReferenceExpression:
 					break;
 				case AggregateExpression ag:
 					LookupField(ag.Args[0], tables, node);
@@ -183,6 +225,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					}
 					FunctionBinder.Bind(call, node);
 					break;
+				case TableFunctionCall tfc:
+					foreach (var value in tfc.Args) {
+						LookupField(value, tables, node);
+					}
+					break;
 				case CastExpression cast:
 					LookupField(cast.Value, tables, node);
 					break;
@@ -218,15 +265,27 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private static void LookupField(MemberReferenceExpression m, List<Variable> tables, SqlTransformStatement node)
+		private void LookupField(MemberReferenceExpression m, List<Variable> tables, Node node)
 		{
-			var tableName = m.Parent.ToString();
-			var table = (GetStream(tables.FirstOrDefault(t => t.Name == tableName)))
-				?? throw new CompilerError($"No input named '{tableName}' is defined in this SQL statement", node);
-			var field = table.Fields.FirstOrDefault(f => f.Name.Equals(m.Name, StringComparison.InvariantCultureIgnoreCase))
+			LookupField(m.Parent, tables, node);
+			var tableName = m.Parent.Name;
+			var vbl = tables.FirstOrDefault(t => t.Name == tableName);
+			if (vbl == null) {
+				throw new CompilerError($"No input named '{tableName}' is defined in this SQL statement", node);
+			}
+			m.Type = GetFieldType(vbl.Declaration, tableName, m.Name)
 				?? throw new CompilerError($"'{tableName}' does not contain a field named '{m.Name}'.", node);
-			m.Type = field.Type;
 		}
+
+		private static IFieldType? GetFieldType(Ast.Statement decl, string tableName, string name) => decl switch {
+			VarDeclaration or SqlTransformStatement => (decl switch {
+				VarDeclaration vd => vd.Stream,
+				SqlTransformStatement sql => sql.Ctes.FirstOrDefault(c => c.Name == tableName)?.Stream,
+			})?.Fields.FirstOrDefault(f => f.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase))?.Type,
+			ScriptVarDeclarationStatement sv => (sv.FieldType as TupleField)?.Fields
+				.FirstOrDefault(p => p.Key.Equals(name, StringComparison.InvariantCultureIgnoreCase)).Value,
+			_ => throw new NotImplementedException()
+		};
 
 		private static StreamDefinition? GetStream(Variable? v) => v?.Declaration switch {
 			null => null,

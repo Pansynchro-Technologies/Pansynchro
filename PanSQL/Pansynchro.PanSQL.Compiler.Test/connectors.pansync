@@ -62,6 +62,10 @@ Connectors:
 		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Snowflake
 
+	Connector FileSystem:
+		supports Analyzer, Reader, Configurator
+		assembly Pansynchro.Connectors.FileSystem
+
 	Connector Console:
 		supports Writer
 		assembly Pansynchro.Connectors.Debug
@@ -92,4 +96,7 @@ DataProcessors:
 		Assembly Pansynchro.Sources.Compression
 
 	Source Gzip:
+		Assembly Pansynchro.Sources.Compression
+
+	Source Zipfile:
 		Assembly Pansynchro.Sources.Compression
