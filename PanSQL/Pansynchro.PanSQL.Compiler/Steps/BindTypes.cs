@@ -110,7 +110,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 			var sVar = ((ScriptVarDeclarationStatement)vbl.Declaration);
 			node.VarType = sVar.FieldType;
-			node.Name = sVar.ScriptName.Name;
+			node.ScriptName = sVar.ScriptName.Name;
 		}
 
 		public override void OnCompoundIdentifier(CompoundIdentifier node)

@@ -48,7 +48,7 @@ static class Program {
 	public static async Task Main() {
 		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$INDICT$""));
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
-		var myInput = ConnectorRegistry.GetReader(""MSSQL"", String.Format(""connection string {0}"", ""here""));
+		var myInput = ConnectorRegistry.GetReader(""MSSQL"", (String.Format(""connection string {0}"", ""here"")));
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
 		var reader__1 = myInput.ReadFrom(myDataDict);
 		await myOutput.Sync(reader__1, outDataDict);

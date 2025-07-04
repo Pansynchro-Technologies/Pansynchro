@@ -157,15 +157,21 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				if (codeObject.ForClause != null) {
 					throw new CompilerError("FOR clauses are not supported in SQL scripts", _file);
 				}
-				codeObject.WhereClause?.Accept(this);
-				codeObject.GroupByClause?.Accept(this);
-				codeObject.HavingClause?.Accept(this);
-				codeObject.WindowClause?.Accept(this);
-				codeObject.OrderByClause?.Accept(this);
-				foreach (var se in codeObject.SelectElements) {
-					var expr = _expressionVisitor.VisitValue(se);
-					_selects.Add(expr);
-					_aggs.AddRange(FindAggregateExpressions(expr));
+				var lv = _expressionVisitor.LocalVariables;
+				try {
+					_expressionVisitor.LocalVariables = true;
+					codeObject.WhereClause?.Accept(this);
+					codeObject.GroupByClause?.Accept(this);
+					codeObject.HavingClause?.Accept(this);
+					codeObject.WindowClause?.Accept(this);
+					codeObject.OrderByClause?.Accept(this);
+					foreach (var se in codeObject.SelectElements) {
+						var expr = _expressionVisitor.VisitValue(se);
+						_selects.Add(expr);
+						_aggs.AddRange(FindAggregateExpressions(expr));
+					}
+				} finally {
+					_expressionVisitor.LocalVariables = lv;
 				}
 				codeObject.TopRowFilter?.Accept(this);
 			}
@@ -293,6 +299,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			private readonly Stack<DbExpression> _stack = [];
 
 			internal TableReference[] Tables { get; set; } = [];
+			internal bool LocalVariables { get; set; }
 
 			public DbExpression VisitValue(TSqlFragment value)
 			{
@@ -439,7 +446,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				}
 				var refName = '_' + varName;
 				_scriptVars.Add(refName);
-				_stack.Push(new VariableReferenceExpression(varName));
+				_stack.Push(new VariableReferenceExpression(varName) { LocalVariable = this.LocalVariables });
 			}
 
 			public override void ExplicitVisit(TryCastCall codeObject)

@@ -248,7 +248,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 	public class ScriptVarExpression(string name) : TypedExpression
 	{
-		public string Name { get; internal set; } = name;
+		public string Name { get; } = name;
+
+		internal string? ScriptName { get; set; }
 
 		internal IFieldType VarType { get; set; } = null!;
 
@@ -256,7 +258,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarExpression(this);
 
-		public override string ToString() => Name;
+		public override string ToString() => ScriptName ?? Name;
 	}
 
 	public class TypeReferenceExpression(string name, int? magnitude, bool isArray) : Expression
@@ -329,11 +331,13 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnMappingExpression(this);
 	}
 
-	public class TSqlExpression(ScalarExpression expr) : Expression
+	public class TSqlExpression(ScalarExpression expr) : TypedExpression
 	{
 		public ScalarExpression Expr { get; } = expr;
 
 		internal DbExpression Value { get; set; } = null!;
+
+		internal override IFieldType ExpressionType => Value?.Type ?? throw new NotImplementedException();
 
 		internal override void Accept(IVisitor visitor) => visitor.OnTsqlExpression(this);
 

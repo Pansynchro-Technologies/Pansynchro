@@ -284,7 +284,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			CastExpression cast => GetInput(cast),
 			LikeExpression like => $@"LikeImpl.Like({GetInput(like.Left)}, {GetInput(like.Right)}, '\\')",
 			IfExpression ie => GetInput(ie),
-			VariableReferenceExpression vr => $"Program.{vr.ScriptVarName}",
+			VariableReferenceExpression vr => vr.LocalVariable ? '_' + vr.Name : $"Program.{vr.ScriptVarName}",
 			_ => throw new NotImplementedException()
 		};
 
@@ -411,7 +411,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 				AggregateExpression ag => GetInput(ag.Args),
 				CallExpression ce => base.GetInput(ce),
 				BinaryExpression bin => $"{GetInput(bin.Left)} {bin.OpString} {GetInput(bin.Right)}",
-				VariableReferenceExpression vr => "Program." + vr.ScriptVarName,
+				VariableReferenceExpression vr => vr.LocalVariable ? '_' + vr.Name : "Program." + vr.ScriptVarName,
 				LiteralExpression => expr.ToString()!,
 				_ => throw new NotImplementedException()
 			};

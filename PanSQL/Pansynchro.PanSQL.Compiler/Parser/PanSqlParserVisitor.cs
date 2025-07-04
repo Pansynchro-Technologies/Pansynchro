@@ -64,7 +64,10 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			var expr = VisitExpression(context.expression());
 			return expr switch {
 				null => throw new Exception("Value should not be null"),
-				TSqlExpression { Expr: FunctionCall { FunctionName.Value: string name, Parameters : [StringLiteral sl] } } => new CredentialExpression(name, new StringLiteralExpression(sl.Value)),
+				TSqlExpression { Expr: FunctionCall { FunctionName.Value: string name, Parameters: { } args} } ts => args switch {
+					[StringLiteral sl] => new CredentialExpression(name, new StringLiteralExpression(sl.Value)),
+					_ => new CredentialExpression("", ts)
+				},
 				FunctionCallExpression { Method: string name, Args : [StringLiteralExpression sl] } => new CredentialExpression(name, sl),
 				TypedExpression te => new CredentialExpression("__direct", te),
 				_ => throw new Exception($"'{expr}' is not a valid credentials value")

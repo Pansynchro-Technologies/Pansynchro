@@ -109,7 +109,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class UserTypes_ {
 			public int Id { get; }
 			public string Name { get; }
@@ -248,7 +248,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -361,7 +361,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -474,7 +474,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -590,7 +590,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -707,7 +707,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -824,7 +824,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -943,7 +943,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }
@@ -1066,7 +1066,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Users_ {
 			public int Id { get; }
 			public string Name { get; }
@@ -1185,7 +1185,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Products_ {
 			public int Id { get; }
 			public string SKU { get; }

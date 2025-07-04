@@ -56,7 +56,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private class DB {
+	internal class DB {
 		public class Aggs_ {
 			public string Name { get; }
 			public float MinTemp { get; }

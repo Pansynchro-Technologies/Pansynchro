@@ -82,8 +82,9 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 	class VariableReferenceExpression(string name) : ReferenceExpression(name)
 	{
 		public string ScriptVarName { get; set; } = null!;
+		public bool LocalVariable { get; set; }
 
-		public override string ToString() => ScriptVarName ?? base.ToString();
+		public override string ToString() => LocalVariable ? base.ToString() : ScriptVarName ?? base.ToString();
 	}
 
 	class StarExpression(ReferenceExpression? table) : DbExpression
@@ -120,7 +121,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			   && MatchAll(ce.Args, Args);
 
 		public override string ToString()
-			=> IsStaticMethod
+			=> IsStaticMethod || IsProp || IsStaticProp || !Function.Name.Contains('.')
 			? $"{Function}({string.Join<DbExpression>(", ", Args)})"
 			: $"{Args[0]}.{Function}({string.Join(", ", Args.Skip(1))})";
 	}

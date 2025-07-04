@@ -342,7 +342,7 @@ sync myInput to myOutput
 		public void SqlVarWrongType()
 		{
 			var err = Assert.Throws<CompilerError>(() => new Compiler().Compile("test", SQLVAR_WRONG_TYPE));
-			Assert.That(err?.Message, Is.EqualTo("Incompatible types in expression 'products.SKU == _sku':  'Nvarchar(20)' and 'Int'"));
+			Assert.That(err?.Message, Is.EqualTo("Incompatible types in expression 'products.SKU == sku':  'Nvarchar(20)' and 'Int'"));
 		}
 
 		private const string JSON_WITH_VAR_OBJ = """
