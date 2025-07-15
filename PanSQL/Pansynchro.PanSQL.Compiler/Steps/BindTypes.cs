@@ -124,7 +124,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				if (field.Value == null) {
 					throw new CompilerError($"Variable '{sv.Name}' does not contain a field named '{node.Name}'.", node);
 				}
-				node.Expr = new MemberReferenceExpression(new(sv.Name), node.Name!) { Type = field.Value };
+				node.Expr = new MemberReferenceExpression(new VariableReferenceExpression(sv.Name) { ScriptVarName = sv.ScriptName! }, node.Name!) { Type = field.Value };
 			}
 		}
 

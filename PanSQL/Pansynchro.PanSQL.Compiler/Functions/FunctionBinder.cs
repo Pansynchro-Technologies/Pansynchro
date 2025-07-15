@@ -95,7 +95,9 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			}
 			call.Function = info.IsStatic ? new($"{info.DeclaringType!.Name}.{info.Name}") : new(info.Name);
 			call.Type = TypesHelper.CSharpTypeToFieldType(info.ReturnType);
-			call.IsStaticMethod = info.IsStatic;
+			if (info.IsStatic) {
+				call.CallType = CallType.StaticMethod;
+			}
 		}
 
 		private static void BindSpecialFunction(CallExpression call, in SpecialFunc func, Node parent)
@@ -116,13 +118,13 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				if (call.Args.Length > 0) {
 					throw new CompilerError($"Function '{call.Function}' does not take any arguments", parent);
 				}
-				call.IsStaticProp = true;
+				call.CallType = CallType.StaticProperty;
 				call.Function = new ReferenceExpression($"{prop.DeclaringType!.Name}.{prop.Name}");
 			} else {
 				if (call.Args.Length != 1) {
 					throw new CompilerError($"Function '{call.Function}' takes one argument", parent);
 				}
-				call.IsProp = true;
+				call.CallType = CallType.Property;
 				call.Function = new ReferenceExpression(prop.Name);
 			}
 			call.Type = TypesHelper.CSharpTypeToFieldType(prop.PropertyType);

@@ -15,7 +15,7 @@ internal class FileSystemConnector : ConnectorCore
 {
 	public override string Name => "FileSystem";
 
-	public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator;
+	public override Capabilities Capabilities => Capabilities.Reader | Capabilities.Analyzer | Capabilities.Configurator | Capabilities.RandomAccessReader;
 
 	public override NameStrategyType Strategy => NameStrategyType.Identity;
 

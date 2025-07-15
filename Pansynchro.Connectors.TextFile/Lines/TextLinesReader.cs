@@ -40,7 +40,7 @@ namespace Pansynchro.Connectors.TextFile.Lines
 			}
 		}
 
-		public Task<IDataReader> ReadStream(DataDictionary source, string name)
+		public Task<DataStream> ReadStream(DataDictionary source, string name)
 		{
 			if (_source == null) {
 				throw new DataException("Must call SetDataSource before calling ReadStream");
@@ -49,7 +49,7 @@ namespace Pansynchro.Connectors.TextFile.Lines
 				.Select(r => new FileLinesReader(name, r))
 				.ToEnumerable();
 			var result = new GroupingReader(values);
-			return Task.FromResult<IDataReader>(result);
+			return Task.FromResult<DataStream>(new(StreamDescription.Parse(name), StreamSettings.None, result));
 		}
 
 		void ISourcedConnector.SetDataSource(IDataSource source) => _source = source;

@@ -119,12 +119,6 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			return new ReadStatement(table);
 		}
 
-		Node IPanSqlParserVisitor<Node>.VisitWriteStatement(PanSqlParser.WriteStatementContext context)
-		{
-			var table = VisitId(context.id());
-			return new WriteStatement(table);
-		}
-
 		Node IPanSqlParserVisitor<Node>.VisitLoadStatement(PanSqlParser.LoadStatementContext context)
 		{
 			var name = context.id().GetText();

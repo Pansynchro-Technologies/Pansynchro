@@ -11,7 +11,6 @@ using Pansynchro.PanSQL.Core;
 
 namespace Pansynchro.PanSQL.Compiler.Steps
 {
-	using static System.Net.WebRequestMethods;
 	using StringLiteralExpression = Ast.StringLiteralExpression;
 
 	internal class Codegen : VisitorCompileStep
@@ -87,6 +86,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				classes.Add(BuildTransformer(node, _imports));
 			}
 			_mainBody = [];
+			foreach (var magic in _file.Vars.Values.Where(v => v.Declaration is MagicDeclarationStatement && v.Used == true)) {
+				if (magic.Type != "Data") {
+					throw new NotImplementedException();
+				}
+				var data = CompressionHelper.ToCompressedString(DefineVars.GetMagicDict(((MagicDeclarationStatement)magic.Declaration).Value).ToString());
+				_mainBody.Add(new VarDecl(magic.Name, new CSharpStringExpression($"DataDictionaryWriter.Parse(CompressionHelper.Decompress({data.ToLiteral()}))")));
+			}
 			base.OnFile(node);
 			if (_scriptVars.Count > 0) {
 				WriteScriptVarInit();
@@ -110,6 +116,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var required = _scriptVars.Any(sv => sv.Expr == null);
 			var initializer = $"new VariableReader(args, {required.ToString().ToLowerInvariant()})";
 			foreach (var sVar in _scriptVars) {
+				if (sVar.Expr?.IsConstant == false) {
+					continue;
+				}
 				var methodName = sVar.Expr != null ? "TryReadVar" : "ReadVar";
 				var passType = sVar.Expr != null ? "ref" : "out";
 				initializer = $"{initializer}.{methodName}({sVar.Name.Name.ToLiteral()}, {passType} {sVar.ScriptName})";
@@ -185,6 +194,17 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			return new Method("public override", "StreamLast", "async IAsyncEnumerable<DataStream>", null, body);
 		}
 
+		public override void OnReadStatement(ReadStatement node)
+		{
+			base.OnReadStatement(node);
+			var decl = (VarDeclaration)_file.Vars[node.Table.Name].Declaration;
+			var table = decl.Stream!.Name.ToTableName();
+
+			_mainBody.Add(new CSharpStringExpression($"Sync.__db.{table}.Clear()"));
+			var args = string.Join(", ", [node.Dict, .. _initFields.Select(f => ((ScriptVarDeclarationStatement)_file.Vars[f.Name[1..]].Declaration).ScriptName)]);
+			_mainBody.Add(new CSharpStringExpression($"await new Sync({args}).Read(((IRandomStreamReader){node.Reader}).ReadStream({node.Dict}, \"{table}\"))"));
+		}
+
 		public override void OnAnalyzeStatement(AnalyzeStatement node)
 		{
 			string line;
@@ -210,7 +230,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			var fields = new List<DataFieldModel>();
 			var subclasses = database.Select(m => GenerateModelClass(m, fields)).ToArray();
 			var ctor = GenerateDatabaseConstructor(database);
-			outerFields.Add(new("__db", "readonly DB", "new()"));
+			outerFields.Add(new("__db", "static readonly DB", "new()", IsPublic: true));
 			if (_file.Producers.Count > 0) {
 				outerFields.Add(new("_producers", "readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)>", "new()"));
 			}
@@ -385,6 +405,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		{
 			_scriptVars.Add(node);
 			Visit(node.Expr);
+			if (node.Expr?.IsConstant == false) {
+				_mainBody.Add(new CSharpStringExpression($"Program.{node.ScriptName} = {node.Expr}"));
+			}
 		}
 
 		public override void OnJsonInterpolatedExpression(JsonInterpolatedExpression node)

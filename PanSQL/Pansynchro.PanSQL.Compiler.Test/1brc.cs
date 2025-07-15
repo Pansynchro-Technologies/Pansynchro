@@ -78,7 +78,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 
 	private void Transformer__1(IDataReader r) {
 		var aggregator__2 = Aggregates.Min<string, float>();

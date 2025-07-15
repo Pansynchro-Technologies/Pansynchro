@@ -43,7 +43,7 @@ namespace Pansynchro.Connectors.Parquet
 			}
 		}
 
-		public Task<IDataReader> ReadStream(DataDictionary source, string name)
+		public Task<DataStream> ReadStream(DataDictionary source, string name)
 		{
 			if (_source == null) {
 				throw new DataException("Must call SetDataSource before calling AnalyzeAsync");
@@ -52,7 +52,7 @@ namespace Pansynchro.Connectors.Parquet
 			var readers = _source.GetDataAsync(name)
 				.Select(ds => ReadDataStream(stream, ds).Reader)
 				.ToEnumerable();
-			return Task.FromResult<IDataReader>(new GroupingReader(readers));
+			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 
 		private static DataStream ReadDataStream(StreamDefinition streamDef, Stream stream)

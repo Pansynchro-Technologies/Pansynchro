@@ -65,7 +65,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			}
 		}
 
-		public Task<IDataReader> ReadStream(DataDictionary source, string name)
+		public Task<DataStream> ReadStream(DataDictionary source, string name)
 		{
 			if (_source == null) {
 				throw new DataException("Must call SetDataSource before calling ReadStream");
@@ -77,7 +77,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 				.SelectMany(reader => JsonReader.LoadData(conf, source, name, reader))
 				.Where(ds => ds.Name.Equals(streamNameParser))
 				.Select(ds => ds.Reader);
-			return Task.FromResult<IDataReader>(new GroupingReader(readers.ToEnumerable()));
+			return Task.FromResult<DataStream>(new(streamNameParser, StreamSettings.None, new GroupingReader(readers.ToEnumerable())));
 		}
 
 		private static async ValueTask<string?> LoadSchema(string? schema)

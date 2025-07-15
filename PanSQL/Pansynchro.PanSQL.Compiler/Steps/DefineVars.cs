@@ -72,7 +72,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_file.AddVar(newvar, node);
 		}
 
-		private static DataDictionary GetMagicDict(string value) => value switch {
+		internal static DataDictionary GetMagicDict(string value) => value switch {
 			"FileSystem" => DataBuiltin.FileSystem.Dict,
 			_ => throw new NotImplementedException()
 		};
@@ -88,10 +88,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (!_file.Vars.TryGetValue(node.Name, out var sVar)) {
 				throw new CompilerError($"No variable named '{node.Name}' has been defined", node);
 			}
-			if (sVar.Type != "ScriptVar")
-			{
+			if (sVar.Type != "ScriptVar") {
 				throw new CompilerError($"The variable '{node.Name}' is not a script variable", node);
 			}
+			sVar.Used = true;
 		}
 
 		public override void OnOpenStatement(OpenStatement node)
@@ -106,9 +106,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					VerifyDictionaryName(dictName, node);
 					if (node.Source != null) {
 						foreach (var src in node.Source) {
-							if (!_file.Vars.ContainsKey(src.Name)) {
+							if (!_file.Vars.TryGetValue(src.Name, out var sVar)) {
 								throw new CompilerError($"No variable named '{node.Source}' has been declared.", node);
 							}
+							sVar.Used = true;
 						}
 					}
 					var newvar = new Variable(node.Name, node.Type == OpenType.Read ? "Reader" : "Writer", node);
@@ -142,6 +143,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (dict.Type != "Data") {
 				throw new CompilerError($"The variable '{dictName}' is not a data dictionary", node);
 			}
+			dict.Used = true;
 			return dict;
 		}
 
@@ -273,6 +275,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (conn.Type != "Analyzer") {
 				throw new CompilerError($"The variable '{conn}' is not an analyzer.", node);
 			}
+			conn.Used = true;
 			var opts = node.Options;
 			if (opts != null) {
 				var groups = opts.ToLookup(o => o.Type).ToDictionary(g => g.Key, g => g.Count());
@@ -323,6 +326,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (conn.Type != type) {
 				throw new CompilerError($"Invalid connector type. '{name}' is not a {type.ToLower()}.", node);
 			}
+			conn.Used = true;
 		}
 
 		private class OneAggVisitor: TSqlFragmentVisitor

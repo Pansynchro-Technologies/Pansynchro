@@ -22,11 +22,11 @@ namespace Pansynchro.Core
 
 	public interface IRandomStreamReader
 	{
-		Task<IDataReader> ReadStream(DataDictionary source, string name);
-		async Task<IDataReader> ReadStream(DataDictionary source, string name, int maxResults)
+		Task<DataStream> ReadStream(DataDictionary source, string name);
+		async Task<DataStream> ReadStream(DataDictionary source, string name, int maxResults)
 		{
 			var result = await ReadStream(source, name);
-			return new MaxSizeReader(result, maxResults);
+			return result with { Reader = new MaxSizeReader(result.Reader, maxResults) };
 		}
 	}
 

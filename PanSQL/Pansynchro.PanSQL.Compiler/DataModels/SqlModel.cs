@@ -22,7 +22,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		{
 			foreach (var input in Model.Inputs) {
 				if (input.Type == TableType.Cte) {
-					yield return new ExpressionStatement(new CallExpression(new(ctes[input.Name]), streamInput ? [new ReferenceExpression("r")] : []));
+					yield return new ExpressionStatement(new CallExpression(new(ctes[input.Name]), streamInput ? [new ReferenceExpression("r")] : []) { CallType = CallType.ImplicitThisMethod } );
 				}
 			}
 		}
@@ -227,13 +227,11 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			if (call.SpecialCodegen != null) {
 				return SpecialCodegen(call);
 			}
-			if (call.IsStaticProp) {
-				return call.Function.ToString();
-			}
-			if (call.IsProp) {
-				return $"{GetInput(call.Args[0])}.{call.Function}";
-			}
-			return $"{call.Function}({GetInput(call.Args)})";
+			return call.CallType switch {
+				CallType.StaticProperty => call.Function.ToString(),
+				CallType.Property => $"{GetInput(call.Args[0])}.{call.Function}",
+				_ => $"{call.Function}({GetInput(call.Args)})",
+			};
 		}
 	}
 

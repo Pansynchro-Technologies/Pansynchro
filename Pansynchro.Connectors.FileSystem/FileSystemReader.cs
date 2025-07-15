@@ -8,7 +8,7 @@ using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Connectors.FileSystem;
 
-public class FileSystemReader : IReader
+public class FileSystemReader : IReader, IRandomStreamReader
 {
 	private readonly FileSystemConfigurator _configurator;
 
@@ -25,9 +25,13 @@ public class FileSystemReader : IReader
 		if (!source.Equals(FileSystemAnalyzer.Dict)) {
 			throw new DataException("The FileSystem reader is only compatible with the FileSytem data dictionary.");
 		}
-		var stream = source.GetStream("Files");
-		yield return new DataStream(stream.Name, StreamSettings.None, new FileSystemDataReader(_configurator));
-		await Task.CompletedTask; //just to shut the compiler up
+		yield return await ReadStream(source, "Files");
+	}
+
+	public Task<DataStream> ReadStream(DataDictionary source, string name)
+	{
+		var stream = source.GetStream(name);
+		return Task.FromResult(new DataStream(stream.Name, StreamSettings.None, new FileSystemDataReader(_configurator)));
 	}
 
 	public Task<Exception?> TestConnection() => Task.FromResult<Exception?>(null);

@@ -105,14 +105,22 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public override string ToString() => $"Alias({Expr} as {Alias})";
 	}
 
+	enum CallType
+	{
+		StandardMethod,
+		StaticMethod,
+		ImplicitThisMethod,
+		Property,
+		StaticProperty,
+	}
+
 	class CallExpression(ReferenceExpression func, DbExpression[] args) : DbExpression
 	{
 		public ReferenceExpression Function { get; internal set; } = func;
 		public DbExpression[] Args { get; } = args;
+		
+		internal CallType CallType { get; set; }
 
-		public bool IsProp { get; internal set; }
-		public bool IsStaticProp { get; internal set; }
-		public bool IsStaticMethod { get; internal set; }
 		public Func<DbExpression[], Func<DbExpression, string>?, string>? SpecialCodegen { get; internal set; }
 
 		internal override bool Match(DbExpression other)
@@ -121,9 +129,11 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			   && MatchAll(ce.Args, Args);
 
 		public override string ToString()
-			=> IsStaticMethod || IsProp || IsStaticProp || !Function.Name.Contains('.')
-			? $"{Function}({string.Join<DbExpression>(", ", Args)})"
-			: $"{Args[0]}.{Function}({string.Join(", ", Args.Skip(1))})";
+			=> CallType switch {
+				CallType.StandardMethod => $"{Args[0]}.{Function}({string.Join(", ", Args.Skip(1))})",
+				CallType.StaticProperty or CallType.Property => Function.ToString(),
+				_ => $"{Function}({string.Join<DbExpression>(", ", Args)})"
+			};
 	}
 
 	enum BoolExpressionType
@@ -272,6 +282,11 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		{
 			throw new NotImplementedException();
 		}
+
+		public override string ToString() => CallType switch {
+			TableFunctionCallType.Index => $"Sync.__db.{TableName}[{Args[0]}]",
+			_ => $"System.Linq.Enumerable.{CallType}(Sync.__db.{TableName})"
+		};
 	}
 
 	class TableOpExpression(string name, params DbExpression[] args) : DbExpression

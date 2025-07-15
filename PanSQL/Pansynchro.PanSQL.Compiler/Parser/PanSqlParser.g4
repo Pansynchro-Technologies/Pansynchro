@@ -10,7 +10,7 @@ line : statement ({InputStream.LA(1) == TokenConstants.EOF}? | NEWLINE+);
 
 statement : loadStatement | saveStatement | openStatement | analyzeStatement | varDeclaration | scriptVarDeclaration 
           | mapStatement | sqlStatement | syncStatement | ifStatement | abortStatement | callStatement
-		  | alterStatement | readStatement | writeStatement ;
+		  | alterStatement | readStatement ;
 
 loadStatement : LOAD id FROM STRING; 
 
@@ -57,8 +57,6 @@ mapping : id EQUALS id;
 sqlStatement : (SELECT | WITH) sqlToken+ INTO id;
 
 readStatement : READ id;
-
-writeStatement : WRITE id;
 
 sqlToken : ~INTO;
 

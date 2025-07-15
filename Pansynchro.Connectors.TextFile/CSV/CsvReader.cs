@@ -41,13 +41,17 @@ namespace Pansynchro.Connectors.TextFile.CSV
 			}
 		}
 
-		public Task<IDataReader> ReadStream(DataDictionary source, string name)
+		public Task<DataStream> ReadStream(DataDictionary source, string name)
 		{
 			if (_source == null) {
 				throw new DataException("Must call SetDataSource before calling ReadStream");
 			}
-			var readers = _source.GetTextAsync(name).Select(r => CreateReader(r)).ToEnumerable();
-			return Task.FromResult<IDataReader>(new GroupingReader(readers));
+			if (!source.HasStream(name)) {
+				throw new DataException($"No stream named '{name}' is defined in the data dictionary.");
+			}
+			var stream = source.GetStream(name);
+			var readers = _source.GetTextAsync(name).Select(r => CreateReader(r, stream)).ToEnumerable();
+			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 
 		private CsvDataReader CreateReader(TextReader reader)

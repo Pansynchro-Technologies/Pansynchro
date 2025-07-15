@@ -20,6 +20,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private readonly List<string> _sources = [];
 		private readonly List<string> _sinks = [];
 		private readonly List<string> _processors = [];
+		private readonly HashSet<string> _magics = [];
 
 		public override void Execute(PanSqlFile f)
 		{
@@ -254,6 +255,27 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				throw new CompilerError($"'{node.Value}' is not a string type", node);
 			}
 		}
+
+		public override void OnReadStatement(ReadStatement node)
+		{
+			base.OnReadStatement(node);
+			if (!_file.Vars.TryGetValue(node.Table.Name, out var vbl)) {
+				throw new CompilerError($"No variable named '{node.Table.Name}' has been defined.", node);
+			}
+			if (vbl.Declaration is not VarDeclaration { Type: VarDeclarationType.Table } decl) {
+				throw new CompilerError("Read statements must target a table-typed variable.", node);
+			}
+			var reader = _file.Vars.Values
+				.Where(v => v.Type == "Reader" && ((OpenStatement)v.Declaration).Dictionary?.Name == decl.Identifier.Parent.ToString())
+				.FirstOrDefault();
+			if (reader == null) {
+				throw new CompilerError("No corresponding 'for read' connector has been defined for this Read statement.", node);
+			}
+			node.Reader = new(reader.Name);
+			node.Dict = (Identifier)decl.Identifier.Parent;
+		}
+
+		//override onmag
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies() => [Dependency<BindTypes>()];
 	}

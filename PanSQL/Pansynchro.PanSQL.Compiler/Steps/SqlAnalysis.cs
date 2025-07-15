@@ -525,7 +525,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				_stack.Push(new CallExpression(new ReferenceExpression(fName), args));
 			}
 
-			private DbExpression CheckTableExpression(string name, ScalarExpression[] args)
+			private TableFunctionCall CheckTableExpression(string name, ScalarExpression[] args)
 			{
 				name = name.ToLower().ToPropertyName();
 				if (!TABLE_FUNCTIONS_SUPPORTED.TryGetValue(name, out var argCount)) {
@@ -538,6 +538,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				if (tableName == null || !(_file.Vars.TryGetValue(tableName, out var table) && table.Type == "Table")) {
 					throw new Exception($"The '{name}' function requires a TABLE variable as its {(argCount > 0 ? "first " : "")}argument.");
 				}
+				tableName = ((VarDeclaration)table.Declaration).Stream!.Name.ToTableName();
 				var argVals = args.Skip(1).Select(a => { VisitValue(a); return _stack.Pop(); }).ToArray();
 				var call = Enum.Parse<TableFunctionCallType>(name, true);
 				return new TableFunctionCall(call, tableName, argVals);

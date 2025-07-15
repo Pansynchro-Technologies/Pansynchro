@@ -108,16 +108,17 @@ namespace Pansynchro.SQL
 			return string.Join(", ", result);
 		}
 
-		public async Task<IDataReader> ReadStream(DataDictionary source, string name, int maxResults)
+		public async Task<DataStream> ReadStream(DataDictionary source, string name, int maxResults)
 		{
 			var stream = source.GetStream(name);
 			if (_conn.State == ConnectionState.Closed) {
 				await _conn.OpenAsync();
 			}
-			return await FullSyncReader(stream, maxResults);
+			var result = await FullSyncReader(stream, maxResults);
+			return new DataStream(stream.Name, StreamSettings.None, result);
 		}
 
-		public Task<IDataReader> ReadStream(DataDictionary source, string name)
+		public Task<DataStream> ReadStream(DataDictionary source, string name)
 			=> ReadStream(source, name, -1);
 
 		public async IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source)

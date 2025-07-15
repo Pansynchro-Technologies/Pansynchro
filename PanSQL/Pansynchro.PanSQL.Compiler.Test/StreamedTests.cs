@@ -168,7 +168,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 
 	private void Consumer__1(IDataReader r) {
 		while (r.Read()) {

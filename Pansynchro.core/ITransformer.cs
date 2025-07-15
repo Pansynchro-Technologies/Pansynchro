@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Pansynchro.Core.DataDict;
@@ -44,10 +45,14 @@ namespace Pansynchro.Core
 		protected virtual Func<IDataReader, IEnumerable<object[]>>? GetProcessor(DataStream stream)
 			=> _streamDict.TryGetValue(stream.Name.ToString(), out var processor) ? processor : null;
 
+		private bool _noExtras;
+
 		public async IAsyncEnumerable<DataStream> Transform(IAsyncEnumerable<DataStream> input)
 		{
-			await foreach (var stream in StreamFirst()) {
-				yield return stream;
+			if (!_noExtras) {
+				await foreach (var stream in StreamFirst()) {
+					yield return stream;
+				}
 			}
 			EventLog.Instance.AddUseTransformerEvent(this);
 			await foreach (var stream in input) {
@@ -78,9 +83,19 @@ namespace Pansynchro.Core
 				}
 				yield return destName != null ? result with { Name = destName } : result;
 			}
-			await foreach (var stream in StreamLast()) {
-				yield return stream;
+			if (!_noExtras) {
+				await foreach (var stream in StreamLast()) {
+					yield return stream;
+				}
 			}
+		}
+
+		public async Task Read(DataStream stream)
+		{
+			_noExtras = true;
+			DataStream[] streams = [stream];
+			await foreach (var _ in Transform(streams.ToAsyncEnumerable())) { }
+			_noExtras = false;
 		}
 
 		protected void MapNamespaces(string? l, string? r)

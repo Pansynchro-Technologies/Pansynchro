@@ -38,7 +38,7 @@ namespace Pansynchro.Connectors.Avro
 
 		public Task<Exception?> TestConnection() => Task.FromResult<Exception?>(null);
 
-		public Task<IDataReader> ReadStream(DataDictionary source, string name)
+		public Task<DataStream> ReadStream(DataDictionary source, string name)
 		{
 			if (_source == null) {
 				throw new DataException("Must call SetDataSource before calling ReadStream");
@@ -47,7 +47,7 @@ namespace Pansynchro.Connectors.Avro
 			var readers = _source.GetDataAsync(name)
 				.Select(s => new AvroDataReader(DataFileReader<GenericRecord>.OpenReader(s)))
 				.ToEnumerable();
-			return Task.FromResult<IDataReader>(new GroupingReader(readers));
+			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 
 		public void Dispose()

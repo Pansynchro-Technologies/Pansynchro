@@ -196,6 +196,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 	{
 		public Identifier Table { get; } = table;
 
+		internal Identifier Reader { get; set; } = null!;
+		internal Identifier Dict { get; set; } = null!;
+
 		internal override void Accept(IVisitor visitor) => visitor.OnReadStatement(this);
 	}
 

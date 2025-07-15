@@ -147,7 +147,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -270,7 +270,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -383,7 +383,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -496,7 +496,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -612,7 +612,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -729,7 +729,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -846,7 +846,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -965,7 +965,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -1092,7 +1092,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
@@ -1207,7 +1207,7 @@ class Sync : StreamTransformerBase {
 		}
 	}
 
-	private readonly DB __db = new();
+	public static readonly DB __db = new();
 	private readonly List<(StreamDefinition stream, Func<IEnumerable<object?[]>> producer)> _producers = new();
 
 	private void Consumer__1(IDataReader r) {
