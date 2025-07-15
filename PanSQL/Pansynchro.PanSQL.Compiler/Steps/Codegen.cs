@@ -202,7 +202,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 			_mainBody.Add(new CSharpStringExpression($"Sync.__db.{table}.Clear()"));
 			var args = string.Join(", ", [node.Dict, .. _initFields.Select(f => ((ScriptVarDeclarationStatement)_file.Vars[f.Name[1..]].Declaration).ScriptName)]);
-			_mainBody.Add(new CSharpStringExpression($"await new Sync({args}).Read(((IRandomStreamReader){node.Reader}).ReadStream({node.Dict}, \"{table}\"))"));
+			_mainBody.Add(new CSharpStringExpression($"await new Sync({args}).Read(await ((IRandomStreamReader){node.Reader}).ReadStream({node.Dict}, \"{table}\"))"));
 		}
 
 		public override void OnAnalyzeStatement(AnalyzeStatement node)
