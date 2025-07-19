@@ -23,7 +23,9 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 					CosFunction(), DegFunction(), RadFunction(), ExpFunction(), FloorFunction(), LogFunction(),
 					Log10Function(), PowFunction(), RandFunction(), RoundFunction(), SignFunction(),
 					SinFunction(), SqrtFunction(), SquareFunction(), TanFunction(), TrimFunction(), ReplaceFunction(),
-					TableSingleFunction(), /*TableFirstFunction(), TableLastFunction(), TableIndexFunction()*/];
+					TableSingleFunction(), TableFirstFunction(), TableLastFunction(), /*TableIndexFunction(),*/
+					DateAddFunction(), DateDiffFunction(), /*DatePartFunction(),*/
+			];
 		}
 
 		private static SpecialFunc AbsFunction() => new("ABS", AnyNumeric(1), IdentityTypeFirst,
@@ -189,6 +191,48 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 				return $"System.Linq.Enumerable.Single({arg})";
 			});
 
+		private static SpecialFunc TableFirstFunction() => new SpecialFunc("FIRST", TableArgs, IdentityTypeTable,
+			(exprs, reader) => {
+				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
+				return $"System.Linq.Enumerable.First({arg})";
+			});
+
+		private static SpecialFunc TableLastFunction() => new SpecialFunc("LAST", TableArgs, IdentityTypeTable,
+			(exprs, reader) => {
+				var arg = reader?.Invoke(exprs[0]) ?? exprs[0].ToString();
+				return $"System.Linq.Enumerable.Last({arg})";
+			});
+
+		private static SpecialFunc DateAddFunction() => new SpecialFunc("DATEADD", DateArgs, t => t[2],
+			(exprs, reader) => {
+				var part = (DatepartLiteralExpression)exprs[0];
+				var length = exprs[1];
+				var time = exprs[2];
+				var span = part.Value switch {
+					DatepartType.Day => "TimeSpan.FromDays",
+					DatepartType.Hour => "TimeSpan.FromHours",
+					DatepartType.Minute => "TimeSpan.FromMinutes",
+					DatepartType.Second => "TimeSpan.FromSeconds",
+					_ => throw new Exception($"'{part.Value}' is not a supported date part for DATEADD.")
+				};
+				return $"{time} + {span}({length})";
+			});
+
+		private static SpecialFunc DateDiffFunction() => new SpecialFunc("DATEDIFF", DateArgs, t => t[2],
+			(exprs, reader) => {
+				var part = (DatepartLiteralExpression)exprs[0];
+				var length = exprs[1];
+				var time = exprs[2];
+				var span = part.Value switch {
+					DatepartType.Day => "TimeSpan.FromDays",
+					DatepartType.Hour => "TimeSpan.FromHours",
+					DatepartType.Minute => "TimeSpan.FromMinutes",
+					DatepartType.Second => "TimeSpan.FromSeconds",
+					_ => throw new Exception($"'{part.Value}' is not a supported date part for DATEDIFF.")
+				};
+				return $"{time} - {span}({length})";
+			});
+
 		private static string? NoArgs(IFieldType[] types) 
 			=> (types.Length != 0) ? $"Function {{0}} does not take any argument(s)." : null;
 
@@ -300,6 +344,17 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 		{
 			if (args.Length > 1) {
 				return "Function '{0}' does not take any arguments aside from the table.";
+			}
+			return null;
+		}
+
+		private static string? DateArgs(IFieldType[] types)
+		{
+			if (types.Length != 3
+				|| types[0] != TypesHelper.DatePartType
+				|| TypesHelper.FieldTypeToDotNetType(types[1]) != typeof(int)
+				|| TypesHelper.FieldTypeToDotNetType(types[2]) != typeof(DateTime)) {
+				return "Invalid {0}() arguments";
 			}
 			return null;
 		}

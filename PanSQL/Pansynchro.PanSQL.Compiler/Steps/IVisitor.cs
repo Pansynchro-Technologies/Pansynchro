@@ -4,12 +4,14 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 {
 	internal interface IVisitor
 	{
+		void OnAbortStatement(AbortStatement abortStatement);
 		void OnAlterStatement(AlterStatement alterStatement);
 		void OnAnalyzeOption(AnalyzeOption analyzeOption);
 		void OnAnalyzeStatement(AnalyzeStatement analyzeStatement);
 		void OnCallStatement(CallStatement callStatement);
 		void OnCompoundIdentifier(CompoundIdentifier compoundIdentifier);
 		void OnCredentialExpression(CredentialExpression credentialExpression);
+		void OnExistsExpression(ExistsExpression existsExpression);
 		void OnFile(PanSqlFile panSqlFile);
 		void OnFunctionCallExpression(FunctionCallExpression functionCallExpression);
 		void OnIdentifier(Identifier identifier);
@@ -24,6 +26,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		void OnSaveStatement(SaveStatement saveStatement);
 		void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement scriptVarDeclarationStatement);
 		void OnScriptVarExpression(ScriptVarExpression scriptVarExpression);
+		void OnSqlIfStatement(SqlIfStatement sqlIfStatement);
 		void OnSqlStatement(SqlTransformStatement sqlStatement);
 		void OnStringLiteralExpression(StringLiteralExpression stringLiteralExpression);
 		void OnSyncStatement(SyncStatement syncStatement);

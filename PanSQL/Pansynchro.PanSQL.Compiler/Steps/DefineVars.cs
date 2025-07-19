@@ -150,39 +150,54 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
 			var stmt = node.SqlNode;
+			node.Metadata = ProcessSelect(stmt, node.Dest, node);
+		}
+
+		public override void OnExistsExpression(ExistsExpression node)
+		{
+			var metadata = ProcessSelect(node.Stmt, null, node);
+			if (metadata.TransactionType.HasFlag(TransactionType.ToStream) | metadata.TransactionType.HasFlag(TransactionType.FromStream)) {
+				throw new CompilerError("EXISTS expressions must operate purely on in-memory data, not streams.", node);
+			}
+			node.Metadata = metadata;
+		}
+
+		private SqlMetadata ProcessSelect(SelectStatement sel, Ast.Identifier? dest, Node node)
+		{
 			var grouped = false;
 			var oneAgg = false;
-			switch (stmt) {
-				case SelectStatement sel:
-					node.Tables.AddRange(VerifySelect(sel, node).Distinct());
-					node.Output = VerifyTableName(node.Dest.Name, false, node)[0];
-					var spec = (QuerySpecification)sel.QueryExpression;
-					grouped = spec.GroupByClause != null;
-					if (!grouped) {
-						oneAgg = new OneAggVisitor().Check(spec);
-					}
-					break;
-				default:
-					throw new CompilerError("Only SELECT statements are supported at this time", node);
+			var result = new SqlMetadata();
+			result.Tables.AddRange(VerifySelect(sel, node).Distinct());
+			if (dest != null) {
+				result.Output = VerifyTableName(dest.Name, false, node)[0];
+			}
+			var spec = (QuerySpecification)sel.QueryExpression;
+			grouped = spec.GroupByClause != null;
+			if (!grouped) {
+				oneAgg = new OneAggVisitor().Check(spec);
 			}
 
-			var tt = node.Tables.Any(v => v.Type == "Stream") ? TransactionType.FromStream : TransactionType.PureMemory;
-			if (node.Tables.Where(t => t.Type != "Cte").Count() > 1) {
+			var tt = result.Tables.Any(v => v.Type == "Stream") ? TransactionType.FromStream : TransactionType.PureMemory;
+			if (result.Tables.Where(t => t.Type != "Cte").Count() > 1) {
 				tt |= TransactionType.Joined;
 			}
-			if (node.Output.Type == "Stream") {
+			if (result.Output?.Type == "Stream") {
 				tt |= TransactionType.ToStream;
 			}
 			if (grouped || oneAgg) {
 				tt |= TransactionType.Grouped;
 			}
-			if (((SelectStatement)node.SqlNode).WithCtesAndXmlNamespaces?.CommonTableExpressions?.Count > 0) {
+			if (sel.WithCtesAndXmlNamespaces?.CommonTableExpressions?.Count > 0) {
 				tt |= TransactionType.WithCte;
 			}
-			node.TransactionType = tt;
+			if (dest == null) {
+				tt |= TransactionType.Exists;
+			}
+			result.TransactionType = tt;
+			return result;
 		}
 
-		private IEnumerable<Variable> VerifySelect(SelectStatement sel, SqlTransformStatement node)
+		private IEnumerable<Variable> VerifySelect(SelectStatement sel, Node node)
 		{
 			if (sel.WithCtesAndXmlNamespaces?.CommonTableExpressions?.Count > 0) {
 				foreach (var cte in sel.WithCtesAndXmlNamespaces.CommonTableExpressions) {
@@ -202,7 +217,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private void AddCte(CommonTableExpression cte, SqlTransformStatement node)
+		private void AddCte(CommonTableExpression cte, Node node)
 		{
 			var name = cte.ExpressionName.Value.ToPropertyName();
 			if (_file.Vars.ContainsKey(name)) {
@@ -212,10 +227,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_file.AddVar(result, node);
 		}
 
-		private IEnumerable<Variable> VerifyQuerySpec(QuerySpecification spec, SqlTransformStatement node) 
+		private IEnumerable<Variable> VerifyQuerySpec(QuerySpecification spec, Node node) 
 			=> VerifyQueryFromClause(spec.FromClause, node);
 
-		private IEnumerable<Variable> VerifyQueryFromClause(FromClause from, SqlTransformStatement node)
+		private IEnumerable<Variable> VerifyQueryFromClause(FromClause from, Node node)
 		{
 			foreach (var table in from.TableReferences) {
 				foreach (var result in VerifyTable(table, false, node)) {
@@ -225,7 +240,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		}
 
-		private IEnumerable<Variable> VerifyTable(TableReference table, bool tableRequired, Ast.SqlTransformStatement node)
+		private IEnumerable<Variable> VerifyTable(TableReference table, bool tableRequired, Node node)
 		{
 			switch (table) {
 				case NamedTableReference tRef:
@@ -243,7 +258,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			}
 		}
 
-		private Variable[] VerifyTableName(string name, bool tableRequired, Ast.SqlTransformStatement node)
+		private Variable[] VerifyTableName(string name, bool tableRequired, Node node)
 		{
 			if (!_file.Vars.TryGetValue(name, out var tVar)) {
 				throw new CompilerError($"Table names in a SQL FROM or JOIN clause must be declared. '{name}' has not been defined.", node);

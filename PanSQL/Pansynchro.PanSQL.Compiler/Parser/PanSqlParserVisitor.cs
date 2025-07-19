@@ -56,7 +56,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			if (context == null) {
 				return null;
 			}
-			return (Expression)Visit(context.children[0]);
+			return (Expression)Visit(context.children[0]) ?? throw new NotImplementedException();
 		}
 
 		public override CredentialExpression VisitCredentials([NotNull] PanSqlParser.CredentialsContext context)
@@ -97,7 +97,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 
 		Node IPanSqlParserVisitor<Node>.VisitId(PanSqlParser.IdContext context) => new Identifier(context.GetText());
 
-		private new Statement VisitLine(PanSqlParser.LineContext ctx) => (Statement)Visit(ctx.statement());
+		private new Statement VisitLine(PanSqlParser.LineContext ctx) => (Statement)Visit(ctx.statement()) ?? throw new NotImplementedException();
 
 		Node IPanSqlParserVisitor<Node>.VisitAlterStatement(PanSqlParser.AlterStatementContext context)
 		{
@@ -199,7 +199,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			if (batches == null || batches.Count > 1 || batches[0].Statements.Count > 1) {
 				throw new Exception("SQL scripts should only contain one statement at a time");
 			}
-			var stmt = batches[0].Statements[0];
+			var stmt = (SelectStatement)batches[0].Statements[0];
 			return new SqlTransformStatement(stmt, new Identifier(id));
 		}
 
@@ -273,6 +273,18 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 			return new ScriptVarDeclarationStatement(sv, type, expr);
 		}
 
+		public override Statement VisitIfStatement([NotNull] PanSqlParser.IfStatementContext context)
+		{
+			var cond = VisitExpression(context.expression()) ?? throw new NotImplementedException();
+			var body = context.statement().Select(s => VisitStatement(s) as Statement ?? throw new NotImplementedException()).ToArray();
+			return new SqlIfStatement(cond, body);
+		}
+
+		public override Statement VisitAbortStatement([NotNull] PanSqlParser.AbortStatementContext context)
+		{
+			return new AbortStatement();
+		}
+
 		public override Expression VisitScriptVarRef(PanSqlParser.ScriptVarRefContext context)
 		{
 			var ids = context.IDENTIFIER();
@@ -303,6 +315,15 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 				};
 				return new TypeReferenceExpression(name, magnitude, isArr);
 			}
+		}
+
+		public override Expression VisitExistsExpression([NotNull] PanSqlParser.ExistsExpressionContext context)
+		{
+			var stmt = Visit(context.sqlStatement()) as SqlTransformStatement ?? throw new NotImplementedException();
+			if (stmt.Dest.Name != "_") {
+				throw new Exception("EXISTS expressions must end with 'INTO _'.");
+			}
+			return new ExistsExpression((SelectStatement)stmt.SqlNode);
 		}
 
 		public override LiteralExpression VisitLiteral(PanSqlParser.LiteralContext context)

@@ -55,7 +55,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
 		var result = new object[2];
 		while (r.Read()) {
 			result[0] = r.GetInt32(0);
@@ -65,7 +65,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Guids"", Transformer__1);
+		_streamDict.Add(""Guids"", Transformer__2);
 	}
 }
 
@@ -75,9 +75,9 @@ static class Program {
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""CwICAIyULm8UHcyrjqUzgc2Ivunp/AGzcCqXsYrJ7927IB+45+NAhtMC4MytPWpUvd2cbi4DOQSd+SM2PKFHfVdPmA5QLVxUz5XEUIwCYZXwSNCBhLlgpoLzkyZsuv+p9A33aQt3SqT58rUWniVPMbfhrEVJdFzhHktapN255OrcFCUISStXoiiqQyzrYE5alxDxHBfJrGbwoCq7DXb3YdYN9gehW6uMOAS2b6xg5hV0ExYL/d/Yp4bju1M2PJeUJjaZagV6NT7H55YK8wTfnL5no/2mkzn52tXgVwl8dbWWq1o59TMtL0UIEqv1S9X+gnGey+jeKgRVNm8pnt0LWChd5/abvVyXc+pm+oUTqYvriKXlxtLCYi3WFlx8BC3/I0h8TWI=""));
 		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
-		var reader__2 = myInput.ReadFrom(myDataDict);
-		reader__2 = new Sync(outDataDict).Transform(reader__2);
-		await myOutput.Sync(reader__2, outDataDict);
+		var reader__1 = myInput.ReadFrom(myDataDict);
+		reader__1 = new Sync(outDataDict).Transform(reader__1);
+		await myOutput.Sync(reader__1, outDataDict);
 	}
 }
 ";

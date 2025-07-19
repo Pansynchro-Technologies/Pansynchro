@@ -115,7 +115,7 @@ using static Pansynchro.PanSQL.Core.Credentials;
 class Sync : StreamTransformerBase {
 	private readonly string _sku;
 
-	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__3(IDataReader r) {
 		var result = new object[4];
 		while (r.Read()) {
 			if (!((r.GetString(1) == _sku))) continue;
@@ -129,7 +129,7 @@ class Sync : StreamTransformerBase {
 
 	public Sync(DataDictionary destDict, string sku) : base(destDict) {
 		_sku = sku;
-		_streamDict.Add(""Products"", Transformer__2);
+		_streamDict.Add(""Products"", Transformer__3);
 	}
 }
 
@@ -146,9 +146,9 @@ static class Program {
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
 		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
-		var reader__3 = myInput.ReadFrom(myDataDict);
-		reader__3 = new Sync(outDataDict, sku__1).Transform(reader__3);
-		await myOutput.Sync(reader__3, outDataDict);
+		var reader__2 = myInput.ReadFrom(myDataDict);
+		reader__2 = new Sync(outDataDict, sku__1).Transform(reader__2);
+		await myOutput.Sync(reader__2, outDataDict);
 	}
 }
 ";
@@ -194,7 +194,7 @@ using static Pansynchro.PanSQL.Core.Credentials;
 class Sync : StreamTransformerBase {
 	private readonly int _id;
 
-	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__3(IDataReader r) {
 		var result = new object[4];
 		while (r.Read()) {
 			if (!((r.GetString(1) == ""ABC123"" && r.GetInt32(0) >= _id))) continue;
@@ -208,7 +208,7 @@ class Sync : StreamTransformerBase {
 
 	public Sync(DataDictionary destDict, int id) : base(destDict) {
 		_id = id;
-		_streamDict.Add(""Products"", Transformer__2);
+		_streamDict.Add(""Products"", Transformer__3);
 	}
 }
 
@@ -225,9 +225,9 @@ static class Program {
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
 		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
-		var reader__3 = myInput.ReadFrom(myDataDict);
-		reader__3 = new Sync(outDataDict, id__1).Transform(reader__3);
-		await myOutput.Sync(reader__3, outDataDict);
+		var reader__2 = myInput.ReadFrom(myDataDict);
+		reader__2 = new Sync(outDataDict, id__1).Transform(reader__2);
+		await myOutput.Sync(reader__2, outDataDict);
 	}
 }
 ";
@@ -273,7 +273,7 @@ using static Pansynchro.PanSQL.Core.Credentials;
 class Sync : StreamTransformerBase {
 	private readonly int _id;
 
-	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__3(IDataReader r) {
 		var result = new object[4];
 		while (r.Read()) {
 			if (!((r.GetString(1) == ""ABC123"" && r.GetInt32(0) >= _id))) continue;
@@ -287,7 +287,7 @@ class Sync : StreamTransformerBase {
 
 	public Sync(DataDictionary destDict, int id) : base(destDict) {
 		_id = id;
-		_streamDict.Add(""Products"", Transformer__2);
+		_streamDict.Add(""Products"", Transformer__3);
 	}
 }
 
@@ -304,9 +304,9 @@ static class Program {
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
 		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
-		var reader__3 = myInput.ReadFrom(myDataDict);
-		reader__3 = new Sync(outDataDict, id__1).Transform(reader__3);
-		await myOutput.Sync(reader__3, outDataDict);
+		var reader__2 = myInput.ReadFrom(myDataDict);
+		reader__2 = new Sync(outDataDict, id__1).Transform(reader__2);
+		await myOutput.Sync(reader__2, outDataDict);
 	}
 }
 ";
@@ -380,7 +380,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__4(IDataReader r) {
 		var result = new object[6];
 		result[3] = "NONE";
 		result[4] = DBNull.Value;
@@ -394,7 +394,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add("Users", Transformer__2);
+		_streamDict.Add("Users", Transformer__4);
 	}
 }
 
@@ -409,17 +409,17 @@ static class Program {
 		}
 		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$INDICT$"));
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$OUTDICT$"));
-		var json__3 = JsonNode.Parse("{\"Files\":[{\"File\":[\"\\\\myPath\\\\users*.avro\"]}]}")!;
-		json__3["Files"]![0]!["Name"] = streamname__1;
-		var mySource = ConnectorRegistry.GetSource("Files", json__3.ToJsonString());
+		var json__2 = JsonNode.Parse("{\"Files\":[{\"File\":[\"\\\\myPath\\\\users*.avro\"]}]}")!;
+		json__2["Files"]![0]!["Name"] = streamname__1;
+		var mySource = ConnectorRegistry.GetSource("Files", json__2.ToJsonString());
 		var mySink = ConnectorRegistry.GetSink("Files", "{\"Files\":[{\"StreamName\":\"*\",\"Filename\":\"C:\\\\PansynchroData\\\\*.csv\"}],\"MissingFilenameSpec\":\"C:\\\\PansynchroData\\\\Missing\\\\*.csv\",\"DuplicateFilenameAction\":0}");
 		var myInput = ConnectorRegistry.GetReader("Avro", "connection string here");
 		((ISourcedConnector)myInput).SetDataSource(mySource);
 		var myOutput = ConnectorRegistry.GetWriter("CSV", CredentialsFromEnv("CsvConfigString"));
 		((ISinkConnector)myOutput).SetDataSink(mySink);
-		var reader__4 = myInput.ReadFrom(myDataDict);
-		reader__4 = new Sync(outDataDict).Transform(reader__4);
-		await myOutput.Sync(reader__4, outDataDict);
+		var reader__3 = myInput.ReadFrom(myDataDict);
+		reader__3 = new Sync(outDataDict).Transform(reader__3);
+		await myOutput.Sync(reader__3, outDataDict);
 	}
 }
 
@@ -467,7 +467,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__4(IDataReader r) {
 		var result = new object[6];
 		result[3] = "NONE";
 		result[4] = DBNull.Value;
@@ -481,7 +481,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add("Users", Transformer__2);
+		_streamDict.Add("Users", Transformer__4);
 	}
 }
 
@@ -496,17 +496,17 @@ static class Program {
 		}
 		var myDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$INDICT$"));
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress("$OUTDICT$"));
-		var json__3 = JsonNode.Parse("{\"Files\":[{\"Name\":\"files\",\"File\":[]}]}")!;
-		((JsonArray)json__3["Files"]![0]!["File"]!).Insert(0, filename__1);
-		var mySource = ConnectorRegistry.GetSource("Files", json__3.ToJsonString());
+		var json__2 = JsonNode.Parse("{\"Files\":[{\"Name\":\"files\",\"File\":[]}]}")!;
+		((JsonArray)json__2["Files"]![0]!["File"]!).Insert(0, filename__1);
+		var mySource = ConnectorRegistry.GetSource("Files", json__2.ToJsonString());
 		var mySink = ConnectorRegistry.GetSink("Files", "{\"Files\":[{\"StreamName\":\"*\",\"Filename\":\"C:\\\\PansynchroData\\\\*.csv\"}],\"MissingFilenameSpec\":\"C:\\\\PansynchroData\\\\Missing\\\\*.csv\",\"DuplicateFilenameAction\":0}");
 		var myInput = ConnectorRegistry.GetReader("Avro", "connection string here");
 		((ISourcedConnector)myInput).SetDataSource(mySource);
 		var myOutput = ConnectorRegistry.GetWriter("CSV", CredentialsFromEnv("CsvConfigString"));
 		((ISinkConnector)myOutput).SetDataSink(mySink);
-		var reader__4 = myInput.ReadFrom(myDataDict);
-		reader__4 = new Sync(outDataDict).Transform(reader__4);
-		await myOutput.Sync(reader__4, outDataDict);
+		var reader__3 = myInput.ReadFrom(myDataDict);
+		reader__3 = new Sync(outDataDict).Transform(reader__3);
+		await myOutput.Sync(reader__3, outDataDict);
 	}
 }
 

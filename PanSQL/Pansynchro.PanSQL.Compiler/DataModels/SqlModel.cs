@@ -102,7 +102,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			BooleanExpression be => new BooleanExpression(be.Op, GetField(be.Left), GetField(be.Right)),
 			LikeExpression lk => new LikeExpression(GetField(lk.Left), GetField(lk.Right)),
 			ContainsExpression cont => new ContainsExpression(GetField(cont.Collection), GetField(cont.Value)),
-			CallExpression ce => new CallExpression(ce.Function, ce.Args.Select(GetField).ToArray()),
+			CallExpression ce => new CallExpression(ce.Function, ce.Args.Select(GetField).ToArray()) { CallType = ce.CallType, SpecialCodegen = ce.SpecialCodegen },
 			CastExpression cast => GetField(cast),
 			TryCastExpression tCast => GetField(tCast),
 			AggregateExpression agg => GetField(agg.Args[0]),

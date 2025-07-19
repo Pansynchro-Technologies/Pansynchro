@@ -168,7 +168,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
 		var result = new object[6];
 		result[3] = ""NONE"";
 		result[4] = DBNull.Value;
@@ -182,7 +182,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Users"", Transformer__1);
+		_streamDict.Add(""Users"", Transformer__2);
 	}
 }
 
@@ -196,9 +196,9 @@ static class Program {
 		((ISourcedConnector)myInput).SetDataSource(mySource);
 		var myOutput = ConnectorRegistry.GetWriter(""CSV"", CredentialsFromEnv(""CsvConfigString""));
 		((ISinkConnector)myOutput).SetDataSink(mySink);
-		var reader__2 = myInput.ReadFrom(myDataDict);
-		reader__2 = new Sync(outDataDict).Transform(reader__2);
-		await myOutput.Sync(reader__2, outDataDict);
+		var reader__1 = myInput.ReadFrom(myDataDict);
+		reader__1 = new Sync(outDataDict).Transform(reader__1);
+		await myOutput.Sync(reader__1, outDataDict);
 	}
 }
 ";
@@ -354,7 +354,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
 		var result = new object[6];
 		while (r.Read()) {
 			if (!((!(((r.IsDBNull(2) ? System.DBNull.Value : r.GetString(2)) == System.DBNull.Value))))) continue;
@@ -369,7 +369,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Users"", Transformer__1);
+		_streamDict.Add(""Users"", Transformer__2);
 	}
 }
 
@@ -382,9 +382,9 @@ static class Program {
 		((ISourcedConnector)input).SetDataSource(inFile);
 		var output = ConnectorRegistry.GetWriter(""CSV"", ""Delimiter=\t"");
 		((ISinkConnector)output).SetDataSink(outFile);
-		var reader__2 = input.ReadFrom(dict);
-		reader__2 = new Sync(dict).Transform(reader__2);
-		await output.Sync(reader__2, dict);
+		var reader__1 = input.ReadFrom(dict);
+		reader__1 = new Sync(dict).Transform(reader__1);
+		await output.Sync(reader__1, dict);
 	}
 }
 ";

@@ -18,7 +18,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			foreach (var cte in node.Ctes) {
+			foreach (var cte in node.Metadata.Ctes) {
 				var table = TypesHelper.BuildDataClass(cte.Stream, true);
 				_file.Database.Add(table);
 			}

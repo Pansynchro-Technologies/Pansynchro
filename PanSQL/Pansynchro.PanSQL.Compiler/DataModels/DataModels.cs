@@ -34,7 +34,7 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			this(
 				t.Name,
 				t.Type switch { "Table" => TableType.Table, "Stream" => TableType.Stream, "Cte" => TableType.Cte, _ => throw new ArgumentException($"Invalid table type: {t.Type}") },
-				(t.Declaration as VarDeclaration)?.Stream ?? ((SqlTransformStatement)t.Declaration).Ctes.First(c => c.Name == t.Name).Stream
+				(t.Declaration as VarDeclaration)?.Stream ?? ((SqlTransformStatement)t.Declaration).Metadata.Ctes.First(c => c.Name == t.Name).Stream
 			)
 		{ }
 	}
@@ -129,7 +129,9 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 			   && MatchAll(ce.Args, Args);
 
 		public override string ToString()
-			=> CallType switch {
+			=> SpecialCodegen != null 
+			? SpecialCodegen(Args, null)
+			: CallType switch {
 				CallType.StandardMethod => $"{Args[0]}.{Function}({string.Join(", ", Args.Skip(1))})",
 				CallType.StaticProperty or CallType.Property => Function.ToString(),
 				_ => $"{Function}({string.Join<DbExpression>(", ", Args)})"
@@ -423,6 +425,14 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		public override bool IsLiteral => true;
 	}
 
+	class BooleanLiteralExpression(bool value) : LiteralExpression
+	{
+		public bool Value { get; } = value;
+
+		internal override bool Match(DbExpression other) => other is BooleanLiteralExpression bl && bl.Value == Value;
+		public override string ToString() => Value.ToString().ToLowerInvariant();
+	}
+
 	class IntegerLiteralExpression(int value) : LiteralExpression
 	{
 		public int Value { get; } = value;
@@ -452,6 +462,29 @@ namespace Pansynchro.PanSQL.Compiler.DataModels
 		internal override bool Match(DbExpression other) => other is NullLiteralExpression;
 
 		public override string ToString() => "DBNull.Value";
+	}
+
+	enum DatepartType
+	{
+		Year,
+		Quarter,
+		Month,
+		Dayofyear,
+		Day,
+		Week,
+		Weekday,
+		Hour,
+		Minute,
+		Second,
+		Millisecond,
+	}
+
+	class DatepartLiteralExpression(DatepartType type) : LiteralExpression
+	{
+		public DatepartType Value { get; } = type;
+
+		internal override bool Match(DbExpression other) => other is DatepartLiteralExpression dl && dl.Value == Value;
+		public override string ToString() => Value.ToString();
 	}
 
 	class CSharpStringExpression(string value) : DbExpression

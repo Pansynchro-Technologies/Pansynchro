@@ -131,6 +131,7 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		Joined = 1 << 2,
 		Grouped = 1 << 3,
 		WithCte = 1 << 4,
+		Exists = 1 << 5,
 	}
 
 	public class AnalyzeStatement(Identifier conn, Identifier dict, AnalyzeOption[]? options) : Statement
@@ -166,17 +167,22 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 
 	internal record CteData(string Name, SqlModel Model, StreamDefinition Stream);
 
-	public class SqlTransformStatement(TSqlStatement sqlNode, Identifier dest) : Statement
+	internal class SqlMetadata
 	{
-		public TSqlStatement SqlNode { get; } = sqlNode;
-		public Identifier Dest { get; } = dest;
-
 		internal List<Variable> Tables { get; } = [];
 		internal Variable Output { get; set; } = null!;
 		internal TransactionType TransactionType { get; set; }
 		internal SqlModel DataModel { get; set; } = null!;
 		internal IndexData Indices { get; set; } = null!;
 		internal List<CteData> Ctes { get; } = [];
+	}
+
+	public class SqlTransformStatement(SelectStatement sqlNode, Identifier dest) : Statement
+	{
+		public SelectStatement SqlNode { get; } = sqlNode;
+		public Identifier Dest { get; } = dest;
+
+		internal SqlMetadata Metadata { get; set; } = null!;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnSqlStatement(this);
 	}
@@ -228,6 +234,19 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal DbExpression? ScriptValue { get; set; }
 
 		internal override void Accept(IVisitor visitor) => visitor.OnScriptVarDeclarationStatement(this);
+	}
+
+	internal class AbortStatement : Statement
+	{
+		internal override void Accept(IVisitor visitor) => visitor.OnAbortStatement(this);
+	}
+
+	internal class SqlIfStatement(Expression cond, Statement[] body) : Statement
+	{
+		public Expression Condition { get; } = cond;
+		public Statement[] Body { get; } = body;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnSqlIfStatement(this);
 	}
 
 	public abstract class Expression : Node 
@@ -345,6 +364,21 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnTsqlExpression(this);
 
 		public override string ToString() => Value?.ToString() ?? "MISSING";
+	}
+
+	public class ExistsExpression(SelectStatement stmt) : TypedExpression
+	{
+		public SelectStatement Stmt { get; } = stmt;
+
+		internal SqlMetadata Metadata { get; set; } = null!;
+
+		internal string MethodName { get; set; } = null!;
+
+		internal override IFieldType ExpressionType => TypesHelper.BoolType;
+
+		internal override void Accept(IVisitor visitor) => visitor.OnExistsExpression(this);
+
+		public override string ToString() => $"Sync.{MethodName}()";
 	}
 
 	public enum AnalyzeOptionType

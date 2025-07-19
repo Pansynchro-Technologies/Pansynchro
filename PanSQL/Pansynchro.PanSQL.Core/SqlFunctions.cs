@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json.Nodes;
 
@@ -32,7 +33,7 @@ namespace Pansynchro.PanSQL.Core
 		}
 		public static double Rand() => _rng.NextDouble();
 
-		public static T Square<T>(T arg) where T: System.Numerics.INumber<T> => arg * arg;
+		public static T Square<T>(T arg) where T : System.Numerics.INumber<T> => arg * arg;
 
 		public static string HttpQuery(string url)
 		{
@@ -71,11 +72,11 @@ namespace Pansynchro.PanSQL.Core
 
 		public static string StrRight(string value, int length) => value[^length..];
 
-		public static T? TryCastV<T, U>(U value) where T: struct
+		public static T? TryCastV<T, U>(U value) where T : struct
 		{
 			try {
 				return (T)Convert.ChangeType(value, typeof(T))!;
-			} catch { 
+			} catch {
 				return null;
 			}
 		}
@@ -94,5 +95,12 @@ namespace Pansynchro.PanSQL.Core
 
 		public static T? TryParseR<T>(string value) where T : class, IParsable<T>
 			=> T.TryParse(value, null, out var result) ? result : null;
+
+		public static int FileCRC(string filename)
+		{
+			unchecked {
+				return (int)System.IO.Hashing.Crc32.HashToUInt32(File.ReadAllBytes(filename));
+			}
+		}
 	}
 }

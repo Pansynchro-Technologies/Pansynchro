@@ -28,7 +28,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				try {
 					OnSqlStatement(sql);
 				} catch (ArgumentException) {
-					throw new CompilerError($"Cannot map '{sql.Tables[0]}' with more than one map or SQL statement", sql);
+					throw new CompilerError($"Cannot map '{sql.Metadata.Tables[0]}' with more than one map or SQL statement", sql);
 				}
 			}
 			_file.Mappings = _mappings;
@@ -37,10 +37,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			var istream = VariableHelper.GetInputStream(node, _file);
+			var istream = VariableHelper.GetInputStream(node.Metadata, _file);
 			if (istream != null) {
 				var srcName = VariableHelper.GetStream(istream).Name.ToString();
-				var dstName = VariableHelper.GetStream(node.Output).Name.ToString();
+				var dstName = VariableHelper.GetStream(node.Metadata.Output).Name.ToString();
 				AddMapping(srcName, dstName, node);
 			}
 		}

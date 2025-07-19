@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.DataDict.TypeSystem;
 using Pansynchro.Core.Helpers;
@@ -24,6 +25,8 @@ namespace Pansynchro.PanSQL.Compiler.Helpers
 		internal static BasicField DateTimeType = new(TypeTag.DateTime, false, null, false);
 		internal static BasicField JsonType = new(TypeTag.Json, false, null, false);
 		internal static BasicField NvarcharType = new(TypeTag.Nvarchar, false, null, false);
+
+		internal static CustomField DatePartType = new ("datepart", IntType, false);
 
 		internal static BasicField MakeStringType(string value) => new(TypeTag.Nchar, false, value.Length.ToString(), false);
 

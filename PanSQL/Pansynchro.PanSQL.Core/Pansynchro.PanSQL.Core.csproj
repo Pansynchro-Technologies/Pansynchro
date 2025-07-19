@@ -25,6 +25,7 @@
 		<PackageReference Include="JsonPath.Net" Version="2.1.1" />
 		<PackageReference Include="Pansynchro.Core" Version="0.7.0-experimental-v1" />
 		<PackageReference Include="System.IO.Compression" Version="4.3.0" />
+		<PackageReference Include="System.IO.Hashing" Version="9.0.7" />
 	</ItemGroup>
 
 </Project>

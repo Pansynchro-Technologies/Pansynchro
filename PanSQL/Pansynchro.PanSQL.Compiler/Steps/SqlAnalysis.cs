@@ -28,24 +28,24 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 	{
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			var tt = node.TransactionType;
+			var tt = node.Metadata.TransactionType;
 			if (tt.HasFlag(TransactionType.WithCte)) {
 				foreach (var cte in ((SelectStatement)node.SqlNode).WithCtesAndXmlNamespaces.CommonTableExpressions) {
 					var name = cte.ExpressionName.Value.ToPropertyName();
-					var cteModel = BuildDataModel(cte, node);
+					var cteModel = BuildDataModel(cte, node.Metadata, node);
 					var tt2 = cteModel.Inputs.Any(i => i.Type == TableType.Stream) ? TransactionType.FromStream : TransactionType.PureMemory;
 					if (cteModel.AggOutputs?.Length > 0) {
 						tt2 |= TransactionType.Grouped;
 					}
 					var typedef = TypesHelper.BuildStreamDefFromDataModel(cteModel, name);
-					node.Ctes.Add(new(name, BuildMemoryModel(cteModel, tt2), typedef));
+					node.Metadata.Ctes.Add(new(name, BuildMemoryModel(cteModel, tt2), typedef));
 				}
 			}
 			var model = BuildDataModel(node);
 			var modelGen = tt.HasFlag(TransactionType.ToStream) ? BuildToStreamModel(model, tt) : BuildMemoryModel(model, tt);
-			node.DataModel = modelGen;
-			node.Indices = BuildIndexData(node);
-			(node.Output.Declaration as VarDeclaration)?.Handlers.Add(modelGen);
+			node.Metadata.DataModel = modelGen;
+			node.Metadata.Indices = BuildIndexData(node);
+			(node.Metadata.Output.Declaration as VarDeclaration)?.Handlers.Add(modelGen);
 		}
 
 		public override void OnTsqlExpression(TSqlExpression node)
@@ -54,10 +54,33 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			node.Value = new SqlAnalysis.DataExpressionVisitor(_file, [], []).VisitValue(node.Expr);
 		}
 
+		public override void OnExistsExpression(ExistsExpression node)
+		{
+			base.OnExistsExpression(node);
+			var tt = node.Metadata.TransactionType;
+			if (tt.HasFlag(TransactionType.WithCte)) {
+				foreach (var cte in ((SelectStatement)node.Stmt).WithCtesAndXmlNamespaces.CommonTableExpressions) {
+					var name = cte.ExpressionName.Value.ToPropertyName();
+					var cteModel = BuildDataModel(cte, node.Metadata, node);
+					var tt2 = cteModel.Inputs.Any(i => i.Type == TableType.Stream) ? TransactionType.FromStream : TransactionType.PureMemory;
+					if (cteModel.AggOutputs?.Length > 0) {
+						tt2 |= TransactionType.Grouped;
+					}
+					var typedef = TypesHelper.BuildStreamDefFromDataModel(cteModel, name);
+					node.Metadata.Ctes.Add(new(name, BuildMemoryModel(cteModel, tt2), typedef));
+				}
+			}
+			var model = BuildDataModel(node);
+			var modelGen = BuildMemoryModel(model, tt);
+			node.Metadata.DataModel = modelGen;
+			node.Metadata.Indices = new([], []);
+			(node.Metadata.Output?.Declaration as VarDeclaration)?.Handlers.Add(modelGen);
+		}
+
 		private IndexData BuildIndexData(SqlTransformStatement node)
 		{
 			var indices = new List<IndexRecord>();
-			var targets = node.DataModel.Model.Joins.SelectMany(j => j.TargetFields).DistinctBy(f => f.ToString()).ToArray();
+			var targets = node.Metadata.DataModel.Model.Joins.SelectMany(j => j.TargetFields).DistinctBy(f => f.ToString()).ToArray();
 			var tables = targets.Select(t => t.Parent.Name).Distinct().Select(n => _file.Vars[n]).ToDictionary(v => v.Name);
 			foreach (var tf in targets) {
 				var table = ((VarDeclaration)tables[tf.Parent.ToString()].Declaration).Stream!;
@@ -82,12 +105,12 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				(true, true) => new StreamToAggregateMemoryModel(model),
 				(true, false) => new StreamToMemoryModel(model),
 				(false, true) => throw new NotImplementedException(),
-				(false, false) => new PureMemoryModel(model),
+				(false, false) => new PureMemoryModel(model, tt.HasFlag(TransactionType.Exists)),
 			};
 
 		private const int MAX_AGGS = 7;
 
-		private DataModel BuildDataModel(TSqlFragment obj, SqlTransformStatement node)
+		private DataModel BuildDataModel(TSqlFragment obj, SqlMetadata metadata, Node node)
 		{
 			var builder = new DataModelBuilder(_file);
 			try { 
@@ -98,13 +121,15 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			if (builder.Model.AggOutputs.Length > MAX_AGGS) {
 				throw new CompilerError($"PanSQL only supports a maximum of {MAX_AGGS} aggregate functions in a single query.", node);
 			}
-			if (obj is SelectStatement && !string.IsNullOrWhiteSpace(node.Output?.Name)) {
-				builder.SetOutput(node.Output.Name);
+			if (obj is SelectStatement && !string.IsNullOrWhiteSpace(metadata.Output?.Name)) {
+				builder.SetOutput(metadata.Output.Name);
 			}
 			return builder.Model;
 		}
 
-		private DataModel BuildDataModel(SqlTransformStatement node) => BuildDataModel(node.SqlNode, node);
+		private DataModel BuildDataModel(SqlTransformStatement node) => BuildDataModel(node.SqlNode, node.Metadata, node);
+
+		private DataModel BuildDataModel(ExistsExpression node) => BuildDataModel(node.Stmt, node.Metadata, node);
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies() => [Dependency<DefineVars>()];
 
@@ -288,6 +313,8 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		internal static readonly Dictionary<string, int> TABLE_FUNCTIONS_SUPPORTED = new(StringComparer.OrdinalIgnoreCase)
 			{ {"Single", 0}, {"First", 0}, {"Last", 0}, {"Index", 1 } };
+
+		internal static readonly HashSet<string> DATEPART_FUNCTIONS = new(StringComparer.OrdinalIgnoreCase) { "Datepart", "Dateadd", "Datediff" };
 
 		private class DataExpressionVisitor(PanSqlFile file, Dictionary<string, Variable> aliases, HashSet<string> scriptVars) : TSqlFragmentVisitor
 		{
@@ -509,7 +536,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					_stack.Push(CheckTableExpression(fName, [.. codeObject.Parameters]));
 					return;
 				}
-				var args = VisitList(codeObject.Parameters);
+				DbExpression[] args;
+				if (DATEPART_FUNCTIONS.Contains(fName)) {
+					var datepart = ParseDatepart(codeObject.Parameters[0]);
+					args = [datepart, ..VisitList(codeObject.Parameters.Skip(1).ToArray())];
+				} else {
+					args = VisitList(codeObject.Parameters);
+				}
 				if (AGGREGATE_FUNCTIONS_SUPPORTED.ContainsKey(fName)) {
 					_stack.Push(CheckAggExpression(fName, args));
 					return;
@@ -523,6 +556,29 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 					args = args.Length == 1 ? [args[0], new NullLiteralExpression(), type] : [..args, type];
 				}
 				_stack.Push(new CallExpression(new ReferenceExpression(fName), args));
+			}
+
+			private static readonly Dictionary<string, DatepartType> DATEPARTS = new(StringComparer.InvariantCultureIgnoreCase)
+			{
+				{ "year", DatepartType.Year }, {"yyyy", DatepartType.Year }, {"yy", DatepartType.Year },
+				{ "quarter", DatepartType.Quarter }, {"qq", DatepartType.Quarter }, {"q", DatepartType.Quarter },
+				{ "month", DatepartType.Month }, {"mm", DatepartType.Month }, {"m", DatepartType.Month },
+				{ "dayofyear", DatepartType.Dayofyear }, {"dy", DatepartType.Dayofyear }, {"y", DatepartType.Dayofyear },
+				{ "day", DatepartType.Day }, {"dd", DatepartType.Day}, {"d", DatepartType.Day },
+				{ "week", DatepartType.Week }, {"ww", DatepartType.Week }, {"wk", DatepartType.Week },
+				{ "weekday", DatepartType.Weekday }, {"dw", DatepartType.Weekday }, {"w", DatepartType.Weekday },
+				{ "hour", DatepartType.Hour }, {"hh", DatepartType.Hour },
+				{ "minute", DatepartType.Minute }, {"mi", DatepartType.Minute }, {"n", DatepartType.Minute },
+				{ "second", DatepartType.Second },{"ss", DatepartType.Second }, {"s", DatepartType.Second },
+				{ "millisecond", DatepartType.Millisecond }, {"ms", DatepartType.Millisecond },
+			};
+
+			private DatepartLiteralExpression ParseDatepart(ScalarExpression expr)
+			{
+				if (expr is ColumnReferenceExpression { MultiPartIdentifier: [Identifier id] }) {
+					return DATEPARTS.TryGetValue(id.Value, out var result) ? new(result) : throw new Exception($"'{id.Value}' is not a valid date part.");
+				}
+				throw new Exception("Invalid date part");
 			}
 
 			private TableFunctionCall CheckTableExpression(string name, ScalarExpression[] args)

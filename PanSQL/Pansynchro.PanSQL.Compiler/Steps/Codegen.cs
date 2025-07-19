@@ -24,6 +24,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private readonly List<ScriptVarDeclarationStatement> _scriptVars = [];
 		private readonly List<DataFieldModel> _initFields = [];
 		private readonly List<ImportModel> _imports = [];
+		private readonly List<Method> _methods = [];
 
 		private static readonly ImportModel[] USING_BLOCK = [
 			"System",
@@ -82,9 +83,6 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_imports.AddRange(USING_BLOCK);
 			_transformer = _file.Mappings.Count != 0 || _file.NsMappings.Count != 0 || _file.Lines.OfType<SqlTransformStatement>().Any();
 			var classes = new List<ClassModel>();
-			if (_transformer) {
-				classes.Add(BuildTransformer(node, _imports));
-			}
 			_mainBody = [];
 			foreach (var magic in _file.Vars.Values.Where(v => v.Declaration is MagicDeclarationStatement && v.Used == true)) {
 				if (magic.Type != "Data") {
@@ -93,7 +91,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				var data = CompressionHelper.ToCompressedString(DefineVars.GetMagicDict(((MagicDeclarationStatement)magic.Declaration).Value).ToString());
 				_mainBody.Add(new VarDecl(magic.Name, new CSharpStringExpression($"DataDictionaryWriter.Parse(CompressionHelper.Decompress({data.ToLiteral()}))")));
 			}
+			_initFields.AddRange(_file.Lines.OfType<SqlTransformStatement>().SelectMany(t => GetInitVars(t)));
 			base.OnFile(node);
+			if (_transformer) {
+				classes.Add(BuildTransformer(node, _imports));
+			}
 			if (_scriptVars.Count > 0) {
 				WriteScriptVarInit();
 			}
@@ -128,6 +130,18 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_mainBody.Insert(1, new IfStatement(new BooleanExpression(BoolExpressionType.NotEquals, new ReferenceExpression("__varResult"), new CSharpStringExpression("null")), checkBody));
 		}
 
+		public override void OnAbortStatement(AbortStatement node) => _mainBody.Add(new ReturnStatement());
+
+		public override void OnSqlIfStatement(SqlIfStatement node)
+		{
+			var mb = _mainBody;
+			_mainBody = [];
+			Visit(node.Condition);
+			VisitList(node.Body);
+			mb.Add(new IfStatement(new CSharpStringExpression(node.Condition.ToString()!), new Block([.. _mainBody])));
+			_mainBody = mb;
+		}
+
 		private IEnumerable<ImportModel?> SortImports()
 		{
 			var groups = _imports.DistinctBy(i => i.Name).ToLookup(i => i.Name.Split('.')[0]);
@@ -142,12 +156,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private ClassModel BuildTransformer(PanSqlFile node, List<ImportModel> imports)
 		{
 			var fields = new List<DataFieldModel>();
-			var methods = new List<Method>();
-			methods.AddRange(_file.Lines.OfType<VarDeclaration>().Select(GetVarScript).Where(m => m != null)!);
-			methods.AddRange(_file.Lines.OfType<SqlTransformStatement>().SelectMany(t => GetSqlScript(t, imports)));
-			_initFields.AddRange(_file.Lines.OfType<SqlTransformStatement>().SelectMany(t => GetInitVars(t)));
+			_methods.AddRange(_file.Lines.OfType<VarDeclaration>().Select(GetVarScript).Where(m => m != null)!);
+			_methods.AddRange(_file.Lines.OfType<SqlTransformStatement>().SelectMany(t => GetSqlScript(t.Metadata, imports)));
 			if (_file.Producers.Count > 0) {
-				methods.Add(BuildStreamLast());
+				_methods.Add(BuildStreamLast());
 			}
 			var body = new List<CSharpStatement>();
 			foreach (var field in _initFields) {
@@ -178,9 +190,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				}
 			}
 			var args = string.Join(", ", ["DataDictionary destDict", .. _initFields.Select(f => $"{f.Type} {f.Name[1..]}")]);
-			methods.Add(new Method("public", "Sync", "", args, body, true, "destDict"));
+			_methods.Add(new Method("public", "Sync", "", args, body, true, "destDict"));
 			var subclasses = node.Database.Count > 0 ? new ClassModel[] { GenerateDatabase(node.Database, fields) } : null;
-			return new ClassModel("", "Sync", "StreamTransformerBase", subclasses, [.. fields.Concat(_initFields)], [.. methods]);
+			return new ClassModel("", "Sync", "StreamTransformerBase", subclasses, [.. fields.Concat(_initFields)], [.. _methods]);
 		}
 
 		private static Method BuildStreamLast()
@@ -329,31 +341,41 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		private IEnumerable<DataFieldModel> GetInitVars(SqlTransformStatement node)
 		{
-			var vars = node.DataModel.Model.ScriptVariables;
+			var vars = node.Metadata.DataModel.Model.ScriptVariables;
 			foreach (var sVar in vars) {
 				var decl = ((ScriptVarDeclarationStatement)_file.Vars[sVar[1..]].Declaration);
 				yield return new DataFieldModel('_' + decl.Name.Name, TypesHelper.FieldTypeToCSharpType(decl.FieldType), null, IsReadonly: true);
 			}
 		}
 
-		private IEnumerable<Method> GetSqlScript(SqlTransformStatement node, List<ImportModel> imports)
+		public override void OnExistsExpression(ExistsExpression node)
+		{
+			base.OnExistsExpression(node);
+			Method[] methods = [.. GetSqlScript(node.Metadata, _imports, true)];
+			_methods.AddRange(methods);
+			node.MethodName = methods[^1].Name;
+		}
+
+		private IEnumerable<Method> GetSqlScript(SqlMetadata metadata, List<ImportModel> imports, bool isExists = false)
 		{
 			var ctes = new Dictionary<string, string>();
-			foreach (var cte in node.Ctes) {
-				var script = cte.Model.GetScript(CodeBuilder, node.Indices, imports, ctes);
+			foreach (var cte in metadata.Ctes) {
+				var script = cte.Model.GetScript(CodeBuilder, metadata.Indices, imports, ctes);
 				yield return script;
 				ctes[cte.Name] = script.Name;
 			}
-			var method = node.DataModel.GetScript(CodeBuilder, node.Indices, imports, ctes);
-			if (_file.Transformers.ContainsKey(node.Tables[0]) || _file.Consumers.ContainsKey(node.Tables[0])) {
-				_file.Producers.Add(node.Tables[0], method.Name);
-			} else {
-				var table = VariableHelper.GetInputStream(node, _file);
-				if (table != null) {
-					if (method.Name.StartsWith("Consumer")) {
-						_file.Consumers.Add(table, method.Name);
-					} else {
-						_file.Transformers.Add(table, method.Name);
+			var method = metadata.DataModel.GetScript(CodeBuilder, metadata.Indices, imports, ctes);
+			if (!isExists) {
+				if (_file.Transformers.ContainsKey(metadata.Tables[0]) || _file.Consumers.ContainsKey(metadata.Tables[0])) {
+					_file.Producers.Add(metadata.Tables[0], method.Name);
+				} else {
+					var table = VariableHelper.GetInputStream(metadata, _file);
+					if (table != null) {
+						if (method.Name.StartsWith("Consumer")) {
+							_file.Consumers.Add(table, method.Name);
+						} else {
+							_file.Transformers.Add(table, method.Name);
+						}
 					}
 				}
 			}

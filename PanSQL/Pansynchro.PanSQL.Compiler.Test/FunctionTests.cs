@@ -92,7 +92,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
 		var result = new object[2];
 		while (r.Read()) {
 			result[0] = r.GetInt32(0);
@@ -102,7 +102,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Orders"", Transformer__1);
+		_streamDict.Add(""Orders"", Transformer__2);
 		_nameMap.Add(StreamDescription.Parse(""Orders""), StreamDescription.Parse(""OrderData""));
 	}
 }
@@ -113,9 +113,9 @@ static class Program {
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
 		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
-		var reader__2 = myInput.ReadFrom(myDataDict);
-		reader__2 = new Sync(outDataDict).Transform(reader__2);
-		await myOutput.Sync(reader__2, outDataDict);
+		var reader__1 = myInput.ReadFrom(myDataDict);
+		reader__1 = new Sync(outDataDict).Transform(reader__1);
+		await myOutput.Sync(reader__1, outDataDict);
 	}
 }
 ";
@@ -180,7 +180,7 @@ using Pansynchro.PanSQL.Core;
 using static Pansynchro.PanSQL.Core.Credentials;
 
 class Sync : StreamTransformerBase {
-	private IEnumerable<object?[]> Transformer__1(IDataReader r) {
+	private IEnumerable<object?[]> Transformer__2(IDataReader r) {
 		var result = new object[2];
 		while (r.Read()) {
 			result[0] = r.GetInt32(0);
@@ -190,7 +190,7 @@ class Sync : StreamTransformerBase {
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Orders"", Transformer__1);
+		_streamDict.Add(""Orders"", Transformer__2);
 		_nameMap.Add(StreamDescription.Parse(""Orders""), StreamDescription.Parse(""OrderData""));
 	}
 }
@@ -201,9 +201,9 @@ static class Program {
 		var outDataDict = DataDictionaryWriter.Parse(CompressionHelper.Decompress(""$OUTDICT$""));
 		var myInput = ConnectorRegistry.GetReader(""MSSQL"", ""connection string here"");
 		var myOutput = ConnectorRegistry.GetWriter(""Postgres"", CredentialsFromEnv(""PostgresConnectionString""));
-		var reader__2 = myInput.ReadFrom(myDataDict);
-		reader__2 = new Sync(outDataDict).Transform(reader__2);
-		await myOutput.Sync(reader__2, outDataDict);
+		var reader__1 = myInput.ReadFrom(myDataDict);
+		reader__1 = new Sync(outDataDict).Transform(reader__1);
+		await myOutput.Sync(reader__1, outDataDict);
 	}
 }
 ";

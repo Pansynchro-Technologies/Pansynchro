@@ -80,36 +80,36 @@ class Sync : StreamTransformerBase {
 
 	public static readonly DB __db = new();
 
-	private void Transformer__1(IDataReader r) {
-		var aggregator__2 = Aggregates.Min<string, float>();
-		var aggregator__3 = Aggregates.Avg<string, float>();
-		var aggregator__4 = Aggregates.Max<string, float>();
+	private void Transformer__2(IDataReader r) {
+		var aggregator__3 = Aggregates.Min<string, float>();
+		var aggregator__4 = Aggregates.Avg<string, float>();
+		var aggregator__5 = Aggregates.Max<string, float>();
 		while (r.Read()) {
-			aggregator__2.Add(r.GetString(0), r.GetFloat(1));
 			aggregator__3.Add(r.GetString(0), r.GetFloat(1));
 			aggregator__4.Add(r.GetString(0), r.GetFloat(1));
+			aggregator__5.Add(r.GetString(0), r.GetFloat(1));
 		}
-		foreach (var pair in Aggregates.Combine(aggregator__2, aggregator__3, aggregator__4)) {
+		foreach (var pair in Aggregates.Combine(aggregator__3, aggregator__4, aggregator__5)) {
 			__db.Aggs.Add(new DB.Aggs_(pair.Key, pair.Value.Item1, pair.Value.Item2, pair.Value.Item3));
 		}
 	}
 
-	private IEnumerable<object?[]> Transformer__5(IDataReader r) {
-		Transformer__1(r);
+	private IEnumerable<object?[]> Transformer__6(IDataReader r) {
+		Transformer__2(r);
 		var result = new object[1];
 		var __preAgg = from __Aggs in __db.Aggs orderby __Aggs.Name select __Aggs;
-		var aggregator__6 = Aggregates.String_agg<bool, string>("", "");
+		var aggregator__7 = Aggregates.String_agg<bool, string>("", "");
 		foreach (var __item in __preAgg) {
-			aggregator__6.Add(true, String.Format(""{0}={1:F1}/{2:F1}/{3:F1}"", __item.Name, __item.MinTemp, __item.MeanTemp, __item.MaxTemp));
+			aggregator__7.Add(true, String.Format(""{0}={1:F1}/{2:F1}/{3:F1}"", __item.Name, __item.MinTemp, __item.MeanTemp, __item.MaxTemp));
 		}
-		foreach (var pair in aggregator__6) {
+		foreach (var pair in aggregator__7) {
 			result[0] = ""{"" + pair.Value + ""}"";
 			yield return result;
 		}
 	}
 
 	public Sync(DataDictionary destDict) : base(destDict) {
-		_streamDict.Add(""Data"", Transformer__5);
+		_streamDict.Add(""Data"", Transformer__6);
 		_nameMap.Add(StreamDescription.Parse(""Data""), StreamDescription.Parse(""Result""));
 	}
 }
@@ -122,9 +122,9 @@ static class Program {
 		var myInput = ConnectorRegistry.GetReader(""CSV"", ""Delimiter=';'"");
 		((ISourcedConnector)myInput).SetDataSource(mySource);
 		var myOutput = ConnectorRegistry.GetWriter(""Console"", """");
-		var reader__7 = myInput.ReadFrom(dataDict);
-		reader__7 = new Sync(resultDict).Transform(reader__7);
-		await myOutput.Sync(reader__7, resultDict);
+		var reader__1 = myInput.ReadFrom(dataDict);
+		reader__1 = new Sync(resultDict).Transform(reader__1);
+		await myOutput.Sync(reader__1, resultDict);
 	}
 }
 ";

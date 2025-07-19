@@ -30,6 +30,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			_methods.Add("LEFT", typeof(SqlFunctions).GetMethod("StrLeft")!);
 			_methods.Add("RIGHT", typeof(SqlFunctions).GetMethod("StrRight")!);
 			_methods.Add("ToUtc", typeof(DateTime).GetMethod("ToUniversalTime")!);
+			_methods.Add("FileCRC", typeof(SqlFunctions).GetMethod("FileCRC")!);
 			_props.Add("CurrentTimestamp", typeof(DateTime).GetProperty("Now")!);
 			_props.Add("getdate", _props["CurrentTimestamp"]);
 			_props.Add("getutcdate", typeof(DateTime).GetProperty("UtcNow")!);
@@ -195,7 +196,7 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			if (expectedType is BasicField { Type: TypeTag.Unstructured }) {
 				return;
 			}
-			if (DataDictionaryComparer.TypeCheckField(argType, expectedType, parameter?.Name ?? "this", false) != null) {
+			if (DataDictionaryComparer.TypeCheckField(argType, expectedType, parameter?.Name ?? "this", false) is not (null or PromotionLine)) {
 				throw new Exception($"'{arg}' cannot be passed to a function parameter of type '{expectedType}'.");
 			}
 		}

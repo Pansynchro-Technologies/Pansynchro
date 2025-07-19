@@ -35,19 +35,19 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			var validation = node.DataModel.Validate();
+			var validation = node.Metadata.DataModel.Validate();
 			if (validation != null) {
 				throw new CompilerError(validation, node);
 			}
-			var output = GetStream(((VarDeclaration)node.Output.Declaration)).Fields;
-			var model = node.DataModel.Model;
+			var output = GetStream(((VarDeclaration)node.Metadata.Output.Declaration)).Fields;
+			var model = node.Metadata.DataModel.Model;
 			var fields = model.Outputs;
-			node.DataModel.Model = model with { Outputs = DoTypeCheck(fields, output, node) };
+			node.Metadata.DataModel.Model = model with { Outputs = DoTypeCheck(fields, output, node) };
 			DoTypeCheck(model.Filter, node);
 			DoTypeCheck(model.AggFilter, node);
 			DoTypeCheck(model.Joins, node);
-			if (node.DataModel.Model.AggOutputs?.Length > 0) {
-				ValidateGrouping(node.DataModel.Model, node);
+			if (node.Metadata.DataModel.Model.AggOutputs?.Length > 0) {
+				ValidateGrouping(node.Metadata.DataModel.Model, node);
 			}
 		}
 
@@ -96,11 +96,11 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				} else if (used.Contains(name)) {
 					throw new CompilerError($"Output field '{name}' cannot be assigned more than one value.", node);
 				} else {
-					throw new CompilerError($"'{node.Output.Name}' does not contain a field named '{name}'.", node);
+					throw new CompilerError($"'{node.Metadata.Output.Name}' does not contain a field named '{name}'.", node);
 				}
 			}
 			if (required.Count > 0) {
-				throw new CompilerError($"The following field(s) on {node.Output.Name} are not nullable, but are not assigned a value: {string.Join(", ", required.Keys)}", node);
+				throw new CompilerError($"The following field(s) on {node.Metadata.Output.Name} are not nullable, but are not assigned a value: {string.Join(", ", required.Keys)}", node);
 			}
 			for (int i = 0; i < result.Length; ++i) {
 				if (result[i] == null) {
@@ -275,7 +275,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			node.Dict = (Identifier)decl.Identifier.Parent;
 		}
 
-		//override onmag
+		public override void OnSqlIfStatement(SqlIfStatement node)
+		{
+			base.OnSqlIfStatement(node);
+			if (node.Condition is not TypedExpression { ExpressionType: { } typ} || !typ.Equals(TypesHelper.BoolType) ) {
+				throw new CompilerError("The type of an IF statement's condition must be 'bool'.", node);
+			}
+		}
 
 		public override IEnumerable<(Type, Func<CompileStep>)> Dependencies() => [Dependency<BindTypes>()];
 	}

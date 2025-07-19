@@ -19,22 +19,22 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 	{
 		public override void OnSqlStatement(SqlTransformStatement node)
 		{
-			foreach (var cte in node.Ctes) {
-				BindModelTypes(cte.Model.Model, node);
+			foreach (var cte in node.Metadata.Ctes) {
+				BindModelTypes(cte.Model.Model, node.Metadata, node);
 			}
-			BindModelTypes(node.DataModel.Model, node);
+			BindModelTypes(node.Metadata.DataModel.Model, node.Metadata, node);
 		}
 
-		private void BindModelTypes(DataModel model, SqlTransformStatement node)
+		private void BindModelTypes(DataModel model, SqlMetadata metadata, Node node)
 		{
 			var fields = model.Outputs;
 			if (fields.OfType<StarExpression>().Any()) {
 				fields = ExpandStarExpressions(fields, model, node);
-				node.DataModel.Model = model with { Outputs = fields };
+				metadata.DataModel.Model = model with { Outputs = fields };
 			}
-			var tables = node.Ctes.Count > 0 
-				? node.Tables.Concat(node.Ctes.SelectMany(c => c.Model.Model.Inputs).Select(i => _file.Vars[i.Name])).Distinct().ToList()
-				: node.Tables;
+			var tables = metadata.Ctes.Count > 0 
+				? metadata.Tables.Concat(metadata.Ctes.SelectMany(c => c.Model.Model.Inputs).Select(i => _file.Vars[i.Name])).Distinct().ToList()
+				: metadata.Tables;
 			DoBindTypes(fields, tables, node);
 			DoBindTypes(model.Filter, tables, node);
 			DoBindTypes(model.AggFilter, tables, node);
@@ -50,7 +50,13 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			DoBindTypes(node.Value, _file.Vars.Values.ToList(), node);
 		}
 
-		private static DbExpression[] ExpandStarExpressions(DbExpression[] fields, DataModel model, SqlTransformStatement node)
+		public override void OnExistsExpression(ExistsExpression node)
+		{
+			base.OnExistsExpression(node);
+			BindModelTypes(node.Metadata.DataModel.Model, node.Metadata, node);
+		}
+
+		private static DbExpression[] ExpandStarExpressions(DbExpression[] fields, DataModel model, Node node)
 		{
 			return [.. Impl()];
 			
@@ -261,6 +267,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				case NullLiteralExpression:
 					field.Type = TypesHelper.NullType;
 					break;
+				case DatepartLiteralExpression dpl:
+					field.Type = TypesHelper.DatePartType;
+					break;
 				default: throw new NotImplementedException();
 			}
 		}
@@ -277,10 +286,10 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 				?? throw new CompilerError($"'{tableName}' does not contain a field named '{m.Name}'.", node);
 		}
 
-		private static IFieldType? GetFieldType(Ast.Statement decl, string tableName, string name) => decl switch {
+		private static IFieldType? GetFieldType(Node decl, string tableName, string name) => decl switch {
 			VarDeclaration or SqlTransformStatement => (decl switch {
 				VarDeclaration vd => vd.Stream,
-				SqlTransformStatement sql => sql.Ctes.FirstOrDefault(c => c.Name == tableName)?.Stream,
+				SqlTransformStatement sql => sql.Metadata.Ctes.FirstOrDefault(c => c.Name == tableName)?.Stream,
 			})?.Fields.FirstOrDefault(f => f.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase))?.Type,
 			ScriptVarDeclarationStatement sv => (sv.FieldType as TupleField)?.Fields
 				.FirstOrDefault(p => p.Key.Equals(name, StringComparison.InvariantCultureIgnoreCase)).Value,
@@ -290,7 +299,7 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 		private static StreamDefinition? GetStream(Variable? v) => v?.Declaration switch {
 			null => null,
 			VarDeclaration vd => vd.Stream,
-			SqlTransformStatement sql => sql.Ctes.First(c => c.Name == v.Name).Stream,
+			SqlTransformStatement sql => sql.Metadata.Ctes.First(c => c.Name == v.Name).Stream,
 			_ => throw new NotImplementedException()
 		};
 

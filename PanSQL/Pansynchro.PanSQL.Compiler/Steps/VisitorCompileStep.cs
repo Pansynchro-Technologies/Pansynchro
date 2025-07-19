@@ -110,6 +110,18 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			Visit(node.Expr);
 		}
 
+		public virtual void OnSqlIfStatement(SqlIfStatement node)
+		{
+			Visit(node.Condition);
+			VisitList(node.Body);
+		}
+
+		public virtual void OnAbortStatement(AbortStatement node)
+		{ }
+
+		public virtual void OnExistsExpression(ExistsExpression node)
+		{ }
+
 		public virtual void OnAnalyzeStatement(AnalyzeStatement node)
 		{
 			Visit(node.Conn);
