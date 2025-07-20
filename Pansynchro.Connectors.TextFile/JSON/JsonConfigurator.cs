@@ -5,8 +5,8 @@ using System.ComponentModel;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {
@@ -45,7 +45,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 				_changing = true;
 				try {
 					ConnectionString = string.Join(';',
-						Streams.Select(s => $"{s.Name}={JsonConvert.SerializeObject(s)}"));
+						Streams.Select(s => $"{s.Name}={JsonSerializer.Serialize(s)}"));
 				} finally {
 					_changing = false;
 				}
@@ -65,7 +65,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 					if (existing != null) {
 						Streams.Remove(existing);
 					}
-					var newStream = JsonConvert.DeserializeObject<JsonConf>((string)value!);
+					var newStream = JsonSerializer.Deserialize<JsonConf>((string)value!);
 					if (!keyword.Equals(newStream?.Name, StringComparison.InvariantCultureIgnoreCase)) {
 						throw new ArgumentException($"Invalid stream name: {keyword}");
 					}

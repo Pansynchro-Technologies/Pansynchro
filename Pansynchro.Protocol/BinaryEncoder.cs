@@ -9,10 +9,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-
-using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
@@ -649,7 +648,7 @@ namespace Pansynchro.Protocol
 				TypeTag.Unstructured => Unimplemented(type),
 				TypeTag.Char or TypeTag.Varchar or TypeTag.Text or TypeTag.Nchar or TypeTag.Nvarchar or TypeTag.Ntext or TypeTag.Xml
 					=> (o, s) => s.Write((string)o),
-				TypeTag.Json => (o, s) => s.Write(((JToken)o).ToString()),
+				TypeTag.Json => (o, s) => s.Write(((JsonNode)o).ToString()),
 				TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob
 					=> MakeBytesWriter(),
 				TypeTag.Boolean => (o, s) => s.Write((bool)o),

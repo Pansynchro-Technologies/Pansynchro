@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using DotNet.Globbing;
 using Google.Cloud.Storage.V1;
 using GObject = Google.Apis.Storage.v1.Data.Object;
-using Newtonsoft.Json;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Helpers;
@@ -22,7 +22,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
 
 		public GcsDataSource(string config)
 		{
-			_config = JsonConvert.DeserializeObject<GcsReadConfig>(config)
+			_config = JsonSerializer.Deserialize<GcsReadConfig>(config)
 				?? throw new ArgumentException("Invalid GcsDataSource configuration");
 		}
 

@@ -4,9 +4,9 @@
 	<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.0.0</AssemblyVersion>
-	<FileVersion>0.7.0.0</FileVersion>
-	<Version>0.7.0-experimental-v6</Version>
+	<AssemblyVersion>0.7.0</AssemblyVersion>
+	<FileVersion>0.7.0</FileVersion>
+	<Version>0.7.0</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Textfile Connector</Product>
 	<Description>Pansynchro connectors to read from JSON, CSV, and plain text data sources.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;json;csv</PackageTags>
 	<PackageReleaseNotes>
-		Updating to use the new type system
+		Removing Newtonsoft.Json dependencies
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
@@ -25,7 +25,8 @@
 
   <ItemGroup>
     <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+	<PackageReference Include="JsonPath.Net" Version="2.1.1" />
+	<PackageReference Include="JsonSchema.Net" Version="7.3.4" />
   </ItemGroup>
 
   <ItemGroup>

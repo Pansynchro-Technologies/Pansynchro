@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Net.Http;
-
-using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 
@@ -15,11 +15,11 @@ namespace Pansynchro.Sources.Http
 
 		public HttpDataSource(string connectionString)
 		{
-			var urls = JObject.Parse(connectionString)["Urls"] as JObject;
+			var urls = JsonObject.Parse(connectionString)["Urls"] as JsonObject;
 			if (urls == null) {
 				throw new ArgumentException("Connection string is missing its Urls property");
 			}
-			var data = urls.ToObject<Dictionary<string, string[]>>();
+			var data = JsonSerializer.Deserialize<Dictionary<string, string[]>>(urls);
 			if (data == null) {
 				throw new ArgumentException("Connection string Urls property is in the wrong format");
 			}

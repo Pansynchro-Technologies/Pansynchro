@@ -6,13 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-using Parquet.Data.Rows;
 using PReader = Parquet.ParquetReader;
+using DataColumn = Parquet.Data.DataColumn;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Helpers;
 using Pansynchro.Core.Readers;
+using Parquet;
 
 namespace Pansynchro.Connectors.Parquet
 {
@@ -35,7 +36,7 @@ namespace Pansynchro.Connectors.Parquet
 			{
 				await foreach (var (sName, stream) in _source.GetDataAsync()) {
 					if (source.HasStream(sName)) {
-						yield return ReadDataStream(source.GetStream(sName), stream);
+						yield return await ReadDataStream(source.GetStream(sName), stream);
 					} else {
 						stream.Dispose();
 					}
@@ -50,15 +51,15 @@ namespace Pansynchro.Connectors.Parquet
 			}
 			var stream = source.GetStream(name);
 			var readers = _source.GetDataAsync(name)
-				.Select(ds => ReadDataStream(stream, ds).Reader)
+				.SelectAwait(async ds => (await ReadDataStream(stream, ds)).Reader)
 				.ToEnumerable();
 			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 
-		private static DataStream ReadDataStream(StreamDefinition streamDef, Stream stream)
+		private static async Task<DataStream> ReadDataStream(StreamDefinition streamDef, Stream stream)
 		{
 			using var lStream = StreamHelper.SeekableStream(stream);
-			var table = PReader.ReadTableFromStream(lStream);
+			var table = (await PReader.CreateAsync(lStream));
 			return new DataStream(streamDef.Name, StreamSettings.None, new ParquetTableReader(table, streamDef));
 		}
 
@@ -71,13 +72,16 @@ namespace Pansynchro.Connectors.Parquet
 
 		private class ParquetTableReader : IDataReader
 		{
-			private readonly Table _table;
+			private readonly PReader _table;
 			private readonly KeyValuePair<string, int>[] _fields;
 			private readonly Dictionary<string, int> _fieldDict;
-			private int _index = -1;
+			private DataColumn[] _values;
+			private int _groupIndex;
+			private int _rowIndex = -1;
+			private int _rowCount;
 			private bool _closed = false;
 
-			public ParquetTableReader(Table table, StreamDefinition streamDef)
+			public ParquetTableReader(PReader table, StreamDefinition streamDef)
 			{
 				_table = table;
 				var schema = table.Schema.GetDataFields().Select(df => df.Name).ToArray();
@@ -85,32 +89,34 @@ namespace Pansynchro.Connectors.Parquet
 					.Select(f => KeyValuePair.Create(f.Name, Array.IndexOf(schema, f.Name)))
 					.ToArray();
 				_fieldDict = new Dictionary<string, int>(_fields);
+				_values = table.ReadEntireRowGroupAsync().GetAwaiter().GetResult();
+				_rowCount = (int)_table.RowGroups[0].RowCount;
 			}
 
-			public object this[int i] => _table[_index][_fields[i].Value];
+			public object this[int i] => _values[_fields[i].Value].Data.GetValue(_rowIndex)!;
 
-			public object this[string name] => _table[_index][_fieldDict[name]];
+			public object this[string name] => _values[_fieldDict[name]].Data.GetValue(_rowIndex)!;
 
 			public int Depth => 0;
 
 			public bool IsClosed => _closed;
 
-			public int RecordsAffected => _table.Count;
+			public int RecordsAffected => _table.RowGroups.Sum(g => (int)g.RowCount);
 
 			public int FieldCount => _fields.Length;
 
 			public void Close() => _closed = true;
 
-			public bool GetBoolean(int i) => _table[_index].GetBoolean(_fields[i].Value);
+			public bool GetBoolean(int i) => (bool)this[i];
 
-			public byte GetByte(int i) => _table[_index].Get<byte>(_fields[i].Value);
+			public byte GetByte(int i) => (byte)this[i];
 
 			public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length)
 			{
 				throw new NotImplementedException();
 			}
 
-			public char GetChar(int i) => _table[_index].Get<char>(_fields[i].Value);
+			public char GetChar(int i) => (char)this[i];
 
 			public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length)
 			{
@@ -127,24 +133,24 @@ namespace Pansynchro.Connectors.Parquet
 				throw new NotImplementedException();
 			}
 
-			public DateTime GetDateTime(int i) => _table[_index].GetDateTimeOffset(_fields[i].Value).DateTime;
+			public DateTime GetDateTime(int i) => ((DateTimeOffset)this[i]).DateTime;
 
-			public decimal GetDecimal(int i) => _table[_index].Get<Decimal>(_fields[i].Value);
+			public decimal GetDecimal(int i) => (decimal)this[i];
 
-			public double GetDouble(int i) => _table[_index].GetDouble(_fields[i].Value);
+			public double GetDouble(int i) => (double)this[i];
 
 			[return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
 			public Type GetFieldType(int i) => _table.Schema.GetDataFields()[_fields[i].Value].ClrType;
 
-			public float GetFloat(int i) => _table[_index].GetFloat(_fields[i].Value);
+			public float GetFloat(int i) => (float)this[i];
 
-			public Guid GetGuid(int i) => _table[_index].Get<Guid>(_fields[i].Value);
+			public Guid GetGuid(int i) => (Guid)this[i];
 
-			public short GetInt16(int i) => _table[_index].Get<short>(_fields[i].Value);
+			public short GetInt16(int i) => (short)this[i];
 
-			public int GetInt32(int i) => _table[_index].GetInt(_fields[i].Value);
+			public int GetInt32(int i) => (int)this[i];
 
-			public long GetInt64(int i) => _table[_index].GetLong(_fields[i].Value);
+			public long GetInt64(int i) => (long)this[i];
 
 			public string GetName(int i) => _fields[i].Key;
 
@@ -158,26 +164,34 @@ namespace Pansynchro.Connectors.Parquet
 				return null;
 			}
 
-			public string GetString(int i) => _table[_index].GetString(_fields[i].Value);
+			public string GetString(int i) => (string)this[i];
 
 			public object GetValue(int i) => this[i];
 
 			public int GetValues(object[] values)
 			{
-				var data = _table[_index].Values;
-				var result = Math.Min(values.Length, data.Length);
-				data.CopyTo(values, 0);
+				var result = Math.Min(values.Length, _values.Length);
+				for (int i = 0; i < result; ++i) {
+					values[i] = this[i];
+				}
 				return result;
 			}
 
-			public bool IsDBNull(int i) => _table[_index].IsNullAt(_fields[i].Value);
+			public bool IsDBNull(int i) => this[i] == null;
 
 			public bool NextResult() => Read();
 
 			public bool Read()
 			{
-				++_index;
-				if (_index < _table.Count) {
+				++_rowIndex;
+				if (_rowIndex < _rowCount) {
+					return true;
+				}
+				if (_groupIndex < _table.RowGroups.Count) {
+					++_groupIndex;
+					_values = _table.ReadEntireRowGroupAsync(_groupIndex).GetAwaiter().GetResult();
+					_rowCount = (int)_table.RowGroups[0].RowCount;
+					_rowIndex = 0;
 					return true;
 				}
 				Close();

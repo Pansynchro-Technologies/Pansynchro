@@ -27,10 +27,10 @@
 	<ItemGroup>
 		<PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
 		<PackageReference Include="Antlr4BuildTasks" Version="12.10.0" />
-		<PackageReference Include="Microsoft.Build.Framework" Version="17.13.9" />
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
-		<PackageReference Include="Microsoft.SqlServer.Management.SqlParser" Version="172.18.0" />
-		<PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.28.0" />
+		<PackageReference Include="Microsoft.Build.Framework" Version="17.14.8" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+		<PackageReference Include="Microsoft.SqlServer.Management.SqlParser" Version="172.20.0" />
+		<PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.64.0" />
 		<PackageReference Include="Pansynchro.Core" Version="0.7.0-experimental-v6" />
 	</ItemGroup>
 

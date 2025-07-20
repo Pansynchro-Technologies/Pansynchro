@@ -1,12 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using Amazon;
 using Amazon.S3;
 using DotNet.Globbing;
-using Newtonsoft.Json;
 
 using Pansynchro.Core;
 using Pansynchro.S3StreamUpload;
@@ -36,7 +36,7 @@ namespace Pansynchro.Sources.S3
 
 		public S3DataSink(string config)
 		{
-			_config = JsonConvert.DeserializeObject<S3WriteConfig>(config)
+			_config = JsonSerializer.Deserialize<S3WriteConfig>(config)
 				?? throw new ArgumentException("Invalid S3 Data Sink configuration.");
 		}
 

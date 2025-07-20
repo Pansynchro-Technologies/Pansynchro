@@ -6,9 +6,8 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-
-using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.CustomTypes;
@@ -264,7 +263,7 @@ namespace Pansynchro.Protocol
 				case TypeTag.Json:
 					result = new RcfReader<string>(baseReader);
 					rcfReaders.Add(result);
-					return b => JToken.Parse((string)result.Read(b));
+					return b => JsonNode.Parse((string)result.Read(b));
 				case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
 					var result2 = new RcfReader<byte[]>(baseReader);
 					rcfReaders.Add(result2);
@@ -331,7 +330,7 @@ namespace Pansynchro.Protocol
 				case TypeTag.Json:
 					result = new NullableRcfReader<string>(baseReader);
 					rcfReaders.Add(result);
-					return b => JToken.Parse((string)result.Read(b));
+					return b => JsonNode.Parse((string)result.Read(b));
 				case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
 					var result2 = new NullableRcfReader<byte[]>(baseReader);
 					rcfReaders.Add(result2);
@@ -515,7 +514,7 @@ namespace Pansynchro.Protocol
 
 		private static object TimeSpanReader(BinaryReader r) => TimeSpan.FromTicks(r.Read7BitEncodedInt64());
 
-		private static object JsonReader(BinaryReader r) => JToken.Parse(r.ReadString());
+		private static object JsonReader(BinaryReader r) => JsonNode.Parse(r.ReadString())!;
 
 		private static Func<BinaryReader, object> Unimplemented(IFieldType type)
 		{

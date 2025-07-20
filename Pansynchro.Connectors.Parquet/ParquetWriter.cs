@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Parquet;
 using Parquet.Data;
 using PWriter = Parquet.ParquetWriter;
-using PSchema = Parquet.Data.Schema;
+using PSchema = Parquet.Schema.ParquetSchema;
 using DataColumn = Parquet.Data.DataColumn;
 
 using Pansynchro.Core;
@@ -14,6 +14,7 @@ using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Errors;
 using Pansynchro.Core.EventsSystem;
 using Pansynchro.Core.DataDict.TypeSystem;
+using Parquet.Schema;
 
 namespace Pansynchro.Connectors.Parquet
 {
@@ -37,9 +38,9 @@ namespace Pansynchro.Connectors.Parquet
 				try {
 					var streamDef = dest.GetStream(name, NameStrategy.Get(NameStrategyType.Identity));
 					var (schema, writers) = ParquetWriter.BuildSchema(streamDef);
-					using var writer = new PWriter(schema, await _sink.WriteData(name.ToString()));
+					using var writer = await PWriter.CreateAsync(schema, await _sink.WriteData(name.ToString()));
 					using var group = writer.CreateRowGroup();
-					ParquetWriter.WriteParquetData(reader, writers, group);
+					await ParquetWriter.WriteParquetData(reader, writers, group);
 				} catch (Exception ex) {
 					EventLog.Instance.AddErrorEvent(ex, name);
 					if (!ErrorManager.ContinueOnError)
@@ -52,7 +53,7 @@ namespace Pansynchro.Connectors.Parquet
 			EventLog.Instance.AddEndSyncEvent();
 		}
 
-		private static void WriteParquetData(
+		private static async Task WriteParquetData(
 			IDataReader reader, Func<object[][], DataColumn>[] writers, ParquetRowGroupWriter group)
 		{
 			var len = writers.Length;
@@ -65,7 +66,7 @@ namespace Pansynchro.Connectors.Parquet
 			var grid = list.ToArray();
 			foreach (var writer in writers) {
 				var column = writer(grid);
-				group.WriteColumn(column);
+				await group.WriteColumnAsync(column);
 			}
 		}
 
@@ -182,24 +183,24 @@ namespace Pansynchro.Connectors.Parquet
 			return new DataField(fd.Name, LookupDataType(type.Type), type.Nullable);
 		}
 
-		private static DataType LookupDataType(TypeTag type)
+		private static Type LookupDataType(TypeTag type)
 			=> type switch {
-				TypeTag.Boolean => DataType.Boolean,
-				TypeTag.Byte => DataType.Byte,
-				TypeTag.SByte => DataType.SignedByte,
-				TypeTag.Short => DataType.Short,
-				TypeTag.UShort => DataType.UnsignedShort,
-				TypeTag.Int => DataType.Int32,
-				TypeTag.UInt => DataType.UnsignedInt32,
-				TypeTag.Long => DataType.Int64,
-				TypeTag.ULong => DataType.UnsignedInt64,
-				TypeTag.Blob or TypeTag.Binary or TypeTag.Varbinary => DataType.ByteArray,
-				TypeTag.Ntext or TypeTag.Text or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Char => DataType.String,
-				TypeTag.Single or TypeTag.Float => DataType.Float,
-				TypeTag.Double => DataType.Double,
-				TypeTag.Decimal => DataType.Decimal,
-				TypeTag.DateTimeTZ or TypeTag.DateTime => DataType.DateTimeOffset,
-				TypeTag.Interval => DataType.TimeSpan,
+				TypeTag.Boolean => typeof(bool),
+				TypeTag.Byte => typeof(byte),
+				TypeTag.SByte => typeof(sbyte),
+				TypeTag.Short => typeof(short),
+				TypeTag.UShort => typeof(ushort),
+				TypeTag.Int => typeof(int),
+				TypeTag.UInt => typeof(uint),
+				TypeTag.Long => typeof(long),
+				TypeTag.ULong => typeof(ulong),
+				TypeTag.Blob or TypeTag.Binary or TypeTag.Varbinary => typeof(byte[]),
+				TypeTag.Ntext or TypeTag.Text or TypeTag.Varchar or TypeTag.Nvarchar or TypeTag.Char => typeof(string),
+				TypeTag.Single or TypeTag.Float => typeof(float),
+				TypeTag.Double => typeof(double),
+				TypeTag.Decimal => typeof(decimal),
+				TypeTag.DateTimeTZ or TypeTag.DateTime => typeof(DateTimeOffset),
+				TypeTag.Interval => typeof(TimeSpan),
 				_ => throw new NotSupportedException($"Field data type '{type}' is not supported")
 			};
 

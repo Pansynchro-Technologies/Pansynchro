@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 
@@ -17,12 +18,12 @@ namespace Pansynchro.Sources.Files
 
 		public FileDataSource(string connectionString)
 		{
-			var json = JObject.Parse(connectionString);
-			var files = json["Files"] as JArray;
+			var json = (JsonObject)JsonNode.Parse(connectionString)!;
+			var files = json["Files"] as JsonArray;
 			if (files == null) {
 				throw new ArgumentException("Config JSON is missing the Files property");
 			}
-			var list = files.ToObject<FileSpec[]>();
+			var list = JsonSerializer.Deserialize<FileSpec[]>(files);
 			if (list == null) {
 				throw new ArgumentException("JSON Files property does not match the spec");
 			}
@@ -43,7 +44,7 @@ namespace Pansynchro.Sources.Files
 			}
 		}
 
-		private IEnumerable<string> GetFiles(string spec) => new GlobFileScanner(spec).Files;
+		private static string[] GetFiles(string spec) => new GlobFileScanner(spec).Files;
 
 		public async IAsyncEnumerable<(string name, Stream data)> GetDataAsync()
 		{

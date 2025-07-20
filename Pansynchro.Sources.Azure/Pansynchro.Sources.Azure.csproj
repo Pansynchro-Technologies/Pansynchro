@@ -8,20 +8,20 @@
 		<FileVersion>0.7.0</FileVersion>
 		<Version>0.7.0</Version>
 		<Authors>Pansynchro Technologies</Authors>
-		<Product>Pansynchro Compression Data Processor</Product>
-		<Description>Pansynchro data processor to compress or decompress data.</Description>
-		<Copyright>Copyright 2022-2025, Pansynchro Technologies</Copyright>
+		<Product>Pansynchro Azure Data Source</Product>
+		<Description>Pansynchro data source to read from Azure Data Lake Storage.</Description>
+		<Copyright>Copyright 2025 Pansynchro Technologies</Copyright>
 		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
-		<PackageTags>pansynchro;data;data-integration;etl;elt;brotli;gzip;zip</PackageTags>
+		<PackageTags>pansynchro;data;data-integration;etl;elt;azure;adls</PackageTags>
 		<PackageReleaseNotes>
-			v0.7.0 release!
+			Initial release
 		</PackageReleaseNotes>
 		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<OutputPath>..\bin\</OutputPath>
-	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Azure.Storage.Files.DataLake" Version="12.23.0" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />

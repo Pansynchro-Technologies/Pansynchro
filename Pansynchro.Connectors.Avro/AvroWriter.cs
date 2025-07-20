@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 using Avro;
 using Avro.File;
 using Avro.Generic;
-using Newtonsoft.Json.Linq;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
@@ -68,7 +68,7 @@ namespace Pansynchro.Connectors.Avro
 
 		private static RecordSchema BuildAvroSchema(StreamDefinition stream)
 		{
-			var obj = new JObject();
+			var obj = new JsonObject();
 			obj["type"] = "record";
 			obj["name"] = stream.Name.Name;
 			if (stream.Name.Namespace != null) {
@@ -79,29 +79,29 @@ namespace Pansynchro.Connectors.Avro
 			return (RecordSchema)Schema.Parse(obj.ToString());
 		}
 
-		private static JArray BuildAvroFieldList(StreamDefinition stream)
+		private static JsonArray BuildAvroFieldList(StreamDefinition stream)
 		{
-			var result = new JArray();
+			var result = new JsonArray();
 			foreach (var field in stream.Fields) {
 				result.Add(BuildAvroField(field));
 			}
 			return result;
 		}
 
-		private static JObject BuildAvroField(FieldDefinition field)
+		private static JsonObject BuildAvroField(FieldDefinition field)
 		{
 			var name = field.Name;
 			var type = BuildAvroType(field.Type);
-			var result = new JObject();
+			var result = new JsonObject();
 			result["name"] = name;
 			result["type"] = type;
 			return result;
 		}
 
-		private static JToken BuildAvroType(IFieldType type)
+		private static JsonNode BuildAvroType(IFieldType type)
 		{
 			if (type is BasicField bf) {
-				JToken result = bf.Type switch {
+				JsonNode? result = bf.Type switch {
 					TypeTag.Boolean => "boolean",
 					TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort or TypeTag.Int => "int",
 					TypeTag.UInt or TypeTag.Long => "long",
@@ -110,12 +110,12 @@ namespace Pansynchro.Connectors.Avro
 						"string",
 					TypeTag.Single or TypeTag.Float => "float",
 					TypeTag.Double => "double",
-					TypeTag.Guid => JObject.Parse("{\"type\": \"string\", \"logicalType\": \"uuid\"}"),
-					TypeTag.DateTime or TypeTag.DateTimeTZ => JObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}"),
+					TypeTag.Guid => JsonObject.Parse("{\"type\": \"string\", \"logicalType\": \"uuid\"}"),
+					TypeTag.DateTime or TypeTag.DateTimeTZ => JsonObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}"),
 					_ => throw new NotSupportedException($"Field data type '{bf.Type}' is not supported")
 				};
 				if (type.Nullable) {
-					var arr = new JArray();
+					var arr = new JsonArray();
 					arr.Add("null");
 					arr.Add(result);
 					result = arr;

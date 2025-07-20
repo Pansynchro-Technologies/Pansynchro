@@ -4,9 +4,9 @@
 	<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.0.0</AssemblyVersion>
-	<FileVersion>0.7.0.0</FileVersion>
-	<Version>0.7.0-experimental-v1</Version>
+	<AssemblyVersion>0.7.0</AssemblyVersion>
+	<FileVersion>0.7.0</FileVersion>
+	<Version>0.7.0</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Postgres Connector</Product>
 	<Description>Pansynchro connector to read from or write to Postgres databases.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;postgres</PackageTags>
 	<PackageReleaseNotes>
-		Updating to use the new type system
+		Updating dependencies
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
   </PropertyGroup>
@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="Npgsql" Version="8.0.3" />
+	<PackageReference Include="Npgsql" Version="9.0.3" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -13,8 +14,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Newtonsoft.Json;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
@@ -33,7 +32,7 @@ namespace Pansynchro.NetworkServer
 				return;
 			}
 			var configTxt = File.ReadAllText(args[0]);
-			var config = JsonConvert.DeserializeObject<ServerConfig>(configTxt)!;
+			var config = JsonSerializer.Deserialize<ServerConfig>(configTxt)!;
 			config.Validate();
 			var server = new TcpListener(IPAddress.Any, NetworkInfo.TCP_PORT);
 			server.Start();

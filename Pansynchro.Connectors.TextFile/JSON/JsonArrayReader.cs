@@ -1,6 +1,5 @@
 ﻿using System;
-
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 
 using Pansynchro.Core.Readers;
 
@@ -8,11 +7,11 @@ namespace Pansynchro.Connectors.TextFile.JSON
 {
 	internal class JsonArrayReader : ArrayReader
 	{
-		private readonly JArray _arr;
+		private readonly JsonArray _arr;
 		private readonly string _fieldName;
 		private int _ptr = 0;
 
-		public JsonArrayReader(JArray arr, string fieldName)
+		public JsonArrayReader(JsonArray arr, string fieldName)
 		{
 			_arr = arr;
 			_buffer = new object[1];
@@ -31,7 +30,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			if (_ptr >= _arr.Count) {
 				return false;
 			}
-			_buffer[0] = _arr[_ptr];
+			_buffer[0] = _arr[_ptr]!;
 			return true;
 		}
 

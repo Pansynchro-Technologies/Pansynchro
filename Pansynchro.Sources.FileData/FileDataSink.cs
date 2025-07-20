@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using DotNet.Globbing;
-using Newtonsoft.Json;
 
 using Pansynchro.Core;
 
@@ -31,7 +31,7 @@ namespace Pansynchro.Sources.Files
 
 		public FileDataSink(string config)
 		{
-			_config = JsonConvert.DeserializeObject<SaveFileConfig>(config)
+			_config = JsonSerializer.Deserialize<SaveFileConfig>(config)
 				?? throw new ArgumentException("FileDataSink config is invalid");
 			_files = _config.Files
 				.Select(s => KeyValuePair.Create(Glob.Parse(s.StreamName, _globOptions), s.Filename))

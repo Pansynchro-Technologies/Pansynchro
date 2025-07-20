@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 using Amazon;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer;
 using DotNet.Globbing;
-using Newtonsoft.Json;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Helpers;
@@ -29,7 +29,7 @@ namespace Pansynchro.Sources.S3
 
 		public S3DataSource(string config)
 		{
-			_config = JsonConvert.DeserializeObject<S3Config>(config)
+			_config = JsonSerializer.Deserialize<S3Config>(config)
 				?? throw new ArgumentException("Invalid S3DataSource configuration");
 		}
 
@@ -122,7 +122,7 @@ namespace Pansynchro.Sources.S3
 				}
 				req.ContinuationToken = response.NextContinuationToken;
 			}
-			while (response.IsTruncated);
+			while (response.IsTruncated == true);
 		}
 
 		public async IAsyncEnumerable<(string name, Stream data)> GetDataAsync()

@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using DotNet.Globbing;
 using Google.Cloud.Storage.V1;
-using Newtonsoft.Json;
 
 using Pansynchro.Core;
 
@@ -20,7 +20,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
 
 		public GcsDataSink(string config)
 		{
-			_config = JsonConvert.DeserializeObject<GcsWriteConfig>(config)
+			_config = JsonSerializer.Deserialize<GcsWriteConfig>(config)
 				?? throw new ArgumentException("Invalid GcsDataSink configuration");
 		}
 

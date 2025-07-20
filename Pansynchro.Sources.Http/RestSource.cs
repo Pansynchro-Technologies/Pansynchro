@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Json.Nodes;
 using System.Net.Http;
 
-using Newtonsoft.Json.Linq;
+using Json.Path;
 
 using Pansynchro.Core;
 
@@ -18,8 +20,8 @@ namespace Pansynchro.Sources.Http
 
 		private static string? ExtractNextQueryString(string conn)
 		{
-			var config = JObject.Parse(conn);
-			var next = config["Next"] as JToken;
+			var config = JsonObject.Parse(conn);
+			var next = config["Next"] as JsonObject;
 			return next?.ToString();
 		}
 
@@ -31,8 +33,8 @@ namespace Pansynchro.Sources.Http
 				var text = await client.GetStringAsync(page);
 				yield return new StringReader(text);
 				if (_nextQuery != null) {
-					var nextToken = JToken.Parse(text).SelectToken(_nextQuery);
-					if (nextToken?.Type == JTokenType.String) {
+					var nextToken = SelectToken(JsonNode.Parse(text)!, _nextQuery);
+					if (nextToken?.AsValue()?.GetValueKind() == System.Text.Json.JsonValueKind.String) {
 						page = (string)nextToken!;
 						more = true;
 					} else {
@@ -63,5 +65,19 @@ namespace Pansynchro.Sources.Http
 				}
 			}
 		}
+
+
+		private static JsonNode? SelectToken(JsonNode value, string path)
+		{
+			var pathObj = JsonPath.Parse(path);
+			var result = pathObj.Evaluate(value);
+			var matches = result.Matches;
+			return matches.Count switch {
+				0 => null,
+				1 => matches[0].Value,
+				_ => new JsonArray(matches.Select(m => m.Value).ToArray())
+			};
+		}
+
 	}
 }

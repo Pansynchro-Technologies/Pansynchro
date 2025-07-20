@@ -4,14 +4,16 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Schema;
+using Json.Path;
 
 using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Readers;
+
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Pansynchro.Connectors.TextFile.JSON
 {
@@ -51,7 +53,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			if (strategy == null) {
 				throw new MissingConfigException(name);
 			}
-			var data = JToken.Parse(reader.ReadToEnd());
+			var data = JsonNode.Parse(reader.ReadToEnd());
 			Validate(name, data, strategy.ErrorPath, await LoadSchema(strategy.Schema));
 			if (strategy.FileStructure == FileType.Array) {
 				if (!source.HasStream(name)) {
@@ -92,43 +94,42 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			return await File.ReadAllTextAsync(schema);
 		}
 
-		private static void Validate(string name, JToken data, string? errorPath, string? schema)
+		private static void Validate(string name, JsonNode data, string? errorPath, string? schema)
 		{
 			if (!string.IsNullOrEmpty(errorPath)) {
-				var error = data.SelectToken(errorPath);
+				var error = SelectToken(data, errorPath);
 				if (error != null) {
-					throw new ValidationException(name, error.ToString());
+					throw new ValidationException(name, error.ToString()!);
 				}
 			}
 			if (schema != null) {
-#pragma warning disable CS0618 // Type or member is obsolete
-				var js = JsonSchema.Parse(schema);
-				if (!data.IsValid(js, out var errors)) {
-					throw new ValidationException(name, errors);
+				var js = Json.Schema.JsonSchema.FromText(schema);
+				var validation = js.Evaluate(data);
+				if (validation.HasErrors) {
+					throw new ValidationException(name, string.Join(Environment.NewLine, validation.Errors!.Select(p => $"{p.Key}: {p.Value}")));
 				}
-#pragma warning restore CS0618 // Type or member is obsolete
 			}
 		}
 
-		private static DataStream BuildArrayStream(string name, JToken data, StreamDefinition stream)
+		private static DataStream BuildArrayStream(string name, JsonNode data, StreamDefinition stream)
 		{
-			if (data is JArray arr) {
+			if (data is JsonArray arr) {
 				return new DataStream(new StreamDescription(null, name), StreamSettings.None, new JsonArrayReader(arr, stream.Fields[0].Name));
 			} else throw new ValidationException($"Stream {name} is not a JSON array");
 		}
 
 		private static IEnumerable<DataStream> BuildObjectStreams(
-			string ns, JToken data, IDictionary<string, JsonQuery> streams, DataDictionary dict)
+			string ns, JsonNode data, IDictionary<string, JsonQuery> streams, DataDictionary dict)
 		{
-			if (data is JObject) {
+			if (data is JsonObject) {
 				foreach (var (name, query) in streams) {
-					var streamData = string.IsNullOrEmpty(query.Path) ? data : data.SelectToken(query.Path);
+					var streamData = string.IsNullOrEmpty(query.Path) ? data : SelectToken(data, query.Path);
 					var streamName = new StreamDescription(ns, name);
 					if (!dict.HasStream(streamName.ToString())) {
 						throw new MissingDataException(name);
 					}
 					var fieldName = dict.GetStream(streamName.ToString()).Fields[0].Name;
-					if (streamData is JArray arr) {
+					if (streamData is JsonArray arr) {
 						yield return new DataStream(streamName, 0, new JsonArrayReader(arr, fieldName));
 					} else if (streamData != null) {
 						yield return new DataStream(streamName, 0, new SingleValueReader(fieldName, streamData));
@@ -137,6 +138,18 @@ namespace Pansynchro.Connectors.TextFile.JSON
 					}
 				}
 			} else throw new ValidationException($"Stream {ns} is not a JSON object");
+		}
+
+		private static JsonNode? SelectToken(JsonNode value, string path)
+		{
+			var pathObj = JsonPath.Parse(path);
+			var result = pathObj.Evaluate(value);
+			var matches = result.Matches;
+			return matches.Count switch {
+				0 => null,
+				1 => matches[0].Value,
+				_ => new JsonArray(matches.Select(m => m.Value).ToArray())
+			};
 		}
 
 		public async Task<Exception?> TestConnection()

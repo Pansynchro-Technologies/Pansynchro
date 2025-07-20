@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<TargetFramework>net8.0</TargetFramework>
+	<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.6.30</AssemblyVersion>
-	<FileVersion>0.6.30</FileVersion>
-	<Version>0.6.30</Version>
+	<AssemblyVersion>0.7.0</AssemblyVersion>
+	<FileVersion>0.7.0</FileVersion>
+	<Version>0.7.0</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Console Writer Connector</Product>
 	<Description>Pansynchro connector to write output to the console for debug purposes.</Description>
