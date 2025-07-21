@@ -6,6 +6,7 @@ public record CustomField(string Name, IFieldType BaseType, bool Nullable) : IFi
 	public void Accept(IFieldTypeVisitor visitor) => visitor.VisitCustomField(this);
 	public T Accept<T>(IFieldTypeVisitor<T> visitor) => visitor.VisitCustomField(this);
 	public IFieldType MakeNull() => this.Nullable ? this : this with { Nullable = true };
+	public IFieldType MakeNotNull() => this.Nullable ? this with { Nullable = false } : this;
 
 	public bool CanAssignNotNullToNull(IFieldType other) => other is CustomField cf 
 		&& cf.Name == Name

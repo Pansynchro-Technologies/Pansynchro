@@ -9,4 +9,5 @@ public interface IFieldType
 	bool CanAssignSpecificToGeneral(IFieldType other) => CanAssignNotNullToNull(other);
 	string ToString();
 	IFieldType MakeNull();
+	IFieldType MakeNotNull();
 }

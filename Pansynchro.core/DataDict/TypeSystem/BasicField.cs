@@ -4,6 +4,7 @@ public record BasicField(TypeTag Type, bool Nullable, string? Info, bool Incompr
 	public void Accept(IFieldTypeVisitor visitor) => visitor.VisitBasicField(this);
 	public T Accept<T>(IFieldTypeVisitor<T> visitor) => visitor.VisitBasicField(this);
 	public IFieldType MakeNull() => this.Nullable ? this : this with { Nullable = true };
+	public IFieldType MakeNotNull() => this.Nullable ? this with { Nullable = false } : this;
 
 	public override string ToString()
 	{

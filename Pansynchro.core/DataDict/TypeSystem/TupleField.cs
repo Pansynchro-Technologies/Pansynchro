@@ -18,6 +18,7 @@ public record TupleField(string? Name, KeyValuePair<string, IFieldType>[] Fields
 	public void Accept(IFieldTypeVisitor visitor) => visitor.VisitTupleField(this);
 	public T Accept<T>(IFieldTypeVisitor<T> visitor) => visitor.VisitTupleField(this);
 	public IFieldType MakeNull() => this.Nullable ? this : this with { Nullable = true };
+	public IFieldType MakeNotNull() => this.Nullable ? this with { Nullable = false } : this;
 
 	public bool CanAssignNotNullToNull(IFieldType other) => other is TupleField tf
 		&& tf.Name == Name

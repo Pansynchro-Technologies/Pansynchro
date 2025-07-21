@@ -15,6 +15,7 @@ public record CollectionField(IFieldType BaseType, CollectionType CollectionType
 	public void Accept(IFieldTypeVisitor visitor) => visitor.VisitCollection(this);
 	public T Accept<T>(IFieldTypeVisitor<T> visitor) => visitor.VisitCollection(this);
 	public IFieldType MakeNull() => this.Nullable ? this : this with { Nullable = true };
+	public IFieldType MakeNotNull() => this.Nullable ? this with { Nullable = false } : this;
 
 	public bool CanAssignNotNullToNull(IFieldType other) => other is CollectionField cf
 		&& cf.BaseType == BaseType
