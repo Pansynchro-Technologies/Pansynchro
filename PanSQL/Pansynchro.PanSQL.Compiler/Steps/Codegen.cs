@@ -423,6 +423,9 @@ namespace Pansynchro.PanSQL.Compiler.Steps
 			_imports.Add(node.Namespace!);
 		}
 
+		public override void OnCallStatement(CallStatement node)
+			=> _mainBody.Add(new CSharpStringExpression(node.Call.ToString()));
+
 		public override void OnScriptVarDeclarationStatement(ScriptVarDeclarationStatement node)
 		{
 			_scriptVars.Add(node);

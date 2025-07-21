@@ -109,7 +109,7 @@ namespace Pansynchro.PanSQL.Compiler.Parser
 
 		Node IPanSqlParserVisitor<Node>.VisitCallStatement(PanSqlParser.CallStatementContext context)
 		{
-			var call = (FunctionCallExpression)VisitFunctionCall(context.functionCall());
+			var call = (TSqlExpression)Visit(context.functionCall());
 			return new CallStatement(call);
 		}
 

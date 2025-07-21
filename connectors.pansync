@@ -91,6 +91,10 @@ DataSources:
 		Assembly Pansynchro.Sources.GoogleCloudStorage
 		Supports Source, Sink
 
+	Source ADLS:
+		Assembly Pansynchro.Sources.Azure
+		Supports Source, Sink
+
 DataProcessors:
 	Source Brotli:
 		Assembly Pansynchro.Sources.Compression

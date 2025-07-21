@@ -27,7 +27,7 @@ namespace Pansynchro.PanSQL.Core
 				}
 				var jsonText = File.ReadAllText(filename);
 				try { 
-					var json = JsonValue.Parse(jsonText);
+					var json = JsonNode.Parse(jsonText);
 					var variables = json as JsonObject;
 					if (variables == null) {
 						_errors.Add($"File '{filename}' is not a valid JSON file.");

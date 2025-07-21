@@ -26,6 +26,8 @@ namespace Pansynchro.PanSQL.Compiler.Functions
 			_methods.Add("HttpQueryJson", typeof(SqlFunctions).GetMethod("HttpQueryJson")!);
 			_methods.Add("HttpPost", typeof(SqlFunctions).GetMethod("HttpPost")!);
 			_methods.Add("HttpPostJson", typeof(SqlFunctions).GetMethod("HttpPostJson")!);
+			_methods.Add("HttpPostFile", typeof(SqlFunctions).GetMethod("HttpPostFile")!);
+			_methods.Add("HttpPutFile", typeof(SqlFunctions).GetMethod("HttpPutFile")!);
 			_methods.Add("JSON_VALUE", typeof(SqlFunctions).GetMethod("JsonValue")!);
 			_methods.Add("LEFT", typeof(SqlFunctions).GetMethod("StrLeft")!);
 			_methods.Add("RIGHT", typeof(SqlFunctions).GetMethod("StrRight")!);

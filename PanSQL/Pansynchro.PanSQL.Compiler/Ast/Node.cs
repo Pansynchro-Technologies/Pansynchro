@@ -158,9 +158,9 @@ namespace Pansynchro.PanSQL.Compiler.Ast
 		internal override void Accept(IVisitor visitor) => visitor.OnAlterStatement(this);
 	}
 
-	public class CallStatement(FunctionCallExpression call) : Statement
+	public class CallStatement(TSqlExpression call) : Statement
 	{
-		public FunctionCallExpression Call { get; } = call;
+		public TSqlExpression Call { get; } = call;
 
 		internal override void Accept(IVisitor visitor) => visitor.OnCallStatement(this);
 	}
