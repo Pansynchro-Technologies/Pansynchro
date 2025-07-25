@@ -18,7 +18,6 @@ public record TupleField(string? Name, KeyValuePair<string, IFieldType>[] Fields
 
 	public virtual bool Equals(TupleField? other)
 		=> other != null && Name == other.Name && Nullable == other.Nullable && Fields.SequenceEqual(other.Fields);
-
 	public override int GetHashCode() => HashCode.Combine(Name, Fields, Nullable);
 
 	public void Accept(IFieldTypeVisitor visitor) => visitor.VisitTupleField(this);

@@ -4,9 +4,9 @@
 	<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.1</AssemblyVersion>
-	<FileVersion>0.7.1</FileVersion>
-	<Version>0.7.1</Version>
+	<AssemblyVersion>0.7.2</AssemblyVersion>
+	<FileVersion>0.7.2</FileVersion>
+	<Version>0.7.2</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Core</Product>
 	<Description>The core contains definitions of basic concepts that are used throughout the Pansynchro ecosystem. Virtually every other piece of Pansynchro will have a dependency on Pansynchro.Core.</Description>
@@ -14,7 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
 	<PackageReleaseNotes>
-		Adding IFieldType.MakeNotNull()
+		Making TupleField instances properly comparable.
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>
