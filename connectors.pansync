@@ -15,6 +15,10 @@ Connectors:
 		supports Reader, Writer
 		assembly Pansynchro.Protocol
 
+	Connector PansyncBArchive:
+		supports Reader, Writer
+		assembly Pansynchro.Protocol
+
 	Connector Firebird:
 		supports Analyzer, Reader, Writer, Configurator, Queryable
 		assembly Pansynchro.Connectors.Firebird

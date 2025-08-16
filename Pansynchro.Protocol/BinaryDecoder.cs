@@ -24,16 +24,16 @@ namespace Pansynchro.Protocol
 		private readonly MeteredStream _meter;
 		private readonly BrotliStream _decompressor;
 		private readonly BinaryReader _reader;
-		private readonly DataDictionary _sourceDict;
+		private DataDictionary? _sourceDict;
 
 		private const int VERSION = 6;
 
-		public BinaryDecoder(TcpClient client, DataDictionary sourceDict) : this(client.GetStream(), sourceDict)
+		public BinaryDecoder(TcpClient client, DataDictionary? sourceDict) : this(client.GetStream(), sourceDict)
 		{
 			_client = client;
 		}
 
-		public BinaryDecoder(Stream source, DataDictionary sourceDict)
+		public BinaryDecoder(Stream source, DataDictionary? sourceDict)
 		{
 			_meter = new MeteredStream(source);
 			_decompressor = new BrotliStream(_meter, CompressionMode.Decompress);
@@ -43,6 +43,11 @@ namespace Pansynchro.Protocol
 
 		public IAsyncEnumerable<DataStream> ReadFrom(DataDictionary source)
 		{
+			if (_sourceDict == null) {
+				_sourceDict = source;
+			} else if (!_sourceDict.Equals(source)) {
+				throw new InvalidDataException("Data dictionary mismatch");
+			}
 			ReadVersion();
 			ReadDictHash();
 			return ReadStreams(source.Streams.Length, source);
@@ -58,7 +63,7 @@ namespace Pansynchro.Protocol
 		private void ReadDictHash()
 		{
 			CheckEqual(_reader.ReadByte(), (byte)Markers.Schema, "Data dictionary not found");
-			CheckEqual(_reader.ReadString(), _sourceDict.Name, "Data dictionary name check failed");
+			CheckEqual(_reader.ReadString(), _sourceDict!.Name, "Data dictionary name check failed");
 			using var hasher = MD5.Create();
 			var text = DataDictionaryWriter.Write(_sourceDict).Replace("\r\n", "\n");
 			var textBytes = Encoding.UTF8.GetBytes(text);
@@ -544,6 +549,12 @@ namespace Pansynchro.Protocol
 			var client = new TcpClient(parts[0], NetworkInfo.TCP_PORT);
 			var srcdict = DataDictionary.LoadFromFile(parts[1]);
 			return new BinaryDecoder(client, srcdict);
+		}
+
+		internal static IReader Archive(string connectionString)
+		{
+			var file = File.OpenRead(connectionString);
+			return new BinaryDecoder(file, null);
 		}
 	}
 }

@@ -774,5 +774,11 @@ namespace Pansynchro.Protocol
 			var srcdict = DataDictionary.LoadFromFile(parts[1]);
 			return new BinaryEncoder(server, srcdict);
 		}
+
+		public static BinaryEncoder Archive(string filename)
+		{
+			var dest = File.Create(filename);
+			return new BinaryEncoder(dest);
+		}
 	}
 }
