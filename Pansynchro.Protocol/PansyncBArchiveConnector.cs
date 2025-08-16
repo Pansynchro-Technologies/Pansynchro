@@ -7,7 +7,7 @@ using Pansynchro.Core.Connectors;
 using Pansynchro.Core.DataDict;
 
 namespace Pansynchro.Protocol;
-internal class PansyncBArchive : ConnectorCore
+internal class PansyncBArchiveConnector : ConnectorCore
 {
 	public override string Name => "PansyncBArchive";
 
@@ -31,5 +31,5 @@ internal class PansyncBArchive : ConnectorCore
 
 
 	[ModuleInitializer]
-	public static void Register() => ConnectorRegistry.RegisterConnector(new NetworkConnector());
+	public static void Register() => ConnectorRegistry.RegisterConnector(new PansyncBArchiveConnector());
 }

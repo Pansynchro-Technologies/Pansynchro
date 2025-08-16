@@ -4,9 +4,9 @@
 	<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
 	<Nullable>enable</Nullable>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.3</AssemblyVersion>
-	<FileVersion>0.7.3</FileVersion>
-	<Version>0.7.3</Version>
+	<AssemblyVersion>0.7.4</AssemblyVersion>
+	<FileVersion>0.7.4</FileVersion>
+	<Version>0.7.4</Version>
 	<Authors>Pansynchro Technologies</Authors>
 	<Product>Pansynchro Network Protocol</Product>
 	<Description>Implements the Pansynchro protocol, the fastest way to transmit bulk structured data over a network.</Description>
@@ -14,8 +14,7 @@
 	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 	<PackageTags>pansynchro;data;data-integration;etl;elt;networking</PackageTags>
 	<PackageReleaseNotes>
-		Adding PansyncBArchive connector
-		Updating dependencies
+		Fixing a connector initialization bug
 	</PackageReleaseNotes>
 	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	<NoWarn>$(NoWarn);NU1605</NoWarn>
