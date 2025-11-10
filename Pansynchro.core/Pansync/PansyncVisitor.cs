@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antlr4.Runtime.Tree;
 
 namespace Pansynchro.Core.Pansync
@@ -17,8 +17,18 @@ namespace Pansynchro.Core.Pansync
 			throw new NotImplementedException();
 		}
 
-		public Statement[]? VisitBlock(PansyncParser.BlockContext context) =>
-			context?.statement().Select(VisitStatement).Cast<Statement>().ToArray();
+		public Statement[]? VisitBlock(PansyncParser.BlockContext context)
+		{
+			if (context == null) {
+				return null;
+			}
+			var statements = context.statement();
+			var result = new Statement[statements.Length];
+			for (int i = 0; i < statements.Length; ++i) {
+				result[i] = VisitStatement(statements[i]);
+			}
+			return result;
+		}
 
 		public PansyncNode VisitChildren(IRuleNode node)
 		{
@@ -56,8 +66,15 @@ namespace Pansynchro.Core.Pansync
 			throw new NotImplementedException("Unknown expression type.");
 		}
 
-		public Expression[] VisitExpressionList(PansyncParser.Expression_listContext context) =>
-			context.expression().Select(e => (Expression)VisitExpression(e)).ToArray();
+		public Expression[] VisitExpressionList(PansyncParser.Expression_listContext context)
+		{
+			var exprs = context.expression();
+			var result = new Expression[exprs.Length];
+			for (int i = 0; i < exprs.Length; ++i) {
+				result[i] = (Expression)VisitExpression(exprs[i]);
+			}
+			return result;
+		}
 
 		public PansyncNode VisitExpression_list(PansyncParser.Expression_listContext context)
 		{
@@ -67,7 +84,11 @@ namespace Pansynchro.Core.Pansync
 		public PansyncNode VisitFile(PansyncParser.FileContext context)
 		{
 			var body = context.statement();
-			return new PansyncFile(body.Select(VisitStatement).Cast<Statement>().ToArray());
+			var result = new Statement[body.Length];
+			for (int i = 0; i < body.Length; ++i) {
+				result[i] = VisitStatement(body[i]);
+			}
+			return new PansyncFile(result);
 		}
 
 		PansyncNode IPansyncParserVisitor<PansyncNode>.VisitStatement(PansyncParser.StatementContext context)
@@ -117,7 +138,11 @@ namespace Pansynchro.Core.Pansync
 
 		public DataListNode VisitDataList(PansyncParser.Data_listContext context)
 		{
-			var values = context.expression().Select(e => (Expression)VisitExpression(e)).ToArray();
+			var exprs = context.expression();
+			var values = new Expression[exprs.Length];
+			for (int i = 0; i < values.Length; ++i) {
+				values[i] = (Expression)VisitExpression(exprs[i]);
+			}
 			return new DataListNode(values);
 		}
 
@@ -157,7 +182,11 @@ namespace Pansynchro.Core.Pansync
 		public KvListNode VisitKvList(PansyncParser.Kv_listContext context)
 		{
 			var values = context.kv_pair();
-			return new KvListNode(values.Select(VisitKvPair).ToArray());
+			var result = new KeyValuePair<string, Expression>[values.Length];
+			for (int i = 0; i < result.Length; ++i) {
+				result[i] = VisitKvPair(values[i]);
+			}
+			return new KvListNode(result);
 		}
 
 		public PansyncNode VisitKv_list(PansyncParser.Kv_listContext context)
@@ -180,7 +209,7 @@ namespace Pansynchro.Core.Pansync
 		public PansyncNode VisitTitle(PansyncParser.TitleContext context)
 		{
 			if (context.name() != null) {
-				return new NameNode(context.name().GetText());
+				return new NameNode(context.name().IDENTIFIER().GetText());
 			}
 			var str = (StringNode)VisitString(context.@string());
 			return new NameNode(str.Value);
