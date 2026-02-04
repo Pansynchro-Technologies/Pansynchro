@@ -50,7 +50,7 @@ namespace Pansynchro.Connectors.TextFile.CSV
 				throw new DataException($"No stream named '{name}' is defined in the data dictionary.");
 			}
 			var stream = source.GetStream(name);
-			var readers = _source.GetTextAsync(name).Select(r => CreateReader(r)).ToEnumerable();
+			var readers = _source.GetTextAsync(name).Select(r => CreateReader(r, stream));
 			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 
