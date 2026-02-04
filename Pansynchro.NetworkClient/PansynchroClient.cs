@@ -38,7 +38,7 @@ namespace Pansynchro.NetworkClient
 		{
 			await stream.WriteAsync(KEY_BYTE);
 			var gBuffer = new byte[36];
-			await stream.ReadAsync(gBuffer);
+			await stream.ReadExactlyAsync(gBuffer);
 			var gs = Encoding.UTF8.GetString(gBuffer);
 			var g = Guid.Parse(gs);
 			var hash = MD5.HashData(Encoding.UTF8.GetBytes($"PANSYNCHRO.{g}"));

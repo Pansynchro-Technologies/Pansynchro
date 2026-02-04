@@ -4,6 +4,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -79,7 +80,7 @@ namespace Pansynchro.Connectors.TextFile.JSON
 				.SelectMany(reader => JsonReader.LoadData(conf, source, name, reader))
 				.Where(ds => ds.Name.Equals(streamNameParser))
 				.Select(ds => ds.Reader);
-			return Task.FromResult<DataStream>(new(streamNameParser, StreamSettings.None, new GroupingReader(readers.ToEnumerable())));
+			return Task.FromResult<DataStream>(new(streamNameParser, StreamSettings.None, new GroupingReader(readers)));
 		}
 
 		private static async ValueTask<string?> LoadSchema(string? schema)
@@ -104,8 +105,8 @@ namespace Pansynchro.Connectors.TextFile.JSON
 			}
 			if (schema != null) {
 				var js = Json.Schema.JsonSchema.FromText(schema);
-				var validation = js.Evaluate(data);
-				if (validation.HasErrors) {
+				var validation = js.Evaluate(JsonSerializer.Deserialize<JsonElement>(data));
+				if (validation.Errors?.Count > 0) {
 					throw new ValidationException(name, string.Join(Environment.NewLine, validation.Errors!.Select(p => $"{p.Key}: {p.Value}")));
 				}
 			}

@@ -30,7 +30,7 @@ namespace Pansynchro.Sources.GoogleCloudStorage
 		{
 			using var client = await CreateClient();
 			await foreach (var group in GetFiles(client).GroupBy(k => k.stream)) {
-				await foreach (var key in group) {
+				foreach (var key in group) {
 					yield return (group.Key, await DownloadFile(client, key.obj));
 				}
 			}

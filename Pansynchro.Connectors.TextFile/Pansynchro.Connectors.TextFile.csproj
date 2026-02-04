@@ -1,36 +1,39 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
-	<Nullable>enable</Nullable>
-	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.0</AssemblyVersion>
-	<FileVersion>0.7.0</FileVersion>
-	<Version>0.7.0</Version>
-	<Authors>Pansynchro Technologies</Authors>
-	<Product>Pansynchro Textfile Connector</Product>
-	<Description>Pansynchro connectors to read from JSON, CSV, and plain text data sources.</Description>
-	<Copyright>Copyright 2022-2025, Pansynchro Technologies</Copyright>
-	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
-	<PackageTags>pansynchro;data;data-integration;etl;elt;json;csv</PackageTags>
-	<PackageReleaseNotes>
-		Removing Newtonsoft.Json dependencies
-	</PackageReleaseNotes>
-	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows;net10.0;net10.0-windows</TargetFrameworks>
+		<Nullable>enable</Nullable>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<AssemblyVersion>0.7.6</AssemblyVersion>
+		<FileVersion>0.7.6</FileVersion>
+		<Version>0.7.6</Version>
+		<Authors>Pansynchro Technologies</Authors>
+		<Product>Pansynchro Textfile Connector</Product>
+		<Description>Pansynchro connectors to read from JSON, CSV, and plain text data sources.</Description>
+		<Copyright>Copyright 2022-2026, Pansynchro Technologies</Copyright>
+		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
+		<PackageTags>pansynchro;data;data-integration;etl;elt;json;csv</PackageTags>
+		<PackageReleaseNotes>
+			Updating to .NET 10
+			Updating dependencies
+		</PackageReleaseNotes>
+		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>..\bin\</OutputPath>
-  </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<OutputPath>..\bin\</OutputPath>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
-	<PackageReference Include="JsonPath.Net" Version="2.1.1" />
-	<PackageReference Include="JsonSchema.Net" Version="7.3.4" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+		<PackageReference Include="JsonPath.Net" Version="3.0.0" />
+		<PackageReference Include="JsonSchema.Net" Version="9.0.0" />
+		<PackageReference Include="ILGPU" Version="1.5.3" />
+		<PackageReference Include="ILGPU.Algorithms" Version="1.5.3" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+	</ItemGroup>
 
 </Project>

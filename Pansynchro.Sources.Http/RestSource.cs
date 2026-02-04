@@ -21,7 +21,7 @@ namespace Pansynchro.Sources.Http
 		private static string? ExtractNextQueryString(string conn)
 		{
 			var config = JsonObject.Parse(conn);
-			var next = config["Next"] as JsonObject;
+			var next = config?["Next"] as JsonObject;
 			return next?.ToString();
 		}
 

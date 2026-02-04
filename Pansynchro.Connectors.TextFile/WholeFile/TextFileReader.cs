@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Pansynchro.Core;
@@ -45,8 +46,7 @@ namespace Pansynchro.Connectors.TextFile.WholeFile
 				throw new DataException("Must call SetDataSource before calling ReadStream");
 			}
 			var values = _source.GetTextAsync(name)
-				.SelectAwait(async r => new WholeFileReader(name, await r.ReadToEndAsync()))
-				.ToEnumerable();
+				.Select(async (System.IO.TextReader r, CancellationToken t) => new WholeFileReader(name, await r.ReadToEndAsync(t)));
 			var result = new GroupingReader(values);
 			return Task.FromResult<DataStream>(new(StreamDescription.Parse(name), StreamSettings.None, result));
 		}

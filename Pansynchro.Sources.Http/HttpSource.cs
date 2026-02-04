@@ -15,7 +15,7 @@ namespace Pansynchro.Sources.Http
 
 		public HttpDataSource(string connectionString)
 		{
-			var urls = JsonObject.Parse(connectionString)["Urls"] as JsonObject;
+			var urls = JsonObject.Parse(connectionString)?["Urls"] as JsonObject;
 			if (urls == null) {
 				throw new ArgumentException("Connection string is missing its Urls property");
 			}

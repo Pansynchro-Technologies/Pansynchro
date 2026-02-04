@@ -1,31 +1,32 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
-	<Nullable>enable</Nullable>
-	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.3</AssemblyVersion>
-	<FileVersion>0.7.3</FileVersion>
-	<Version>0.7.3</Version>
-	<Authors>Pansynchro Technologies</Authors>
-	<Product>Pansynchro Parquet Connector</Product>
-	<Description>Pansynchro connector to read from Parquet files.</Description>
-	<Copyright>Copyright 2022-2025, Pansynchro Technologies</Copyright>
-	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
-	<PackageTags>pansynchro;data;data-integration;etl;elt;parquet</PackageTags>
-	<PackageReleaseNotes>
-		Updating dependencies
-	</PackageReleaseNotes>
-	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows;net10.0;net10.0-windows</TargetFrameworks>
+		<Nullable>enable</Nullable>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<AssemblyVersion>0.7.6</AssemblyVersion>
+		<FileVersion>0.7.6</FileVersion>
+		<Version>0.7.6</Version>
+		<Authors>Pansynchro Technologies</Authors>
+		<Product>Pansynchro Parquet Connector</Product>
+		<Description>Pansynchro connector to read from Parquet files.</Description>
+		<Copyright>Copyright 2022-2026, Pansynchro Technologies</Copyright>
+		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
+		<PackageTags>pansynchro;data;data-integration;etl;elt;parquet</PackageTags>
+		<PackageReleaseNotes>
+			Updating to .NET 10
+			Updating dependencies
+		</PackageReleaseNotes>
+		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-	<PackageReference Include="Parquet.Net" Version="5.2.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Parquet.Net" Version="5.5.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-	<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+	</ItemGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<OutputPath>..\bin\</OutputPath>

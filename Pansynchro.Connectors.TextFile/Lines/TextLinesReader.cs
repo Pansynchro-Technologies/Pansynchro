@@ -45,9 +45,7 @@ namespace Pansynchro.Connectors.TextFile.Lines
 			if (_source == null) {
 				throw new DataException("Must call SetDataSource before calling ReadStream");
 			}
-			var values = _source.GetTextAsync(name)
-				.Select(r => new FileLinesReader(name, r))
-				.ToEnumerable();
+			var values = _source.GetTextAsync(name).Select(r => new FileLinesReader(name, r));
 			var result = new GroupingReader(values);
 			return Task.FromResult<DataStream>(new(StreamDescription.Parse(name), StreamSettings.None, result));
 		}

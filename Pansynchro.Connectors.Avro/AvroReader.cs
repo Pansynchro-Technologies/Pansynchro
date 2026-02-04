@@ -45,8 +45,7 @@ namespace Pansynchro.Connectors.Avro
 			}
 			var stream = source.GetStream(name);
 			var readers = _source.GetDataAsync(name)
-				.Select(s => new AvroDataReader(DataFileReader<GenericRecord>.OpenReader(s)))
-				.ToEnumerable();
+				.Select(s => new AvroDataReader(DataFileReader<GenericRecord>.OpenReader(s)));
 			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 

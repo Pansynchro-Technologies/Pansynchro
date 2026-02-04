@@ -1,26 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
-	<Nullable>enable</Nullable>
-	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	<AssemblyVersion>0.7.0</AssemblyVersion>
-	<FileVersion>0.7.0</FileVersion>
-	<Version>0.7.0</Version>
-	<Authors>Pansynchro Technologies</Authors>
-	<Product>Pansynchro Console Writer Connector</Product>
-	<Description>Pansynchro connector to write output to the console for debug purposes.</Description>
-	<Copyright>Copyright 2024, Pansynchro Technologies</Copyright>
-	<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
-	<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
-	<PackageReleaseNotes>
-		Write Unicode characters correctly to the console.
-	</PackageReleaseNotes>
-	<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+		<Nullable>enable</Nullable>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<AssemblyVersion>0.7.6</AssemblyVersion>
+		<FileVersion>0.7.6</FileVersion>
+		<Version>0.7.6</Version>
+		<Authors>Pansynchro Technologies</Authors>
+		<Product>Pansynchro Console Writer Connector</Product>
+		<Description>Pansynchro connector to write output to the console for debug purposes.</Description>
+		<Copyright>Copyright 2024-2026, Pansynchro Technologies</Copyright>
+		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
+		<PackageTags>pansynchro;data;data-integration;etl;elt</PackageTags>
+		<PackageReleaseNotes>
+			Updating to .NET 10
+			Updating dependencies
+		</PackageReleaseNotes>
+		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+	</ItemGroup>
 
 </Project>

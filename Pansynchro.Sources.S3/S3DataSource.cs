@@ -130,7 +130,7 @@ namespace Pansynchro.Sources.S3
 			using var client = GetClient();
 			using var transfer = new TransferUtility(client);
 			await foreach (var group in GetFiles(client).GroupBy(k => k.StreamName)) {
-				await foreach (var key in group) {
+				foreach (var key in group) {
 					yield return (group.Key, await transfer.OpenStreamAsync(key.Bucket, key.Filename));
 				}
 			}

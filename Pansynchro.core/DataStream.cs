@@ -28,7 +28,7 @@ namespace Pansynchro.Core
 		{
 			await foreach (var group in source.LazyGroupAdjacent(s => s.Name)) {
 				yield return (await group.FirstAsync()) with {
-					Reader = new GroupingReader(group.Select(g => g.Reader).ToEnumerable())
+					Reader = new GroupingReader(group.Select(g => g.Reader))
 				};
 			}
 		}

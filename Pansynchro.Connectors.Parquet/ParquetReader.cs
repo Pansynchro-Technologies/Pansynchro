@@ -4,7 +4,10 @@ using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+
+using Parquet;
 
 using PReader = Parquet.ParquetReader;
 using DataColumn = Parquet.Data.DataColumn;
@@ -13,7 +16,6 @@ using Pansynchro.Core;
 using Pansynchro.Core.DataDict;
 using Pansynchro.Core.Helpers;
 using Pansynchro.Core.Readers;
-using Parquet;
 
 namespace Pansynchro.Connectors.Parquet
 {
@@ -51,8 +53,7 @@ namespace Pansynchro.Connectors.Parquet
 			}
 			var stream = source.GetStream(name);
 			var readers = _source.GetDataAsync(name)
-				.SelectAwait(async ds => (await ReadDataStream(stream, ds)).Reader)
-				.ToEnumerable();
+				.Select(async (Stream ds, CancellationToken t) => (await ReadDataStream(stream, ds)).Reader);
 			return Task.FromResult<DataStream>(new(stream.Name, StreamSettings.None, new GroupingReader(readers)));
 		}
 

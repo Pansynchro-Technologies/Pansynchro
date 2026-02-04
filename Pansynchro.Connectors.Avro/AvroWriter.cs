@@ -101,7 +101,7 @@ namespace Pansynchro.Connectors.Avro
 		private static JsonNode BuildAvroType(IFieldType type)
 		{
 			if (type is BasicField bf) {
-				JsonNode? result = bf.Type switch {
+				JsonNode result = bf.Type switch {
 					TypeTag.Boolean => "boolean",
 					TypeTag.Byte or TypeTag.SByte or TypeTag.Short or TypeTag.UShort or TypeTag.Int => "int",
 					TypeTag.UInt or TypeTag.Long => "long",
@@ -110,8 +110,8 @@ namespace Pansynchro.Connectors.Avro
 						"string",
 					TypeTag.Single or TypeTag.Float => "float",
 					TypeTag.Double => "double",
-					TypeTag.Guid => JsonObject.Parse("{\"type\": \"string\", \"logicalType\": \"uuid\"}"),
-					TypeTag.DateTime or TypeTag.DateTimeTZ => JsonObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}"),
+					TypeTag.Guid => JsonObject.Parse("{\"type\": \"string\", \"logicalType\": \"uuid\"}")!,
+					TypeTag.DateTime or TypeTag.DateTimeTZ => JsonObject.Parse("{\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}")!,
 					_ => throw new NotSupportedException($"Field data type '{bf.Type}' is not supported")
 				};
 				if (type.Nullable) {

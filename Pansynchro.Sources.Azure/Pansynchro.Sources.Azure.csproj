@@ -1,26 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows</TargetFrameworks>
+		<TargetFrameworks>net8.0;net8.0-windows;net9.0;net9.0-windows;net10.0;net10.0-windows</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<AssemblyVersion>0.7.0</AssemblyVersion>
-		<FileVersion>0.7.0</FileVersion>
-		<Version>0.7.0</Version>
+		<AssemblyVersion>0.7.6</AssemblyVersion>
+		<FileVersion>0.7.6</FileVersion>
+		<Version>0.7.6</Version>
 		<Authors>Pansynchro Technologies</Authors>
 		<Product>Pansynchro Azure Data Source</Product>
 		<Description>Pansynchro data source to read from Azure Data Lake Storage.</Description>
-		<Copyright>Copyright 2025 Pansynchro Technologies</Copyright>
+		<Copyright>Copyright 2025-2026 Pansynchro Technologies</Copyright>
 		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
 		<PackageTags>pansynchro;data;data-integration;etl;elt;azure;adls</PackageTags>
 		<PackageReleaseNotes>
-			Initial release
+			Updating to .NET 10
+			Updating dependencies
 		</PackageReleaseNotes>
 		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Azure.Storage.Files.DataLake" Version="12.23.0" />
+		<PackageReference Include="Azure.Storage.Files.DataLake" Version="12.25.0" />
 	</ItemGroup>
 
 	<ItemGroup>

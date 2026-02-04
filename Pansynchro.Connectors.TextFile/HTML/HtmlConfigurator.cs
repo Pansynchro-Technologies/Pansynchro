@@ -171,7 +171,7 @@ internal class HtmlConfigurator : DbConnectionStringBuilder, INotifyPropertyChan
 			}
 		}
 
-		private string _path;
+		private string _path = null!;
 		[Description("XPath expression to extract the relevant values from the data")]
 		public string Path
 		{

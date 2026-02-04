@@ -1,25 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace Pansynchro.Core.Readers
 {
 	public class GroupingReader : IDataReader
 	{
-		private readonly IEnumerator<IDataReader> _readers;
+		private readonly IAsyncEnumerator<IDataReader> _readers;
 		private IDataReader _reader = null!;
 		private bool _done = false;
 
-		public GroupingReader(IEnumerable<IDataReader> readers)
+		public GroupingReader(IAsyncEnumerable<IDataReader> readers)
 		{
-			_readers = readers.GetEnumerator();
-			LoadReader();
+			_readers = readers.GetAsyncEnumerator();
+			LoadReader().GetAwaiter().GetResult();
 		}
 
-		private void LoadReader()
+		private async Task LoadReader()
 		{
 			_reader?.Dispose();
-			if (_readers.MoveNext()) {
+			if (await _readers.MoveNextAsync()) {
 				_reader = _readers.Current;
 			} else _done = true;
 		}
@@ -160,7 +161,7 @@ namespace Pansynchro.Core.Readers
 		public bool NextResult()
 		{
 			while (!_reader.NextResult()) {
-				LoadReader();
+				LoadReader().GetAwaiter().GetResult();
 				if (_done)
 					return false;
 			}
@@ -170,7 +171,7 @@ namespace Pansynchro.Core.Readers
 		public bool Read()
 		{
 			while (!_reader.Read()) {
-				LoadReader();
+				LoadReader().GetAwaiter().GetResult();
 				if (_done)
 					return false;
 			}
@@ -180,7 +181,7 @@ namespace Pansynchro.Core.Readers
 		public void Dispose()
 		{
 			_reader.Dispose();
-			_readers.Dispose();
+			_readers.DisposeAsync().GetAwaiter().GetResult();
 			GC.SuppressFinalize(this);
 		}
 	}

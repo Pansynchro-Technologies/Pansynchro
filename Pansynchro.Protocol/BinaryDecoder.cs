@@ -268,7 +268,7 @@ namespace Pansynchro.Protocol
 				case TypeTag.Json:
 					result = new RcfReader<string>(baseReader);
 					rcfReaders.Add(result);
-					return b => JsonNode.Parse((string)result.Read(b));
+					return b => JsonNode.Parse((string)result.Read(b))!;
 				case TypeTag.Binary or TypeTag.Varbinary or TypeTag.Blob:
 					var result2 = new RcfReader<byte[]>(baseReader);
 					rcfReaders.Add(result2);

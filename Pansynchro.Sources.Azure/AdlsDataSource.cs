@@ -92,11 +92,13 @@ namespace Pansynchro.Sources.Azure
 			}
 		}
 
+		private static readonly DataLakeGetPathsOptions OPTIONS = new() { Recursive = true };
+
 		private static async IAsyncEnumerable<DataLakeFileClient> ListAzureFiles(DataLakeFileSystemClient client, string[] starts)
 		{
 			foreach (var start in starts) {
 				var dir = client.GetDirectoryClient(start);
-				await foreach (var result in DoListAzureFiles(client, dir.GetPathsAsync(recursive: true))) {
+				await foreach (var result in DoListAzureFiles(client, dir.GetPathsAsync(OPTIONS))) {
 					yield return result;
 				}
 			}
@@ -104,7 +106,7 @@ namespace Pansynchro.Sources.Azure
 
 		private static async IAsyncEnumerable<DataLakeFileClient> ListAzureFiles(DataLakeFileSystemClient client)
 		{
-			await foreach (var result in DoListAzureFiles(client, client.GetPathsAsync(recursive: true))) {
+			await foreach (var result in DoListAzureFiles(client, client.GetPathsAsync(OPTIONS))) {
 				yield return result;
 			}
 		}
