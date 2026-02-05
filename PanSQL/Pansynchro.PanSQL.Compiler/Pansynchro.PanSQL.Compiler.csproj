@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net9.0</TargetFrameworks>
+		<TargetFrameworks>net10.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<IsTrimmable>true</IsTrimmable>
-		<AssemblyVersion>0.3.1</AssemblyVersion>
-		<FileVersion>0.3.1</FileVersion>
-		<Version>0.3.1</Version>
+		<AssemblyVersion>0.3.2</AssemblyVersion>
+		<FileVersion>0.3.2</FileVersion>
+		<Version>0.3.2</Version>
 		<Authors>Pansynchro Technologies</Authors>
 		<Product>PanSQL compiler implementation</Product>
 		<Description>Builds .pansql scripts into executable data pipelines</Description>
-		<Copyright>Copyright 2023-2025, Pansynchro Technologies</Copyright>
+		<Copyright>Copyright 2023-2026, Pansynchro Technologies</Copyright>
 		<NoWarn>$(NoWarn);NU1605</NoWarn>
 	</PropertyGroup>
 
@@ -26,12 +26,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
-		<PackageReference Include="Antlr4BuildTasks" Version="12.10.0" />
-		<PackageReference Include="Microsoft.Build.Framework" Version="17.14.8" />
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
-		<PackageReference Include="Microsoft.SqlServer.Management.SqlParser" Version="172.20.0" />
-		<PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.64.0" />
-		<PackageReference Include="Pansynchro.Core" Version="0.7.0" />
+		<PackageReference Include="Antlr4BuildTasks" Version="12.14.0" />
+		<PackageReference Include="Microsoft.Build.Framework" Version="18.0.2" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+		<PackageReference Include="Microsoft.SqlServer.Management.SqlParser" Version="173.8.0" />
+		<PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.157.0" />
+		<PackageReference Include="Pansynchro.Core" Version="0.7.6" />
 	</ItemGroup>
 
 	<ItemGroup>
