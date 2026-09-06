@@ -8,27 +8,23 @@
 		<FileVersion>0.7.7</FileVersion>
 		<Version>0.7.7</Version>
 		<Authors>Pansynchro Technologies</Authors>
-		<Product>Pansynchro SQL Core</Product>
-		<Description>Library providing core functionality for SQL database connectors</Description>
-		<Copyright>Copyright 2022-2026, Pansynchro Technologies</Copyright>
+		<Product>Pansynchro DuckDB Connector</Product>
+		<Description>Pansynchro connector to read from or write to DuckDB databases.</Description>
+		<Copyright>Copyright 2026, Pansynchro Technologies</Copyright>
 		<PackageProjectUrl>https://github.com/Pansynchro-Technologies/Pansynchro</PackageProjectUrl>
-		<PackageTags>pansynchro;data;data-integration;etl;elt;sql</PackageTags>
-		<PackageReleaseNotes>
-			Updating dependencies
-		</PackageReleaseNotes>
+		<PackageTags>pansynchro;data;data-integration;etl;elt;duckdb</PackageTags>
+		<PackageReleaseNotes>Initial release</PackageReleaseNotes>
 		<PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<OutputPath>..\bin\</OutputPath>
+		<NoWarn>$(NoWarn);NU1605</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="System.Linq.Async" Version="7.0.1" />
+		<PackageReference Include="DuckDB.NET.Data" Version="1.5.5" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Pansynchro.core\Pansynchro.Core.csproj" />
+		<ProjectReference Include="..\Pansynchro.SQL\Pansynchro.SQL.csproj" />
 	</ItemGroup>
 
 </Project>

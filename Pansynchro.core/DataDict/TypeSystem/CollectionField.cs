@@ -1,11 +1,11 @@
 ﻿namespace Pansynchro.Core.DataDict.TypeSystem;
-public record CollectionField(IFieldType BaseType, CollectionType CollectionType, bool Nullable) : IFieldType
+public record CollectionField(IFieldType BaseType, CollectionType CollectionType, bool Nullable, int? Size = null) : IFieldType
 {
 	public bool Incompressible => BaseType.Incompressible;
 
 	public override string ToString()
 	{
-		var result = $"{CollectionType}[{BaseType}]";
+		var result = $"{CollectionType}[{BaseType}{(Size == null ? "": ", " + Size)}]";
 		if (Nullable) {
 			result = result + " NULL";
 		}

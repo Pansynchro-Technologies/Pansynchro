@@ -23,17 +23,21 @@ expression_list :
 
 command_result: AS expression_list;
 
-data_list: LBRACK (expression (COMMA expression)*)? RBRACK NEWLINE;
+data_list: subscript NEWLINE;
 
-expression : name | string | named_list | kv_list | INTEGER;
+subscript: LBRACK (expression (COMMA expression)*)? RBRACK;
 
-name : IDENTIFIER;
+expression: name | string | subscript_list | named_list | kv_list | INTEGER;
+
+name: IDENTIFIER;
 
 string: SINGLE_QUOTED_STRING | DOUBLE_QUOTED_STRING;
 
-title : name | string;
+title: name | string;
 
 named_list: title LPAREN expression_list RPAREN;
+
+subscript_list: title subscript;
 
 kv_list: LBRACE (kv_pair (COMMA kv_pair)*)? RBRACE;
 

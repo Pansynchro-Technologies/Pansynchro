@@ -4,7 +4,7 @@ using System.Data;
 using System.IO;
 using System.Threading.Tasks;
 
-using Tortuga.Data.Snowflake;
+using Snowflake.Data.Client;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Helpers;

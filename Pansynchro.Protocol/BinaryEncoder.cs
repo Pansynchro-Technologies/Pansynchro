@@ -40,9 +40,13 @@ namespace Pansynchro.Protocol
 		private readonly MeteredStream _meter;
 #endif
 
-		public BinaryEncoder(Stream output, int compressionLevel = 4)
+		public BinaryEncoder(Stream output, int compressionLevel = 5)
 		{
+#if NET9_0_OR_GREATER
+			_compressor = new(output, new BrotliCompressionOptions {Quality = compressionLevel} );
+#else
 			_compressor = new(output, CompressionLevel.Optimal);
+#endif
 			_output = _compressor;
 #if DEBUG
 			_meter = new MeteredStream(_output);
@@ -52,13 +56,17 @@ namespace Pansynchro.Protocol
 			_incompressibleWriter = new BinaryWriter(output, Encoding.UTF8);
 		}
 
-		public BinaryEncoder(TcpListener server, DataDictionary dict, int compressionLevel = 4)
+		public BinaryEncoder(TcpListener server, DataDictionary dict, int compressionLevel = 5)
 		{
 			this._server = server;
 			_server.Start();
 			_client = _server.AcceptTcpClient();
 			var buffer = new BufferedStream(_client.GetStream());
+#if NET9_0_OR_GREATER
+			_compressor = new(buffer, new BrotliCompressionOptions {Quality = compressionLevel} );
+#else
 			_compressor = new(buffer, CompressionLevel.Optimal);
+#endif
 			_output = _compressor;
 #if DEBUG
 			_meter = new MeteredStream(_output);

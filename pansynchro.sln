@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31919.166
+# Visual Studio Version 18
+VisualStudioVersion = 18.9.12023.133
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pansynchro.Core", "Pansynchro.core\Pansynchro.Core.csproj", "{2B3ED13C-51D1-4DE3-B151-5880719E907D}"
 EndProject
@@ -64,6 +64,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Connectors.Debug", "Pansynchro.Connectors.Debug\Pansynchro.Connectors.Debug.csproj", "{B9823822-E2B5-4489-9371-8EFFC3F57555}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Connectors.FileSystem", "Pansynchro.Connectors.FileSystem\Pansynchro.Connectors.FileSystem.csproj", "{D1366701-1262-40C2-9ADB-D31A8BD8B91E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pansynchro.Connectors.DuckDB", "Pansynchro.Connectors.DuckDB\Pansynchro.Connectors.DuckDB.csproj", "{D9694DA8-48B8-4B49-8E8A-90885CBB0A86}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -163,6 +165,10 @@ Global
 		{D1366701-1262-40C2-9ADB-D31A8BD8B91E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D1366701-1262-40C2-9ADB-D31A8BD8B91E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1366701-1262-40C2-9ADB-D31A8BD8B91E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9694DA8-48B8-4B49-8E8A-90885CBB0A86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9694DA8-48B8-4B49-8E8A-90885CBB0A86}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9694DA8-48B8-4B49-8E8A-90885CBB0A86}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9694DA8-48B8-4B49-8E8A-90885CBB0A86}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -191,6 +197,7 @@ Global
 		{8A8DEC8A-772E-43FC-8212-285AB78B15DD} = {ACB226C5-A51B-422D-A3D9-B3BBA3DC530B}
 		{B9823822-E2B5-4489-9371-8EFFC3F57555} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
 		{D1366701-1262-40C2-9ADB-D31A8BD8B91E} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
+		{D9694DA8-48B8-4B49-8E8A-90885CBB0A86} = {0E017209-0EC7-4E1F-911C-8FFDBFBE6CF2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3B92743-4CDC-4144-861D-33F822FA824B}

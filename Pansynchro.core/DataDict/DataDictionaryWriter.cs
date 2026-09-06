@@ -269,7 +269,8 @@ namespace Pansynchro.Core.DataDict
 			var name = mn.Name.Name;
 			if (Enum.TryParse<CollectionType>(name, out var collType)) {
 				var (type, _) = ParseType(mn.Values);
-				return new CollectionField(type, collType, nullable);
+				int? size = mn.Values is [_, IntegerNode i] ? (int)i.Value : null;
+				return new CollectionField(type, collType, nullable, size);
 			}
 			if (name == "CUSTOM") {
 				var customName = (NameNode)mn.Values[0];
@@ -327,6 +328,9 @@ namespace Pansynchro.Core.DataDict
 			public List<Expression> VisitCollection(CollectionField type)
 			{
 				var baseList = Visit(type.BaseType);
+				if (type.Size != null) {
+					baseList.Add(new IntegerNode(type.Size.Value));
+				}
 				var coll = new ModifiedNode(new NameNode(type.CollectionType.ToString()), baseList.ToArray());
 				var result = new List<Expression>();
 				result.Add(coll);

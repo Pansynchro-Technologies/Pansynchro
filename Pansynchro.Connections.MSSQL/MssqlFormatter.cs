@@ -9,10 +9,7 @@ namespace Pansynchro.Connectors.MSSQL
 
 		private MssqlFormatter() { }
 
-		public string QuoteName(string name)
-		{
-			return '[' + name + ']';
-		}
+		public string QuoteName(string name) => '[' + name + ']';
 
 		public string LimitRows(string query, int limit)
 			=> query.ReplaceFirst("select ", $"select top {limit} ");

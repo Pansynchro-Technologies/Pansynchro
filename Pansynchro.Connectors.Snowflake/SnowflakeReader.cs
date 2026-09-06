@@ -1,6 +1,7 @@
 ﻿using System.Data.Common;
 
-using Tortuga.Data.Snowflake;
+using Snowflake.Data.Client;
+
 using Pansynchro.SQL;
 
 namespace Pansynchro.Connectors.Snowflake

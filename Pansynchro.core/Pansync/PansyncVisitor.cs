@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
+using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 
 namespace Pansynchro.Core.Pansync
@@ -62,6 +63,10 @@ namespace Pansynchro.Core.Pansync
 			var kvl = context.kv_list();
 			if (kvl != null) {
 				return VisitKvList(kvl);
+			}
+			var sl = context.subscript_list();
+			if (sl != null) {
+				return VisitSubscript_list(sl);
 			}
 			throw new NotImplementedException("Unknown expression type.");
 		}
@@ -138,11 +143,7 @@ namespace Pansynchro.Core.Pansync
 
 		public DataListNode VisitDataList(PansyncParser.Data_listContext context)
 		{
-			var exprs = context.expression();
-			var values = new Expression[exprs.Length];
-			for (int i = 0; i < values.Length; ++i) {
-				values[i] = (Expression)VisitExpression(exprs[i]);
-			}
+			var values = VisitSubscript(context.subscript());
 			return new DataListNode(values);
 		}
 
@@ -213,6 +214,28 @@ namespace Pansynchro.Core.Pansync
 			}
 			var str = (StringNode)VisitString(context.@string());
 			return new NameNode(str.Value);
+		}
+
+		PansyncNode IPansyncParserVisitor<PansyncNode>.VisitSubscript([NotNull] PansyncParser.SubscriptContext context)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Expression[] VisitSubscript([NotNull] PansyncParser.SubscriptContext context)
+		{
+			var exprs = context.expression();
+			var values = new Expression[exprs.Length];
+			for (int i = 0; i < values.Length; ++i) {
+				values[i] = (Expression)VisitExpression(exprs[i]);
+			}
+			return values;
+		}
+
+		public PansyncNode VisitSubscript_list([NotNull] PansyncParser.Subscript_listContext context)
+		{
+			var name = (NameNode)VisitTitle(context.title());
+			var values = VisitSubscript(context.subscript());
+			return new ModifiedNode(name, values);
 		}
 	}
 }

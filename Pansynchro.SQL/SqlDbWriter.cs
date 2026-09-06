@@ -20,6 +20,8 @@ namespace Pansynchro.SQL
 		private StateManager _stateManager = null!;
 		private DataDictionary? _dict;
 
+		protected DataDictionary Dict => _dict!;
+
 		protected SqlDbWriter(DbConnection conn)
 		{
 			_conn = conn;
