@@ -23,30 +23,30 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     
     - name: Test env
       run: env
     
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Setup NuGet
-      uses: NuGet/setup-nuget@v2
+      uses: NuGet/setup-nuget@v4
       with:
         nuget-version: 'latest'
 
     - name: Restore dependencies
-      uses: nick-fields/retry@v2.8.3
+      uses: nick-fields/retry@v4
       with:
         timeout_minutes: 10
         max_attempts: 3
         command: nuget restore $env:SOLUTION
 
     - name: Install Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v6
       with:
         java-version: '11'
         distribution: 'zulu'
@@ -64,7 +64,7 @@ jobs:
       run: nuget push **\*.nupkg -Source 'https://api.nuget.org/v3/index.json' -ApiKey ${{secrets.NUGET_API_KEY}} -SkipDuplicate
 
     - name: Restore PanSQL dependencies
-      uses: nick-fields/retry@v2.8.3
+      uses: nick-fields/retry@v4
       with:
         timeout_minutes: 10
         max_attempts: 3
@@ -117,30 +117,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
 
       - name: Test env
         run: env
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '9.0.x'
   
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: NuGet/setup-nuget@v4
         with:
           nuget-version: 'latest'
   
       - name: Restore PanSQL dependencies
-        uses: nick-fields/retry@v2.8.3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 3
           command: dotnet restore PanSQL/Pansynchro.PanSQL.sln
 
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '11'
           distribution: 'zulu'
@@ -161,7 +161,7 @@ jobs:
         run: dotnet publish ./PanSQL/Pansynchro.PanSQL/Pansynchro.PanSQL.csproj --os ${{ matrix.platform }} -o ./BuildResult -c Release
 
       - name: Zip
-        uses: vimtor/action-zip@v1.1
+        uses: vimtor/action-zip@v1.3
         with:
           files: ./BuildResult/
           dest: PanSQL_${{github.ref}}.${{ matrix.platform }}.zip
