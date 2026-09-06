@@ -71,7 +71,7 @@ jobs:
     - name: NuGet Publish
       if: startsWith(github.ref, 'refs/heads/release')
       # Push the package
-      run: dotnet nuget push **/*.nupkg -SkipDuplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
+      run: dotnet nuget push **/*.nupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
 
     - name: Restore PanSQL dependencies
       uses: nick-fields/retry@v4
