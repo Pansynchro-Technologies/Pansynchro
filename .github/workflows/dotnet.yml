@@ -21,6 +21,8 @@ jobs:
       PANSQL: 'PanSQL/Pansynchro.PanSQL.sln'
 
     runs-on: windows-latest
+    permissions:
+      id-token: write  # enable GitHub OIDC token issuance for this job
 
     steps:
     - uses: actions/checkout@v7
@@ -59,20 +61,17 @@ jobs:
     - name: Build
       run: dotnet build $env:SOLUTION --configuration $env:BUILD_CONFIG --no-restore
       
-    - name: Publish
+    - name: NuGet Login
       if: startsWith(github.ref, 'refs/heads/release')
-      permissions:
-        id-token: write  # enable GitHub OIDC token issuance for this job
-      steps:
-        # Get a short-lived NuGet API key
-        - name: NuGet login (OIDC → temp API key)
-          uses: NuGet/login@v1
-          id: login
-          with:
-            user: contoso-bot # Recommended: use a secret like ${{ secrets.NUGET_USER }} for your nuget.org username (profile name), NOT your email address
-        # Push the package
-        - name: NuGet push
-        run: dotnet nuget push artifacts/my-sdk.nupkg --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json      
+      # Get a short-lived NuGet API key
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: Pansynchro
+    - name: NuGet Publish
+      if: startsWith(github.ref, 'refs/heads/release')
+      # Push the package
+      run: dotnet nuget push artifacts/my-sdk.nupkg --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json      
 
     - name: Restore PanSQL dependencies
       uses: nick-fields/retry@v4
