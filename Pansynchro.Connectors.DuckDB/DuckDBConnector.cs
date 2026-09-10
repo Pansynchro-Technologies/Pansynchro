@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 using Pansynchro.Core;
 using Pansynchro.Core.Connectors;
@@ -24,4 +25,7 @@ public class DuckDBConnector : ConnectorCore
 	public override IReader GetReader(string config) => new DuckDBReader(config);
 
 	public override IWriter GetWriter(string config) => new DuckDBWriter(config);
+
+	[ModuleInitializer]
+	public static void Register() => ConnectorRegistry.RegisterConnector(new DuckDBConnector());
 }
